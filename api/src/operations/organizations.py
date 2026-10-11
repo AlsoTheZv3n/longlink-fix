@@ -7,11 +7,12 @@ from src.errors import ForbiddenError
 from src.logger import logger
 from src.kubernetes import databases as database_resources
 from src.kubernetes import organizations
-from src.operations import databases, registries
+from src.operations import billing, databases, registries
 from src.models.statuses import Status
 from src.database.session import session_scope
 from src.kubernetes.client import Kubernetes
 from src.kubernetes.storage import Storage
+from src.database.models.billing import BillingAccount
 from src.database.models.solutions import Solution
 from src.database.models.organizations import Organization
 
@@ -25,6 +26,7 @@ async def reconcile(organization_id: UUID) -> None:
     # Skip removed Organizations.
     async with session_scope() as session:
         target = await src.database.services.organizations.infrastructure(session, organization_id)
+        billed = await session.get(BillingAccount, organization_id) is not None
     if target is None:
         logger.info("Organization %s is unavailable for reconciliation; skipping", organization_id)
         return
@@ -40,6 +42,11 @@ async def reconcile(organization_id: UUID) -> None:
         compute.kubeconfig,
     )
     async with cluster:
+        # Paid upgrades expand database storage; downgraded organizations retain their previous volume size.
+        if billed:
+            await database_resources.resize(
+                cluster, organization.id, size_mib=organization.database_size_mib, instances=organization.database_instances
+            )
         storage = Storage(compute, cluster)
         await storage.apply(organization.id, quota_bytes=organization.storage_quota_bytes)
         await organizations.apply(cluster, organization.id)
@@ -63,6 +70,13 @@ async def reconcile(organization_id: UUID) -> None:
 
 async def delete(organization_id: UUID) -> None:
     """Drain runtime activity before destroying the Organization's boundaries."""
+
+    # Stop billing before any infrastructure or customer mapping can be destroyed.
+    async with session_scope() as session:
+        existing = await session.get(Organization, organization_id)
+        if existing is None:
+            return
+    await billing.cancel(organization_id)
 
     # Delegate deletion eligibility and lease admission to the locked database scope.
     async with databases.deleting(organization_id):

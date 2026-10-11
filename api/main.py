@@ -9,6 +9,7 @@ from longlink import errors as solution_errors
 from src.utils import jobs
 from src.routes import v1, mcp, branding
 from src.kubernetes import client
+from src.operations import billing
 from collections.abc import Callable, Awaitable, AsyncGenerator
 from longlink.logger import ApiAccessFilter
 from src.environments import env
@@ -32,6 +33,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         tasks = (
             asyncio.create_task(jobs.run_administrator_reconciler()),
             asyncio.create_task(jobs.run_operation_scheduler()),
+            asyncio.create_task(billing.run()),
         )
 
         yield

@@ -7,7 +7,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Section } from '@astryxdesign/core/Section';
-import { Building2, UserRound, UsersRound } from 'lucide-react';
+import { UserRound, UsersRound } from 'lucide-react';
 
 /** Renders the public pricing page. */
 export default function Pricing() {
@@ -35,7 +35,7 @@ export default function Pricing() {
                                 Billed per Organization
                             </Text>
                         </Stack>
-                        <Grid columns={{ minWidth: 280, max: 3, repeat: 'fit' }} gap={0} width="100%">
+                        <Grid columns={{ minWidth: 280, max: 2, repeat: 'fit' }} gap={0} width="100%">
                             <Card className="-mb-px -mr-px rounded-none bg-transparent" minHeight={640}>
                                 <Stack gap={0}>
                                     <Stack className="pt-12" gap={2} align="center">
@@ -100,45 +100,7 @@ export default function Pricing() {
                                     </Stack>
                                     <Divider className="my-10 w-1/3 self-center" />
                                     <Stack align="center">
-                                        <Text as="p" color="secondary" justify="center">
-                                            Coming soon
-                                        </Text>
-                                    </Stack>
-                                </Stack>
-                            </Card>
-                            <Card className="-mb-px -mr-px rounded-none bg-transparent" minHeight={640}>
-                                <Stack gap={0}>
-                                    <Stack className="pt-12" gap={2} align="center">
-                                        <Building2 aria-hidden="true" className="text-accent" size={20} />
-                                        <Stack gap={2} align="center">
-                                            <Heading level={2} justify="center">
-                                                Work
-                                            </Heading>
-                                            <Text as="p" className="px-6" type="supporting" justify="center">
-                                                More controls
-                                                <br />
-                                                for organizations
-                                            </Text>
-                                        </Stack>
-                                    </Stack>
-
-                                    <Divider className="my-10 w-1/3 self-center" />
-                                    <Stack gap={2} paddingInline={4}>
-                                        <Text as="p" color="secondary" justify="center" weight="semibold">
-                                            CHF 20 per user per month
-                                        </Text>
-                                        <Text as="p" color="secondary" justify="center">
-                                            25 GiB database storage
-                                        </Text>
-                                        <Text as="p" color="secondary" justify="center">
-                                            100 GiB file storage
-                                        </Text>
-                                    </Stack>
-                                    <Divider className="my-10 w-1/3 self-center" />
-                                    <Stack align="center">
-                                        <Text as="p" color="secondary" justify="center">
-                                            Coming soon
-                                        </Text>
+                                        <Button href="/user/organizations/" label="Choose Team" variant="primary" />
                                     </Stack>
                                 </Stack>
                             </Card>

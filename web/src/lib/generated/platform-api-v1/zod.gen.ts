@@ -55,6 +55,15 @@ export const zAuthorizationRedirect = z.object({
 });
 
 /**
+ * BillingRedirect
+ *
+ * Return a hosted Stripe session URL.
+ */
+export const zBillingRedirect = z.object({
+    url: z.url().min(1).max(2083)
+});
+
+/**
  * Body_request_password_reset_api_v1_auth_forgot_password_post
  */
 export const zBodyRequestPasswordResetApiV1AuthForgotPasswordPost = z.object({
@@ -74,6 +83,15 @@ export const zBodyRequestRegistrationApiV1AuthRegisterPost = z.object({
 export const zBodyRevokeApiV1McpRevokePost = z.object({
     token: z.string().max(128),
     client_id: z.uuid()
+});
+
+/**
+ * CheckoutRequest
+ *
+ * Choose a supported paid plan without accepting Stripe identifiers or seat quantities.
+ */
+export const zCheckoutRequest = z.object({
+    plan: z.literal('team')
 });
 
 /**
@@ -354,6 +372,30 @@ export const zPasswordLogin = z.object({
  */
 export const zPasswordResetComplete = z.object({
     password: z.string().min(1).max(1024)
+});
+
+/**
+ * Plan
+ *
+ * Supported organization plans.
+ */
+export const zPlan = z.enum(['free', 'team']);
+
+/**
+ * BillingResponse
+ *
+ * Expose billing state without customer identifiers or payment details.
+ */
+export const zBillingResponse = z.object({
+    plan: zPlan,
+    seats: z.int().gte(0),
+    status: z.string(),
+    enabled: z.boolean(),
+    subscribed: z.boolean(),
+    payment_required: z.boolean(),
+    cancel_at_period_end: z.boolean(),
+    period_end: z.iso.datetime().nullable(),
+    seat_limit: z.int().nullable()
 });
 
 /**

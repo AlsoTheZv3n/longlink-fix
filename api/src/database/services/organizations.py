@@ -11,12 +11,13 @@ from collections.abc import Sequence
 from longlink.shared import audit as shared_audit
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
-from src.database.services import operations
+from src.database.services import billing, operations
 from src.models.operations import OperationKind
 from src.models.pagination import Pagination
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.organizations import OrganizationInvitationCreate
 from src.database.models.users import User
+from src.database.models.billing import BillingAccount
 from src.database.models.computes import ComputeRegistry
 from src.database.models.solutions import Revision, Solution
 from src.database.models.operations import Operation
@@ -353,6 +354,19 @@ async def project_users(session: AsyncSession, organization_id: UUID, db: postgr
         await shared_audit.sync(conn, rows)
 
 
+async def lock(session: AsyncSession, organization_id: UUID) -> Organization:
+    """Serialize organization commands and membership admission on every supported database."""
+
+    # A no-op write also takes a lock on SQLite, where FOR UPDATE is ignored.
+    await session.execute(
+        sql_update(Organization).where(col(Organization.id) == organization_id).values(updated_at=col(Organization.updated_at))
+    )
+    organization = await session.get(Organization, organization_id, populate_existing=True)
+    if organization is None:
+        raise ForbiddenError("Organization unavailable")
+    return organization
+
+
 async def locked_membership(
     session: AsyncSession, user_id: UUID, organization_id: UUID, minimum_role: OrganizationRoles
 ) -> UserOrganization:
@@ -431,6 +445,41 @@ async def update_member_role(
 
     # Persist the role change.
     membership.role = role
+
+
+async def remove_member(session: AsyncSession, organization_id: UUID, member_id: UUID, user_id: UUID) -> None:
+    """Remove access and update Stripe seats without removing historical user records."""
+
+    # Serialize member changes and revalidate the caller after taking the organization lock.
+    organization = await lock(session, organization_id)
+    if organization.deleted_at is not None:
+        raise ForbiddenError("Access required")
+    caller = await locked_membership(session, user_id, organization_id, OrganizationRoles.admin)
+    membership = await session.get(UserOrganization, (member_id, organization_id), populate_existing=True, with_for_update=True)
+    if membership is None:
+        raise NotFoundError("Organization member not found")
+
+    # Only owners can remove owners, and every organization must retain an active owner.
+    if membership.role == OrganizationRoles.owner:
+        if caller.role != OrganizationRoles.owner:
+            raise ForbiddenError("Owner management permissions required")
+        other_owner = await session.scalar(
+            select(col(UserOrganization.user_id))
+            .join(User, col(User.id) == col(UserOrganization.user_id))
+            .where(
+                col(UserOrganization.organization_id) == organization_id,
+                col(UserOrganization.role) == OrganizationRoles.owner,
+                col(UserOrganization.user_id) != member_id,
+                col(User.deleted_at).is_(None),
+            )
+            .limit(1)
+        )
+        if other_owner is None:
+            raise ConflictError("Organization must have at least one owner")
+
+    # Update Stripe before committing access removal; provider failures roll back the membership change.
+    await session.delete(membership)
+    await billing.update_seats(session, organization_id)
 
 
 async def create(
@@ -517,12 +566,16 @@ async def create_invitation(
     """Authorize and create one Organization invitation."""
 
     # Lock the Organization before revalidating the caller's active invitation permission.
-    organization = await session.get(Organization, organization_id, populate_existing=True, with_for_update=True)
-    if organization is None or organization.deleted_at is not None:
+    organization = await lock(session, organization_id)
+    if organization.deleted_at is not None:
         raise ForbiddenError("Access required")
     membership = await locked_membership(session, user_id, organization_id, OrganizationRoles.maintain)
     if not roles.atleast(membership.role, payload.role):
         raise ForbiddenError("Invitation role permissions required")
+
+    # Pending invitations are not billed, but full or delinquent organizations cannot invite more members.
+    if not await billing.admit_member(session, organization_id):
+        raise ConflictError("Member limit reached or billing requires attention. Upgrade or remove a member first.")
 
     # Reject emails that already belong to the locked Organization.
     if (
@@ -632,6 +685,9 @@ async def soft_delete(session: AsyncSession, organization_id: UUID, user: User) 
         )
 
     # Keep tombstones and Organization cleanup in one transaction.
+    account = await session.get(BillingAccount, organization.id)
+    if account is not None:
+        account.next_action_at = datetime.now(UTC)
     await operations.enqueue(session, kind=OperationKind.organization_delete, target_id=organization.id)
 
     return organization

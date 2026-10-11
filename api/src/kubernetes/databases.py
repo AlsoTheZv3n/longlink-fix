@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from src.utils import templates
 from src.kubernetes import utils, namespace
 from importlib.resources import files
-from kr8s.asyncio.objects import Pod, Secret, new_class, object_from_spec
+from kr8s.asyncio.objects import Pod, Secret, ResourceQuota, new_class, object_from_spec
 
 if TYPE_CHECKING:
     from src.kubernetes.client import Kubernetes
@@ -80,6 +80,18 @@ async def apply(
     )
     await utils.apply(cluster)
     await resume(client, organization_id)
+
+
+async def resize(client: "Kubernetes", organization_id: UUID, *, size_mib: int, instances: int) -> None:
+    """Apply monotonically increasing desired database capacity without reprovisioning credentials."""
+
+    # Desired capacity is retained on downgrades; expand namespace admission before CNPG requests larger PVCs.
+    api = await client.api()
+    database_namespace = namespace.database(organization_id)
+    quota = ResourceQuota("longlink-database", namespace=database_namespace, api=api)
+    await quota.patch({"spec": {"hard": {"requests.storage": f"{size_mib * (instances + 1)}Mi"}}})
+    cluster = ClusterResource("database", namespace=database_namespace, api=api)
+    await cluster.patch({"spec": {"storage": {"size": f"{size_mib}Mi"}}})
 
 
 async def resume(client: "Kubernetes", organization_id: UUID) -> None:

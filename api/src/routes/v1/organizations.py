@@ -242,6 +242,15 @@ async def update_organization_member(
     await session.commit()
 
 
+@router.delete("/organizations/{organization_id}/members/{member_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationAdmin.
+async def remove_organization_member(member_id: UUID, membership: auth.OrganizationAdmin, session: auth.Session):
+    """Revoke one member's organization access and synchronize the billable seat count."""
+
+    # The service revalidates permissions and protects the last owner under the organization lock.
+    await organizations.remove_member(session, membership.organization_id, member_id, membership.user_id)
+    await session.commit()
+
+
 @router.delete("/organizations/{organization_id}", status_code=202, response_model=OrganizationIdentity)
 async def delete_organization(
     organization_id: UUID,

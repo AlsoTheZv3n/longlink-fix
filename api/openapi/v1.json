@@ -2304,6 +2304,74 @@
             "description": "Default Response"
           }
         }
+      },
+      "delete": {
+        "summary": "Remove Organization Member",
+        "description": "Revoke one member's organization access and synchronize the billable seat count.",
+        "operationId": "remove_organization_member_api_v1_organizations__organization_id__members__member_id__delete",
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Member Id"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
       }
     },
     "/api/v1/me": {
@@ -2781,6 +2849,249 @@
               }
             },
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing": {
+      "get": {
+        "summary": "Get Billing",
+        "description": "Show plan and seat totals to organization members without exposing payment information.",
+        "operationId": "get_billing_api_v1_organizations__organization_id__billing_get",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing/checkout": {
+      "post": {
+        "summary": "Create Checkout",
+        "description": "Allow current organization owners to start a hosted subscription checkout.",
+        "operationId": "create_checkout_api_v1_organizations__organization_id__billing_checkout_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingRedirect"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing/portal": {
+      "post": {
+        "summary": "Create Portal",
+        "description": "Allow current owners to manage payment details, invoices, plans, and cancellation in Stripe.",
+        "operationId": "create_portal_api_v1_organizations__organization_id__billing_portal_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingRedirect"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/billing/webhook": {
+      "post": {
+        "summary": "Receive Webhook",
+        "description": "Durably acknowledge only signed Stripe events for this deployment's billing mode.",
+        "operationId": "receive_webhook_api_v1_billing_webhook_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -3639,6 +3950,92 @@
         "title": "AuthorizationRedirect",
         "description": "Return a validated client redirect after a browser consent decision."
       },
+      "BillingRedirect": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "BillingRedirect",
+        "description": "Return a hosted Stripe session URL."
+      },
+      "BillingResponse": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/Plan"
+          },
+          "seats": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seats"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "subscribed": {
+            "type": "boolean",
+            "title": "Subscribed"
+          },
+          "payment_required": {
+            "type": "boolean",
+            "title": "Payment Required"
+          },
+          "cancel_at_period_end": {
+            "type": "boolean",
+            "title": "Cancel At Period End"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "seat_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan",
+          "seats",
+          "status",
+          "enabled",
+          "subscribed",
+          "payment_required",
+          "cancel_at_period_end",
+          "period_end",
+          "seat_limit"
+        ],
+        "title": "BillingResponse",
+        "description": "Expose billing state without customer identifiers or payment details."
+      },
       "Body_request_password_reset_api_v1_auth_forgot_password_post": {
         "properties": {
           "email": {
@@ -3686,6 +4083,21 @@
           "client_id"
         ],
         "title": "Body_revoke_api_v1_mcp_revoke_post"
+      },
+      "CheckoutRequest": {
+        "properties": {
+          "plan": {
+            "type": "string",
+            "const": "team",
+            "title": "Plan"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan"
+        ],
+        "title": "CheckoutRequest",
+        "description": "Choose a supported paid plan without accepting Stripe identifiers or seat quantities."
       },
       "ClientRegistration": {
         "properties": {
@@ -4531,6 +4943,15 @@
         ],
         "title": "PasswordResetComplete",
         "description": "Validate a new password supplied with browser-only reset proof."
+      },
+      "Plan": {
+        "type": "string",
+        "enum": [
+          "free",
+          "team"
+        ],
+        "title": "Plan",
+        "description": "Supported organization plans."
       },
       "RegisteredClient": {
         "properties": {

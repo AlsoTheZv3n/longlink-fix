@@ -10,6 +10,13 @@ class Env(BaseSettings):
     # Runtime scheduling
     OPERATION_TIMEOUT_SECONDS: int = Field(default=180, ge=60, le=1740)
 
+    # Optional organization billing
+    BILLING_ENABLED: bool = False
+    STRIPE_SECRET_KEY: str | None = Field(default=None, min_length=1)
+    STRIPE_WEBHOOK_SECRET: str | None = Field(default=None, min_length=1)
+    STRIPE_TEAM_PRICE_ID: str | None = Field(default=None, pattern=r"^price_[A-Za-z0-9]+$")
+    STRIPE_PORTAL_CONFIGURATION_ID: str | None = Field(default=None, pattern=r"^bpc_[A-Za-z0-9]+$")
+
     # Authentication
     PUBLIC_URL: str = Field(default="http://localhost:5173", pattern=r"^https?://")
     SESSION_KEY: str = Field(min_length=32)
@@ -55,6 +62,22 @@ class Env(BaseSettings):
         if public.username is not None or public.password is not None or public.path not in {None, "/"} or public.query or public.fragment:
             raise ValueError("PUBLIC_URL must be an origin without credentials, path, query, or fragment")
         self.PUBLIC_URL = str(public).rstrip("/")
+
+        # Paid deployments require a complete Stripe configuration; unconfigured installations remain free.
+        if self.BILLING_ENABLED:
+            if not all(
+                (
+                    self.STRIPE_SECRET_KEY,
+                    self.STRIPE_WEBHOOK_SECRET,
+                    self.STRIPE_TEAM_PRICE_ID,
+                    self.STRIPE_PORTAL_CONFIGURATION_ID,
+                )
+            ):
+                raise ValueError("Billing requires Stripe keys, a Team price, and a Portal configuration")
+            if not self.STRIPE_SECRET_KEY.startswith(("sk_test_", "sk_live_", "rk_test_", "rk_live_")):
+                raise ValueError("STRIPE_SECRET_KEY must be a Stripe secret or restricted key")
+            if not self.STRIPE_WEBHOOK_SECRET.startswith("whsec_"):
+                raise ValueError("STRIPE_WEBHOOK_SECRET must be a Stripe signing secret")
 
         # All authentication workflows use a real SMTP server, including local mail capture.
         if not self.SMTP_HOST.strip():
