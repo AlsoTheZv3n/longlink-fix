@@ -177,7 +177,8 @@ async def complete(session: AsyncSession, operation_id: UUID) -> bool:
     if operation.kind != OperationKind.solution_deploy:
         return True
 
-    revision = await session.get(Revision, operation.target_id)
+    # Resolve revision ownership without decrypting its unused runtime environments.
+    revision = await session.get(Revision, operation.target_id, options=(defer(attr(Revision.envs)),))
     if revision is None:
         return True
 
@@ -240,13 +241,20 @@ async def fail(session: AsyncSession, operation_id: UUID, reason: str) -> bool:
     if operation.kind != OperationKind.solution_deploy:
         return True
 
-    revision = await session.get(Revision, operation.target_id)
+    # Load observed revision state and audit fields without decrypting runtime environments.
+    revision = await session.get(Revision, operation.target_id, options=(defer(attr(Revision.envs)),))
     if revision is None:
         return True
     if revision.deployed_at is None:
         revision.failed = True
 
-    solution = await session.get(Solution, revision.solution_id, with_for_update=True)
+    # Preserve the Solution lock and audit fields without loading unused runtime secrets.
+    solution = await session.get(
+        Solution,
+        revision.solution_id,
+        options=(defer(attr(Solution.secrets)),),
+        with_for_update=True,
+    )
     if solution is None or solution.deleted_at is not None:
         return True
 

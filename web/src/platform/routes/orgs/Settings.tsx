@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { api } from '@/lib/api';
+import { useState } from 'react';
 import Registries from './Registries';
 import { OpenAI } from '@/components/OpenAI';
 import { useApi } from '@/lib/hooks/use-api';
@@ -11,7 +12,6 @@ import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@astryxdesign/core/Badge';
 import { useQuery } from '@tanstack/react-query';
-import { useState, type MouseEvent } from 'react';
 import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
 import { useToast } from '@astryxdesign/core/Toast';
@@ -23,16 +23,17 @@ import { Selector } from '@astryxdesign/core/Selector';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { DialogClose } from '@/components/ui/DialogClose';
+import { SideNavItem } from '@/components/ui/SideNavItem';
 import { Stack, StackItem } from '@astryxdesign/core/Stack';
 import { ProgressBar } from '@astryxdesign/core/ProgressBar';
+import { useLocation, useOutletContext } from 'react-router';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
-import { useLocation, useNavigate, useOutletContext } from 'react-router';
+import { SideNav, SideNavSection } from '@astryxdesign/core/SideNav';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
-import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
 import {
     ArrowRight,
     ArrowUp,
@@ -292,9 +293,9 @@ const peopleSections = [
 /** Shares organization identity and permissions while sections own resource lifetimes. */
 export default function OrganizationSettings() {
     const membership = useOutletContext<z.output<typeof schemas.zUserOrganizationMembership>>();
+
     const base = `/api/v1/organizations/${membership.organization.id}`;
     const location = useLocation();
-    const navigate = useNavigate();
 
     // Unknown fragments select General; inactive sections never mount their queries or drafts.
     const section =
@@ -305,24 +306,6 @@ export default function OrganizationSettings() {
     // Share the layout-resolved identity and permissions without loading inactive sections.
     const canMaintain = ['maintain', 'admin', 'owner'].includes(membership.role);
     const canAdminister = ['admin', 'owner'].includes(membership.role);
-
-    /** Preserves ordinary-click history pushes while leaving modified clicks to the native link. */
-    function selectSection(event: MouseEvent, id: string) {
-        // Leave prevented and modified activations to the native link.
-        if (
-            event.defaultPrevented ||
-            event.button !== 0 ||
-            event.altKey ||
-            event.ctrlKey ||
-            event.metaKey ||
-            event.shiftKey
-        )
-            return;
-
-        // Push even when the selected fragment is already current, matching the existing Menu behavior.
-        event.preventDefault();
-        void navigate({ pathname: location.pathname, search: location.search, hash: `#${id}` });
-    }
 
     return (
         <Stack gap={8}>
@@ -355,12 +338,10 @@ export default function OrganizationSettings() {
                                 >
                                     {organizationSections.map((item) => (
                                         <SideNavItem
-                                            as="a"
                                             href={`${location.pathname}${location.search}#${item.id}`}
                                             isSelected={section === item.id}
                                             key={item.id}
                                             label={item.label}
-                                            onClick={(event) => selectSection(event, item.id)}
                                         />
                                     ))}
                                 </SideNavItem>
@@ -371,22 +352,18 @@ export default function OrganizationSettings() {
                                 >
                                     {peopleSections.map((item) => (
                                         <SideNavItem
-                                            as="a"
                                             href={`${location.pathname}${location.search}#${item.id}`}
                                             isSelected={section === item.id}
                                             key={item.id}
                                             label={item.label}
-                                            onClick={(event) => selectSection(event, item.id)}
                                         />
                                     ))}
                                 </SideNavItem>
                                 <SideNavItem
-                                    as="a"
                                     href={`${location.pathname}${location.search}#solutions`}
                                     icon={<Boxes className="size-4" aria-hidden="true" />}
                                     isSelected={section === 'solutions'}
                                     label="Solutions"
-                                    onClick={(event) => selectSection(event, 'solutions')}
                                 />
                             </SideNavSection>
                         </SideNav>
@@ -747,8 +724,16 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
                                                     options={[
                                                         { value: 'read', label: 'read', icon: EyeOff },
                                                         { value: 'write', label: 'write', icon: ArrowUp },
-                                                        { value: 'maintain', label: 'maintain', icon: Wrench },
-                                                        { value: 'admin', label: 'admin', icon: CheckCheck },
+                                                        {
+                                                            value: 'maintain',
+                                                            label: 'maintain',
+                                                            icon: Wrench,
+                                                        },
+                                                        {
+                                                            value: 'admin',
+                                                            label: 'admin',
+                                                            icon: CheckCheck,
+                                                        },
                                                     ]}
                                                     onChange={(role) => setInvitation({ ...invitation, role })}
                                                     width="100%"
@@ -858,7 +843,12 @@ function BillingSection({ base }: { base: string }) {
                     columns={[
                         { key: 'id', header: 'Invoice', width: proportional(2) },
                         { key: 'date', header: 'Date', width: proportional(1) },
-                        { key: 'amount', header: 'Amount', align: 'end', width: proportional(1) },
+                        {
+                            key: 'amount',
+                            header: 'Amount',
+                            align: 'end',
+                            width: proportional(1),
+                        },
                         { key: 'status', header: 'Status', width: proportional(1) },
                     ]}
                 />
@@ -894,6 +884,7 @@ function UsageMeter({ base, resource }: { base: string; resource: 'storage' | 'd
     function formatStorage(bytes: number) {
         // Keep zero explicit and preserve readable precision for small usage amounts.
         const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+
         const unit = bytes === 0 ? 0 : Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
 
         return `${(bytes / 1024 ** unit).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${units[unit]}`;
