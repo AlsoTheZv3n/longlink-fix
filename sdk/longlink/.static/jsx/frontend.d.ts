@@ -4514,6 +4514,84 @@ type ColumnWidth = { type: 'proportional'; value: number; minWidth?: number } | 
 // Generated from web/src/views/components.ts by vp run generate:docs. Do not edit.
 
 /** @category Layouts */
+declare function Layout(props: {
+    /** Hides the layout without unmounting its content. */
+    hidden?: boolean;
+    /** Main content; shorthand for the content slot. */
+    children?: ViewNode;
+    content?: ViewNode;
+    header?: ViewNode;
+    footer?: ViewNode;
+    start?: ViewNode;
+    end?: ViewNode;
+    /** Fill a bounded container or grow with content. */
+    height?: 'fill' | 'auto';
+    /** Maximum aligned content width; numbers are pixels and strings are CSS sizes. */
+    contentWidth?: number | string;
+    /** Insets this layout's regions using the spacing scale. Omit to retain Astryx's contextual padding. */
+    padding?: Spacing;
+    /** Default for header and footer dividers; omitted values inherit the surrounding layout. */
+    defaultHasDividers?: boolean;
+}): React.JSX.Element;
+
+/** @category Layouts @group Layout */
+declare function LayoutContent(props: {
+    /** Hides the region without unmounting its content. */
+    hidden?: boolean;
+    children?: ViewNode;
+    padding?: Spacing;
+    isScrollable?: boolean;
+    /** Accessible name for the region; distinguish repeated landmarks with labels. */
+    label?: string;
+    role?: 'main' | 'region';
+}): React.JSX.Element;
+
+/** @category Layouts @group Layout */
+declare function LayoutHeader(props: {
+    /** Hides the header without unmounting its content. */
+    hidden?: boolean;
+    children?: ViewNode;
+    /** Overrides the surrounding layout's divider default when provided. */
+    hasDivider?: boolean;
+    /** Header height; numbers are pixels and strings are CSS sizes. */
+    height?: number | string;
+    padding?: Spacing;
+    paddingBlockEnd?: Spacing;
+    label?: string;
+    /** Use banner only for a site-wide header, not a nested View section. */
+    role?: 'banner' | 'region';
+}): React.JSX.Element;
+
+/** @category Layouts @group Layout */
+declare function LayoutFooter(props: {
+    /** Hides the footer without unmounting its content. */
+    hidden?: boolean;
+    children?: ViewNode;
+    /** Overrides the surrounding layout's divider default when provided. */
+    hasDivider?: boolean;
+    /** Footer height; numbers are pixels and strings are CSS sizes. */
+    height?: number | string;
+    padding?: Spacing;
+    label?: string;
+    /** Use contentinfo only for a site-wide footer, not a nested View section. */
+    role?: 'contentinfo' | 'region';
+}): React.JSX.Element;
+
+/** @category Layouts @group Layout */
+declare function LayoutPanel(props: {
+    /** Hides the panel without unmounting its content. */
+    hidden?: boolean;
+    children?: ViewNode;
+    hasDivider?: boolean;
+    padding?: Spacing;
+    isScrollable?: boolean;
+    label?: string;
+    role?: 'complementary' | 'navigation' | 'region';
+    /** Panel width; numbers are pixels and strings are CSS sizes. */
+    width?: number | string;
+}): React.JSX.Element;
+
+/** @category Layouts */
 declare function Stack(props: {
     children?: ViewNode;
     /** Hides the stack while keeping children mounted and enabled for form submission and validation. */
