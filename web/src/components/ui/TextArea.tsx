@@ -9,20 +9,32 @@ type TextAreaProps = FieldProps & {
     onChange?: (value: string) => void;
     placeholder?: string;
     rows?: number;
+    /** Maximum Unicode code points, matching Python string length. Validates without truncating input. */
     maxLength?: number;
     hasAutoFocus?: boolean;
     autoComplete?: string;
 };
 
-/** Edits themed multi-line text with native form serialization. */
+/** Edits themed multi-line text with native form serialization. Required fields cannot be blank. */
 export function TextArea(props: TextAreaProps) {
     // Keep optional editing state local while retaining the actual themed textarea.
-    const { defaultValue, ...control } = props;
+    const { defaultValue, maxLength, ...control } = props;
     const field = useValue(props.value, defaultValue ?? '', props.onChange);
 
-    // Always enable spell checking and default to three editable rows with no focus stealing.
+    // Validate Python-compatible lengths without Astryx's grapheme counter or native UTF-16 limits.
     return (
-        <FormField {...props} fieldRef={field.ref} values={[field.value]}>
+        <FormField
+            {...props}
+            fieldRef={field.ref}
+            values={[field.value]}
+            error={
+                props.required && !field.value.trim()
+                    ? 'Please complete this field.'
+                    : maxLength !== undefined && Array.from(field.value).length > maxLength
+                      ? `Use no more than ${maxLength} characters.`
+                      : undefined
+            }
+        >
             <AstryxTextArea
                 {...control}
                 value={field.value}

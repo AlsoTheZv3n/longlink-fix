@@ -2067,6 +2067,7 @@
 - name: TextArea
   category: Form
   introduction: Edits themed multi-line text with native form serialization.
+    Required fields cannot be blank.
   properties:
     - name: hidden
       type: boolean
@@ -2122,15 +2123,8 @@
 
     - name: maxLength
       type: number
-      description: "Maximum number of characters allowed, counted as user-perceived
-        characters: an emoji or flag sequence counts as one. When set, a
-        character counter (current/max) is displayed inside the input container,
-        anchored to the bottom-right beneath the text. Does not enforce the
-        limit natively; when exceeded the counter turns red and shows a warning
-        icon (a non-color cue), and screen-reader users hear the
-        remaining/over-limit count announced. Consumers validating the limit
-        should count with characterCount (exported from the package) so
-        enforcement matches the displayed count."
+      description: Maximum Unicode code points, matching Python string length.
+        Validates without truncating input.
 
     - name: hasAutoFocus
       type: boolean
@@ -2145,7 +2139,8 @@
 
 - name: TextInput
   category: Form
-  introduction: Edits themed text with optional local state and native form serialization.
+  introduction: Edits themed text with optional local state and native form
+    serialization. Required fields cannot be blank.
   properties:
     - name: hidden
       type: boolean
@@ -2195,6 +2190,11 @@
     - name: placeholder
       type: string
       description: Placeholder text shown when the input is empty.
+
+    - name: maxLength
+      type: number
+      description: Maximum Unicode code points, matching Python string length.
+        Validates without truncating input.
 
     - name: type
       type: '"text" | "password" | "email"'
