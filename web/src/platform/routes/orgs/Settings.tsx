@@ -735,6 +735,15 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
 function StorageSection({ base }: { base: string }) {
     const [storage] = useApi(`${base}/storage`, schemas.zOrganizationStorageUsageResponse);
 
+    /** Formats byte counts with binary units matching the storage quota. */
+    function formatStorage(bytes: number) {
+        // Keep zero explicit and preserve readable precision for small usage amounts.
+        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+        const unit = bytes === 0 ? 0 : Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+
+        return `${(bytes / 1024 ** unit).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${units[unit]}`;
+    }
+
     return (
         <Stack gap={4}>
             <Stack justify="end" minHeight="var(--size-element-md)">
@@ -743,7 +752,13 @@ function StorageSection({ base }: { base: string }) {
                 </Heading>
             </Stack>
             <Divider />
-            <ProgressBar label="Storage" value={storage.space_used} max={storage.quota_bytes} />
+            <ProgressBar
+                label="Storage"
+                value={storage.space_used}
+                max={storage.quota_bytes}
+                hasValueLabel
+                formatValueLabel={() => `${formatStorage(storage.space_used)} / ${formatStorage(storage.quota_bytes)}`}
+            />
         </Stack>
     );
 }

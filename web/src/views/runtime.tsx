@@ -108,6 +108,20 @@ async function request(
     const command = requestSchema.parse({ ...options, type: 'request', id, path, method: options.method ?? 'GET' });
 
     if (messageSize(command) > MAX_MESSAGE_SIZE) throw new Error('Solution request is too large');
+
+    // Chromium cannot upload disk-backed files received from an opaque-origin frame; copy bounded bytes here.
+    for (const entry of command.form ?? []) {
+        const value = entry[1];
+
+        if (value instanceof Blob) {
+            const bytes = await value.arrayBuffer();
+            entry[1] =
+                value instanceof File
+                    ? new File([bytes], value.name, { type: value.type, lastModified: value.lastModified })
+                    : new Blob([bytes], { type: value.type });
+        }
+    }
+
     const data = await exchange(command);
 
     // Refresh active data and mark inactive resources stale only after the write succeeds.
