@@ -10,6 +10,7 @@ import { TableExample } from './views/Table';
 import { TokenExample } from './views/Token';
 import { AvatarExample } from './views/Avatar';
 import { DialogExample } from './views/Dialog';
+import { LayoutExample } from './views/Layout';
 import { SliderExample } from './views/Slider';
 import { SwitchExample } from './views/Switch';
 import { Code } from '@astryxdesign/core/Code';
@@ -99,6 +100,7 @@ const previews = new Map(
         Icon: <IconExample />,
         IconButton: <IconButtonExample />,
         Link: <LinkExample />,
+        Layout: <LayoutExample />,
         // Show only the navigation in the thumbnail; the full Menu has a fixed-width sidebar and content panel.
         Menu: (
             <SideNav className="h-auto w-full">

@@ -955,6 +955,169 @@
       description: Standard click handler.
 
 
+- name: Layout
+  category: Layouts
+  introduction: Arranges header, footer, side panels, and main content within a
+    View or bounded container.
+  properties:
+    - name: hidden
+      type: boolean
+      description: Hides the layout without unmounting its content.
+
+    - name: children
+      type: ReactNode
+      description: Main content; shorthand for the content slot.
+
+    - name: content
+      type: ReactNode
+      description: "Content slot (center). Accepts any ReactNode; use LayoutContent
+        when a content region is needed. Children passed to `<Layout>` render
+        here too: `<Layout>{main}</Layout>` is shorthand for `<Layout
+        content={main} />`."
+
+    - name: header
+      type: ReactNode
+      description: Header slot. Accepts any ReactNode; use LayoutHeader when a header
+        region is needed.
+
+    - name: footer
+      type: ReactNode
+      description: Footer slot. Accepts any ReactNode; use LayoutFooter when a footer
+        region is needed.
+
+    - name: start
+      type: ReactNode
+      description: Logical-start slot (left in LTR). Accepts any ReactNode; use
+        LayoutPanel when a panel region is needed.
+
+    - name: end
+      type: ReactNode
+      description: Logical-end slot (right in LTR). Accepts any ReactNode; use
+        LayoutPanel when a panel region is needed.
+
+    - name: height
+      type: '"fill" | "auto"'
+      description: Fill a bounded container or grow with content.
+      default: fill
+
+    - name: contentWidth
+      type: string | number
+      description: Maximum aligned content width; numbers are pixels and strings are
+        CSS sizes.
+
+    - name: padding
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+      description: Insets this layout's regions using the spacing scale. Omit to
+        retain Astryx's contextual padding.
+
+    - name: defaultHasDividers
+      type: boolean
+      description: Default for header and footer dividers; omitted values inherit the
+        surrounding layout.
+
+    - name: LayoutContent.hidden
+      type: boolean
+      description: Hides the region without unmounting its content.
+
+    - name: LayoutContent.children
+      type: ReactNode
+
+    - name: LayoutContent.padding
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+
+    - name: LayoutContent.isScrollable
+      type: boolean
+      default: true
+
+    - name: LayoutContent.label
+      type: string
+      description: Accessible name for the region; distinguish repeated landmarks with
+        labels.
+
+    - name: LayoutContent.role
+      type: '"main" | "region"'
+
+    - name: LayoutHeader.hidden
+      type: boolean
+      description: Hides the header without unmounting its content.
+
+    - name: LayoutHeader.children
+      type: ReactNode
+
+    - name: LayoutHeader.hasDivider
+      type: boolean
+      description: Overrides the surrounding layout's divider default when provided.
+
+    - name: LayoutHeader.height
+      type: string | number
+      description: Header height; numbers are pixels and strings are CSS sizes.
+
+    - name: LayoutHeader.padding
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+
+    - name: LayoutHeader.paddingBlockEnd
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+
+    - name: LayoutHeader.label
+      type: string
+
+    - name: LayoutHeader.role
+      type: '"region" | "banner"'
+      description: Use banner only for a site-wide header, not a nested View section.
+
+    - name: LayoutFooter.hidden
+      type: boolean
+      description: Hides the footer without unmounting its content.
+
+    - name: LayoutFooter.children
+      type: ReactNode
+
+    - name: LayoutFooter.hasDivider
+      type: boolean
+      description: Overrides the surrounding layout's divider default when provided.
+
+    - name: LayoutFooter.height
+      type: string | number
+      description: Footer height; numbers are pixels and strings are CSS sizes.
+
+    - name: LayoutFooter.padding
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+
+    - name: LayoutFooter.label
+      type: string
+
+    - name: LayoutFooter.role
+      type: '"region" | "contentinfo"'
+      description: Use contentinfo only for a site-wide footer, not a nested View section.
+
+    - name: LayoutPanel.hidden
+      type: boolean
+      description: Hides the panel without unmounting its content.
+
+    - name: LayoutPanel.children
+      type: ReactNode
+
+    - name: LayoutPanel.hasDivider
+      type: boolean
+
+    - name: LayoutPanel.padding
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+
+    - name: LayoutPanel.isScrollable
+      type: boolean
+      default: true
+
+    - name: LayoutPanel.label
+      type: string
+
+    - name: LayoutPanel.role
+      type: '"region" | "complementary" | "navigation"'
+
+    - name: LayoutPanel.width
+      type: string | number
+      description: Panel width; numbers are pixels and strings are CSS sizes.
+
+
 - name: Link
   category: Action
   introduction: Navigates within the Solution or opens an external HTTP(S) URL in a new tab.
@@ -1641,7 +1804,7 @@
       description: Content rendered inside the stack item.
 
     - name: StackItem.size
-      type: '"static" | "fill"'
+      type: '"fill" | "static"'
       default: static
 
     - name: StackItem.isScrollable
