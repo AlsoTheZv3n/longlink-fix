@@ -1,6 +1,8 @@
 import type { z } from 'zod';
 import { api } from '@/lib/api';
 import { useState } from 'react';
+import { Form } from '@/components/Form';
+import { useApiError } from '@/lib/errors';
 import { useApi } from '@/lib/hooks/use-api';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
@@ -105,14 +107,21 @@ function RegistryForm({
     onClose: () => void;
 }) {
     const [credential, setCredential] = useState('');
+    const reportError = useApiError();
 
     /** Saves credentials and queues synchronization of Kubernetes pull secrets. */
     async function save() {
         // Submit new credentials without loading saved tokens.
-        const json = schemas.zRegistryCreateWritable.parse({ credential });
-        await api.post(`${base}/registries`, { json });
-        await invalidate();
-        onClose();
+        try {
+            const json = schemas.zRegistryCreateWritable.parse({ credential });
+            await api.post(`${base}/registries`, { json });
+            await invalidate();
+            onClose();
+        } catch (failure) {
+            // Apply root session policy while Form retains the draft and displays the failure.
+            reportError(failure);
+            throw failure;
+        }
     }
 
     // Match Solution creation's 960px shell, 560px height, and 640px scrolling content column.
@@ -158,7 +167,7 @@ function RegistryForm({
                                         </Text>
                                     </Stack>
                                 </Stack>
-                                <form action={save}>
+                                <Form action={save} submitDisabled={!credential.trim()}>
                                     <Stack gap={3}>
                                         <Text as="p">GitHub Container Registry (ghcr.io)</Text>
                                         <Stack className="[&_.astryx-field-label_.astryx-icon]:ml-auto">
@@ -183,7 +192,7 @@ function RegistryForm({
                                             />
                                         </Stack>
                                     </Stack>
-                                </form>
+                                </Form>
                             </Stack>
                         </LayoutContent>
                     }

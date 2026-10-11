@@ -9,6 +9,8 @@ import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@astryxdesign/core/Badge';
+import { useQuery } from '@tanstack/react-query';
+import { useState, type MouseEvent } from 'react';
 import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
 import { useToast } from '@astryxdesign/core/Toast';
@@ -26,7 +28,6 @@ import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
-import { useState, useTransition, type MouseEvent } from 'react';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 import { useLocation, useNavigate, useOutletContext } from 'react-router';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
@@ -49,10 +50,9 @@ import {
 type Solution = z.output<typeof schemas.zOrganizationSolutionSummary>;
 
 type Update = {
-    // Remount drafts for every fresh check, including checks of the same revision.
+    // Scope inspection and drafts to one freshly opened review attempt.
     key: string;
     item: { id: string; name: string };
-    candidate: z.output<typeof schemas.zSolutionUpdateCheck>;
 };
 
 type DeploymentReviewProps = {
@@ -67,26 +67,42 @@ function imageDigest(image: string) {
     return image.match(/@(sha256:[a-f0-9]{12})[a-f0-9]*$/)?.[1] ?? image;
 }
 
-/** Owns the deployment draft and submission for a freshly checked candidate. */
+/** Owns fresh inspection, the deployment draft, and submission for one review attempt. */
 function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps) {
     const [envs, setEnvs] = useState<Record<string, { value?: string; removed?: boolean }>>({});
 
+    // Keep inspection attempt-local, cancel on unmount, and never refresh beneath an edited draft.
+    const path = `/api/v1/solutions/${update.item.id}/update`;
+
+    const {
+        data: candidate,
+        isPending,
+        refetch,
+    } = useQuery({
+        queryKey: ['api', path, update.key],
+        queryFn: ({ signal }) => api(path, { signal }).json(schemas.zSolutionUpdateCheck),
+        gcTime: 0,
+        staleTime: Infinity,
+        retry: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+
     // Preserve configured required secrets, and require values for new required environments.
-    const missingRequired = (update.candidate.metadata.environments ?? []).some(
+    const missingRequired = (candidate?.metadata.environments ?? []).some(
         (environment) =>
             environment.required &&
             (envs[environment.name]?.removed === true ||
-                (!update.candidate.configured_envs.includes(environment.name) &&
-                    !envs[environment.name]?.value?.trim()))
+                (!candidate?.configured_envs.includes(environment.name) && !envs[environment.name]?.value?.trim()))
     );
 
     const hasChanges =
-        update.candidate.metadata.image !== update.candidate.current_image ||
+        candidate?.metadata.image !== candidate?.current_image ||
         Object.values(envs).some((environment) => environment.value !== undefined || environment.removed === true);
 
     /** Submits the reviewed deployment while preserving untouched secrets. */
     async function updateSolution() {
-        if (missingRequired || !hasChanges) return;
+        if (!candidate || missingRequired || !hasChanges) return;
 
         // Send edited secrets and explicit removals, preserving omitted values.
         const patchEnvs: Record<string, string | null> = {};
@@ -100,7 +116,7 @@ function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps
         await api.post(`/api/v1/solutions/${update.item.id}/update`, {
             json: schemas.zSolutionPatch.parse({
                 envs: patchEnvs,
-                expected_revision_id: update.candidate.revision_id,
+                expected_revision_id: candidate.revision_id,
             }),
         });
         await invalidate();
@@ -121,115 +137,135 @@ function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps
             }}
         >
             <DialogClose onClose={onClose} />
-            <Form
-                height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
-                action={updateSolution}
-                submitLabel="Update solution"
-                submitDisabled={missingRequired || !hasChanges}
-                onCancel={onClose}
-            >
-                <FormStep label="Image">
-                    <Stack gap={4}>
-                        <Stack gap={3} align="center">
-                            <RefreshCw className="size-20 text-secondary" aria-hidden="true" />
-                            <Heading level={2} justify="center">
-                                Update {update.item.name}
-                            </Heading>
-                        </Stack>
-                        <Stack direction="horizontal" gap={4} align="center">
-                            <StackItem size="fill">
-                                <Stack padding={3} className="rounded-lg bg-muted">
-                                    <Text
-                                        type="code"
-                                        color="secondary"
-                                        justify="center"
-                                        display="block"
-                                        className="break-all"
-                                    >
-                                        {update.candidate.current_version ||
-                                            imageDigest(update.candidate.current_image)}
+            {!candidate ? (
+                <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
+                    <Layout
+                        padding={0}
+                        content={
+                            <LayoutContent padding={8}>
+                                <Stack gap={4} align="center" justify="center" minHeight="100%">
+                                    <Heading level={2}>Update {update.item.name}</Heading>
+                                    <Text as="p" role="status">
+                                        {isPending ? 'Checking for updates…' : 'Could not check for updates.'}
                                     </Text>
+                                    <Stack direction="horizontal" gap={2}>
+                                        <Button label="Cancel" variant="ghost" onClick={onClose} />
+                                        {!isPending && <Button label="Retry" onClick={() => void refetch()} />}
+                                    </Stack>
                                 </Stack>
-                            </StackItem>
-                            <ArrowRight className="size-5 shrink-0 text-secondary" aria-hidden="true" />
-                            <StackItem size="fill">
-                                <Stack padding={3} className="rounded-lg bg-muted">
-                                    <Text type="code" justify="center" display="block" className="break-all">
-                                        {update.candidate.metadata.version ||
-                                            imageDigest(update.candidate.metadata.image)}
-                                    </Text>
-                                </Stack>
-                            </StackItem>
+                            </LayoutContent>
+                        }
+                    />
+                </Stack>
+            ) : (
+                <Form
+                    height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
+                    action={updateSolution}
+                    submitLabel="Update solution"
+                    submitDisabled={missingRequired || !hasChanges}
+                    onCancel={onClose}
+                >
+                    <FormStep label="Image">
+                        <Stack gap={4}>
+                            <Stack gap={3} align="center">
+                                <RefreshCw className="size-20 text-secondary" aria-hidden="true" />
+                                <Heading level={2} justify="center">
+                                    Update {update.item.name}
+                                </Heading>
+                            </Stack>
+                            <Stack direction="horizontal" gap={4} align="center">
+                                <StackItem size="fill">
+                                    <Stack padding={3} className="rounded-lg bg-muted">
+                                        <Text
+                                            type="code"
+                                            color="secondary"
+                                            justify="center"
+                                            display="block"
+                                            className="break-all"
+                                        >
+                                            {candidate.current_version || imageDigest(candidate.current_image)}
+                                        </Text>
+                                    </Stack>
+                                </StackItem>
+                                <ArrowRight className="size-5 shrink-0 text-secondary" aria-hidden="true" />
+                                <StackItem size="fill">
+                                    <Stack padding={3} className="rounded-lg bg-muted">
+                                        <Text type="code" justify="center" display="block" className="break-all">
+                                            {candidate.metadata.version || imageDigest(candidate.metadata.image)}
+                                        </Text>
+                                    </Stack>
+                                </StackItem>
+                            </Stack>
                         </Stack>
-                    </Stack>
-                </FormStep>
-                <FormStep label="Environment">
-                    <Stack gap={4}>
-                        <Stack gap={3} align="center">
-                            <RefreshCw className="size-20 text-secondary" aria-hidden="true" />
-                            <Heading level={2} justify="center">
-                                Configure your environment
-                            </Heading>
-                        </Stack>
-                        {!update.candidate.metadata.environments?.length && (
-                            <Text color="secondary">This solution does not require environment variables.</Text>
-                        )}
-                        {(update.candidate.metadata.environments ?? []).map((environment) => {
-                            // Resolve the configured secret and its local draft without exposing its value.
-                            const configured = update.candidate.configured_envs.includes(environment.name);
+                    </FormStep>
+                    <FormStep label="Environment">
+                        <Stack gap={4}>
+                            <Stack gap={3} align="center">
+                                <RefreshCw className="size-20 text-secondary" aria-hidden="true" />
+                                <Heading level={2} justify="center">
+                                    Configure your environment
+                                </Heading>
+                            </Stack>
+                            {!candidate.metadata.environments?.length && (
+                                <Text color="secondary">This solution does not require environment variables.</Text>
+                            )}
+                            {(candidate.metadata.environments ?? []).map((environment) => {
+                                // Resolve the configured secret and its local draft without exposing its value.
+                                const configured = candidate.configured_envs.includes(environment.name);
 
-                            const draft = envs[environment.name];
-                            const isRemoved = draft?.removed === true;
+                                const draft = envs[environment.name];
+                                const isRemoved = draft?.removed === true;
 
-                            // Configured secrets remain hidden; blank untouched inputs preserve them.
-                            return (
-                                <Stack key={environment.name} gap={2}>
-                                    <TextInput
-                                        label={environment.name}
-                                        labelTooltip={environment.description ?? undefined}
-                                        type="password"
-                                        value={draft?.value ?? ''}
-                                        isDisabled={isRemoved}
-                                        isOptional={!environment.required}
-                                        isRequired={environment.required && (!configured || isRemoved)}
-                                        placeholder={
-                                            isRemoved
-                                                ? 'Will be removed'
-                                                : configured
-                                                  ? 'Configured: preserve existing value'
-                                                  : environment.description || 'Enter value'
-                                        }
-                                        onChange={(value) =>
-                                            setEnvs((current) => ({
-                                                ...current,
-                                                [environment.name]: {
-                                                    ...current[environment.name],
-                                                    value,
-                                                },
-                                            }))
-                                        }
-                                    />
-                                    {configured && !environment.required && (
-                                        <CheckboxInput
-                                            label={`Remove ${environment.name}`}
-                                            value={isRemoved}
-                                            onChange={(removed) =>
+                                // Configured secrets remain hidden; blank untouched inputs preserve them.
+                                return (
+                                    <Stack key={environment.name} gap={2}>
+                                        <TextInput
+                                            label={environment.name}
+                                            labelTooltip={environment.description ?? undefined}
+                                            type="password"
+                                            value={draft?.value ?? ''}
+                                            isDisabled={isRemoved}
+                                            isOptional={!environment.required}
+                                            isRequired={environment.required && (!configured || isRemoved)}
+                                            placeholder={
+                                                isRemoved
+                                                    ? 'Will be removed'
+                                                    : configured
+                                                      ? 'Configured: preserve existing value'
+                                                      : environment.description || 'Enter value'
+                                            }
+                                            onChange={(value) =>
                                                 setEnvs((current) => ({
                                                     ...current,
                                                     [environment.name]: {
                                                         ...current[environment.name],
-                                                        removed,
+                                                        value,
                                                     },
                                                 }))
                                             }
                                         />
-                                    )}
-                                </Stack>
-                            );
-                        })}
-                    </Stack>
-                </FormStep>
-            </Form>
+                                        {configured && !environment.required && (
+                                            <CheckboxInput
+                                                label={`Remove ${environment.name}`}
+                                                value={isRemoved}
+                                                onChange={(removed) =>
+                                                    setEnvs((current) => ({
+                                                        ...current,
+                                                        [environment.name]: {
+                                                            ...current[environment.name],
+                                                            removed,
+                                                        },
+                                                    }))
+                                                }
+                                            />
+                                        )}
+                                    </Stack>
+                                );
+                            })}
+                        </Stack>
+                    </FormStep>
+                </Form>
+            )}
         </Dialog>
     );
 }
@@ -799,7 +835,6 @@ function SolutionsSection({
     const [deletion, setDeletion] = useState<{ id: string; name: string } | null>(null);
     const [logs, setLogs] = useState<string | null>(null);
     const [mcp, setMcp] = useState<{ id: string; name: string } | null>(null);
-    const [, startAction] = useTransition();
     const base = `/api/v1/organizations/${organization.id}`;
 
     // Keep solution refreshes scoped to the section's resource.
@@ -861,22 +896,17 @@ function SolutionsSection({
                                                                     <RefreshCw className="size-4" aria-hidden="true" />
                                                                 ),
                                                                 onClick: () => {
-                                                                    // Forward async menu failures to the surrounding boundary without tracking pending state.
-                                                                    startAction(async () => {
-                                                                        // Fetch a fresh candidate for each review; never reuse a stale revision fence.
-                                                                        const checked = await api(
-                                                                            `/api/v1/solutions/${row.id}/update`
-                                                                        ).json(schemas.zSolutionUpdateCheck);
-
-                                                                        setUpdate({
-                                                                            key: crypto.randomUUID(),
-                                                                            item: {
-                                                                                id: row.id,
-                                                                                name: row.name,
-                                                                            },
-                                                                            candidate: checked,
-                                                                        });
-                                                                    });
+                                                                    // Retain an active attempt so repeated activation cannot replace its draft.
+                                                                    setUpdate(
+                                                                        (current) =>
+                                                                            current ?? {
+                                                                                key: crypto.randomUUID(),
+                                                                                item: {
+                                                                                    id: row.id,
+                                                                                    name: row.name,
+                                                                                },
+                                                                            }
+                                                                    );
                                                                 },
                                                             },
                                                         ]
