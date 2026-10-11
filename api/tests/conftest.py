@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Self, cast
 from pathlib import Path
 from contextlib import AsyncExitStack, asynccontextmanager
 from kr8s.asyncio import Api
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, AsyncGenerator
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 TEST_PASSWORD = "longlink-test-password"
@@ -119,7 +119,7 @@ class DatabasePostgres:
         """Accept the private Organization connection settings."""
 
     @asynccontextmanager
-    async def connection(self, database: str, *, search_path: str | None = None) -> AsyncIterator["DatabasePostgres"]:
+    async def connection(self, database: str, *, search_path: str | None = None) -> AsyncGenerator["DatabasePostgres"]:
         """Scope SQL projection and readiness probes to their Organization database."""
 
         # Record the connection target forwarded by the projection service.

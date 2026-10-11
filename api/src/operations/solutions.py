@@ -40,7 +40,17 @@ async def deploy(revision_id: UUID) -> None:
         runtime_secrets = dict(solution.secrets)
 
     # Infrastructure owns these settings; discard copies retained by earlier deployments.
-    for name in ("LONGLINK_STORAGE_ENDPOINT_URL", "LONGLINK_DATABASE_CERTIFICATE", "LONGLINK_STORAGE_CERTIFICATE"):
+    for name in (
+        "LONGLINK_DATABASE_HOST",
+        "LONGLINK_DATABASE_NAME",
+        "LONGLINK_DATABASE_PORT",
+        "LONGLINK_DATABASE_SCHEMA",
+        "LONGLINK_STORAGE_PREFIX",
+        "LONGLINK_STORAGE_REGION",
+        "LONGLINK_STORAGE_ENDPOINT_URL",
+        "LONGLINK_DATABASE_CERTIFICATE",
+        "LONGLINK_STORAGE_CERTIFICATE",
+    ):
         runtime_secrets.pop(name, None)
 
     # Organization reconciliation owns bucket provisioning and quota admission.
@@ -67,16 +77,10 @@ async def deploy(revision_id: UUID) -> None:
             runtime_secrets.update(
                 {
                     "LONGLINK_ENV": "production",
-                    "LONGLINK_DATABASE_HOST": namespace.database_hostname(organization.id),
-                    "LONGLINK_DATABASE_NAME": organization.id.hex,
                     "LONGLINK_DATABASE_PASSWORD": database_password,
-                    "LONGLINK_DATABASE_PORT": "5432",
-                    "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
                     "LONGLINK_DATABASE_USERNAME": database_username,
                     "LONGLINK_STORAGE_BUCKET": bucket_name,
                     "LONGLINK_STORAGE_PASSWORD": credentials.secret_key,
-                    "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
-                    "LONGLINK_STORAGE_REGION": "us-east-1",
                     "LONGLINK_STORAGE_USERNAME": credentials.access_key,
                 }
             )
@@ -90,6 +94,12 @@ async def deploy(revision_id: UUID) -> None:
         runtime_environment = {
             **revision.envs,
             **runtime_secrets,
+            "LONGLINK_DATABASE_HOST": namespace.database_hostname(organization.id),
+            "LONGLINK_DATABASE_NAME": organization.id.hex,
+            "LONGLINK_DATABASE_PORT": "5432",
+            "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+            "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+            "LONGLINK_STORAGE_REGION": "us-east-1",
             # Workloads always reach object storage through the cluster-local TLS proxy.
             "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
             "LONGLINK_DATABASE_CERTIFICATE": database_certificate,

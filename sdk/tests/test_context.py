@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI, WebSocket
 from longlink import context, identity
 from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from longlink.database import audit
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -33,7 +33,7 @@ class RequestDatabase:
         return self.user
 
     @asynccontextmanager
-    async def session(self) -> AsyncIterator["RequestDatabase"]:
+    async def session(self) -> AsyncGenerator["RequestDatabase"]:
         """Yield the test session and record finalization on every exit path."""
 
         # Preserve cleanup observations for both successful and failing endpoints.

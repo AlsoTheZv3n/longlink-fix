@@ -9,7 +9,7 @@ from longlink import identity
 from src.utils import roles
 from contextlib import AsyncExitStack
 from src.kubernetes import namespace
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, AsyncGenerator
 from src.models.roles import SOLUTION_PROXY_METHOD_ROLES
 from fastapi.responses import JSONResponse, StreamingResponse
 from src.models.statuses import Status
@@ -23,7 +23,7 @@ PROXY_ERROR_MAX_BYTES = 64 * 1024
 PROXY_ERROR_TIMEOUT_SECONDS = 5
 
 
-async def runtime_scope() -> AsyncIterator[AsyncExitStack]:
+async def runtime_scope() -> AsyncGenerator[AsyncExitStack]:
     """Keep runtime activity alive until FastAPI finishes sending the response."""
 
     async with AsyncExitStack() as stack:

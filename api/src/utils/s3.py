@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, cast
 from itertools import chain, batched
 from contextlib import asynccontextmanager
 from dataclasses import field, dataclass
-from collections.abc import Iterable, AsyncIterator
+from collections.abc import Iterable, AsyncGenerator
 from longlink.storage import tls
 from aiobotocore.config import AioConfig
 from botocore.exceptions import ClientError
@@ -38,7 +38,7 @@ class S3:
         self._certificate = certificate
 
     @asynccontextmanager
-    async def client(self) -> AsyncIterator["S3Client"]:
+    async def client(self) -> AsyncGenerator["S3Client"]:
         """Keep the CA file alive for the entire S3 transport lifetime."""
 
         # Private CA verification follows the same lifetime as the client session.

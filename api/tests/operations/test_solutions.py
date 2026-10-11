@@ -237,6 +237,12 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     assert persisted is not None
     assert persisted.status == Status.running
     assert not {
+        "LONGLINK_DATABASE_HOST",
+        "LONGLINK_DATABASE_NAME",
+        "LONGLINK_DATABASE_PORT",
+        "LONGLINK_DATABASE_SCHEMA",
+        "LONGLINK_STORAGE_PREFIX",
+        "LONGLINK_STORAGE_REGION",
         "LONGLINK_DATABASE_CERTIFICATE",
         "LONGLINK_STORAGE_CERTIFICATE",
         "LONGLINK_STORAGE_ENDPOINT_URL",
@@ -254,6 +260,12 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     assert captured["secrets"] == {
         "API_KEY": "replacement",
         **persisted.secrets,
+        "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
+        "LONGLINK_DATABASE_NAME": organization.id.hex,
+        "LONGLINK_DATABASE_PORT": "5432",
+        "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+        "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+        "LONGLINK_STORAGE_REGION": "us-east-1",
         "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",
         "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
     }
@@ -332,22 +344,22 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
     )
     credentials = {
         "LONGLINK_ENV": "production",
-        "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
-        "LONGLINK_DATABASE_NAME": organization.id.hex,
         "LONGLINK_DATABASE_PASSWORD": "persisted-database-password",
-        "LONGLINK_DATABASE_PORT": "5432",
-        "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
         "LONGLINK_DATABASE_USERNAME": "persisted-database-user",
         "LONGLINK_STORAGE_BUCKET": organization.id.hex,
         "LONGLINK_STORAGE_PASSWORD": "persisted-storage-password",
-        "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
-        "LONGLINK_STORAGE_REGION": "us-east-1",
         "LONGLINK_STORAGE_USERNAME": "persisted-storage-user",
     }
     if identity is not None:
         credentials["LONGLINK_IDENTITY_SECRET"] = identity
     initial_secrets = {
         **credentials,
+        "LONGLINK_DATABASE_HOST": "old-database.example",
+        "LONGLINK_DATABASE_NAME": "old-database",
+        "LONGLINK_DATABASE_PORT": "5433",
+        "LONGLINK_DATABASE_SCHEMA": "old-schema",
+        "LONGLINK_STORAGE_PREFIX": "old-prefix/",
+        "LONGLINK_STORAGE_REGION": "old-region",
         "LONGLINK_DATABASE_CERTIFICATE": "old-database-ca",
         "LONGLINK_STORAGE_ENDPOINT_URL": "https://old-storage.example",
         "LONGLINK_STORAGE_CERTIFICATE": "old-storage-ca",
@@ -410,6 +422,12 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
         {
             "API_KEY": "runtime-secret",
             **persisted.secrets,
+            "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
+            "LONGLINK_DATABASE_NAME": organization.id.hex,
+            "LONGLINK_DATABASE_PORT": "5432",
+            "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+            "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+            "LONGLINK_STORAGE_REGION": "us-east-1",
             "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",
             "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
         }
