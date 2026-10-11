@@ -7,6 +7,7 @@
 Create the tools your company always needed
 </h3 >
 
+
 Write your application logic using familiar Python tools. LongLink takes care of the common infrastructure, so you can focus on solving the actual problems.
 
 [![Tests](https://github.com/xLongLink/longlink/actions/workflows/tests.yml/badge.svg)](https://github.com/xLongLink/longlink/actions/workflows/tests.yml)
@@ -22,7 +23,7 @@ Write your application logic using familiar Python tools. LongLink takes care of
 
 ## What it does
 
-LongLink is a Python framework and platform for building and running business applications:
+LongLink is an open-source platform for building and running custom business tools with Python:
 
 - ⚡ **Built on FastAPI**: Use standard FastAPI routes, Pydantic, SQLModel, and your favorite Python libraries.
 - 🖥️ **Built-in UI**: Build modern interfaces without the complexity of maintaining a complete frontend.
@@ -30,7 +31,6 @@ LongLink is a Python framework and platform for building and running business ap
 - ☁️ **Managed infrastructure**: Databases, storage, logging, and deployment handled by the platform.
 - 🤖 **AI integration**: Expose your applications to AI agents through an MCP server.
 - 📦 **Portable**: Applications run as standard containers.
-
 
 
 
@@ -58,13 +58,16 @@ Open `http://127.0.0.1:1707` to preview your Solution.
 
 ## How it works
 
+![Invoice approvals in the sample Solution](sample.png)
+
+
+
 `LongLink()` is a headless FastAPI application with the common runtime already configured. Your routes remain standard FastAPI routes, while `Context` provides access to the current user, database, and storage.
 
 The same code runs in development, testing, and production. When deployed, LongLink packages the Solution as a standard container image.
 
 Each View is defined in a single file that describes its layout, elements, and actions.
 
-![Invoice approvals in the sample Solution](sample.png)
 
 
 <br />
