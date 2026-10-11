@@ -51,13 +51,16 @@ async def deploy(revision_id: UUID) -> None:
         storage = Storage(compute, cluster)
         bucket_name = storage.bucket_name(organization.id)
 
+        # Use one current CA snapshot for SQL provisioning and workload rendering in this attempt.
+        database_certificate = await database_resources.certificate(cluster, organization.id)
+
         # Reuse generated credentials after an interrupted creation attempt.
         if "LONGLINK_ENV" not in runtime_secrets:
             # RustFS service accounts are scoped to this Solution and owner keys never reach workloads.
             logger.info("Creating object storage credentials for Solution %s", solution.id)
             database_password = secrets.token_urlsafe(24)
             credentials = await storage.service_account(organization.id, solution.id)
-            database = await databases.connection(organization, cluster)
+            database = await databases.connection(organization, cluster, certificate=database_certificate)
             database_username = await database.solution_schema(organization.id, solution.id, database_password)
 
             # Build the durable runtime credentials before creating the workload.
@@ -89,8 +92,7 @@ async def deploy(revision_id: UUID) -> None:
             **runtime_secrets,
             # Workloads always reach object storage through the cluster-local TLS proxy.
             "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
-            # Fetch the current CA once for workload rendering on every path.
-            "LONGLINK_DATABASE_CERTIFICATE": await database_resources.certificate(cluster, organization.id),
+            "LONGLINK_DATABASE_CERTIFICATE": database_certificate,
             **({"LONGLINK_STORAGE_CERTIFICATE": compute.storage_certificate} if compute.storage_certificate else {}),
         }
 

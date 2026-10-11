@@ -1,12 +1,10 @@
 from alembic import command
-from contextlib import asynccontextmanager
 from sqlalchemy import pool
 from alembic.config import Config
-from collections.abc import AsyncIterator
 from longlink.database import urls
 from sqlalchemy.engine import URL, Connection, make_url
 from importlib.resources import files
-from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 
 def migration_config(database_url: str | URL) -> Config:
@@ -36,26 +34,6 @@ def migration_config(database_url: str | URL) -> Config:
     return config
 
 
-@asynccontextmanager
-async def migration_connection(database_url: str | URL, connect_args: dict[str, object]) -> AsyncIterator[AsyncConnection]:
-    """Own one shared-migration connection and dispose its engine before returning."""
-
-    # Use an operation-scoped pool because each organization has its own database.
-    engine = create_async_engine(
-        database_url,
-        poolclass=pool.NullPool,
-        connect_args=connect_args,
-        hide_parameters=True,
-    )
-
-    # Close the connection before disposing the engine, including on failure or cancellation.
-    try:
-        async with engine.connect() as connection:
-            yield connection
-    finally:
-        await engine.dispose()
-
-
 async def migrate_database(database_url: str | URL) -> None:
     """Apply shared-schema migrations on the caller's event loop."""
 
@@ -69,6 +47,17 @@ async def migrate_database(database_url: str | URL) -> None:
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
 
-    # Await migration execution and cleanup before the caller releases its certificate or tunnel.
-    async with migration_connection(database_url, config.attributes["connect_args"]) as connection:
-        await connection.run_sync(upgrade)
+    # Use an operation-scoped pool because each organization has its own database.
+    engine = create_async_engine(
+        database_url,
+        poolclass=pool.NullPool,
+        connect_args=config.attributes["connect_args"],
+        hide_parameters=True,
+    )
+
+    # Close the connection before disposal, including on failure or cancellation, before releasing caller resources.
+    try:
+        async with engine.connect() as connection:
+            await connection.run_sync(upgrade)
+    finally:
+        await engine.dispose()

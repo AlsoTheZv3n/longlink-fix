@@ -55,6 +55,12 @@ type Update = {
     item: { id: string; name: string };
 };
 
+type SolutionAction =
+    | { kind: 'create' }
+    | ({ kind: 'update' } & Update)
+    | { kind: 'logs'; id: string }
+    | { kind: 'mcp' | 'delete'; item: { id: string; name: string } };
+
 type DeploymentReviewProps = {
     update: Update;
     invalidate: () => Promise<void>;
@@ -830,15 +836,18 @@ function SolutionsSection({
     organization: z.output<typeof schemas.zUserOrganizationMembership>['organization'];
     canMaintain: boolean;
 }) {
-    const [creating, setCreating] = useState(false);
-    const [update, setUpdate] = useState<Update | null>(null);
-    const [deletion, setDeletion] = useState<{ id: string; name: string } | null>(null);
-    const [logs, setLogs] = useState<string | null>(null);
-    const [mcp, setMcp] = useState<{ id: string; name: string } | null>(null);
+    // Own one dialog action; captured identity prevents old completions from closing its replacement.
+    const [selected, setSelected] = useState<SolutionAction | null>(null);
     const base = `/api/v1/organizations/${organization.id}`;
 
     // Keep solution refreshes scoped to the section's resource.
     const [solutions, invalidateSolutions] = useApi(`${base}/solutions`, schemas.zOrganizationSolutionSummary.array());
+
+    /** Closes only this selection, leaving a replacement dialog open after an older operation finishes. */
+    function closeSelected() {
+        // Each render captures the selection that owns its callbacks.
+        setSelected((current) => (current === selected ? null : current));
+    }
 
     return (
         <>
@@ -853,7 +862,14 @@ function SolutionsSection({
                     <Heading level={2} hasCapsize>
                         Solutions
                     </Heading>
-                    {canMaintain && <Button label="New Solution" onClick={() => setCreating(true)} />}
+                    {canMaintain && (
+                        <Button
+                            label="New Solution"
+                            onClick={() =>
+                                setSelected((current) => (current?.kind === 'create' ? current : { kind: 'create' }))
+                            }
+                        />
+                    )}
                 </Stack>
                 <Divider />
                 <Table
@@ -897,15 +913,17 @@ function SolutionsSection({
                                                                 ),
                                                                 onClick: () => {
                                                                     // Retain an active attempt so repeated activation cannot replace its draft.
-                                                                    setUpdate(
-                                                                        (current) =>
-                                                                            current ?? {
-                                                                                key: crypto.randomUUID(),
-                                                                                item: {
-                                                                                    id: row.id,
-                                                                                    name: row.name,
-                                                                                },
-                                                                            }
+                                                                    setSelected((current) =>
+                                                                        current?.kind === 'update'
+                                                                            ? current
+                                                                            : {
+                                                                                  kind: 'update',
+                                                                                  key: crypto.randomUUID(),
+                                                                                  item: {
+                                                                                      id: row.id,
+                                                                                      name: row.name,
+                                                                                  },
+                                                                              }
                                                                     );
                                                                 },
                                                             },
@@ -915,22 +933,26 @@ function SolutionsSection({
                                                       id: 'logs',
                                                       label: 'Logs',
                                                       icon: <Logs className="size-4" aria-hidden="true" />,
-                                                      onClick: () => setLogs(row.id),
+                                                      onClick: () => setSelected({ kind: 'logs', id: row.id }),
                                                   },
                                                   {
                                                       id: 'mcp',
                                                       label: 'MCP',
                                                       icon: <Plug className="size-4" aria-hidden="true" />,
-                                                      onClick: () => setMcp({ id: row.id, name: row.name }),
+                                                      onClick: () =>
+                                                          setSelected({
+                                                              kind: 'mcp',
+                                                              item: { id: row.id, name: row.name },
+                                                          }),
                                                   },
                                                   {
                                                       id: 'delete',
                                                       label: 'Delete',
                                                       icon: <Trash className="size-4" aria-hidden="true" />,
                                                       onClick: () =>
-                                                          setDeletion({
-                                                              id: row.id,
-                                                              name: row.name,
+                                                          setSelected({
+                                                              kind: 'delete',
+                                                              item: { id: row.id, name: row.name },
                                                           }),
                                                   },
                                               ]}
@@ -942,22 +964,22 @@ function SolutionsSection({
                     ]}
                 />
             </Stack>
-            {creating && (
+            {selected?.kind === 'create' && (
                 <CreateSolution
                     organizationId={organization.id}
                     invalidate={invalidateSolutions}
-                    onClose={() => setCreating(false)}
+                    onClose={closeSelected}
                 />
             )}
-            {update && (
+            {selected?.kind === 'update' && (
                 <DeploymentReview
-                    key={update.key}
-                    update={update}
+                    key={selected.key}
+                    update={selected}
                     invalidate={invalidateSolutions}
-                    onClose={() => setUpdate(null)}
+                    onClose={closeSelected}
                 />
             )}
-            {logs && (
+            {selected?.kind === 'logs' && (
                 <Dialog
                     aria-label="Pod logs"
                     isOpen
@@ -966,19 +988,19 @@ function SolutionsSection({
                     maxHeight="calc(100dvh - var(--spacing-10) * 4)"
                     padding={0}
                     onOpenChange={(open) => {
-                        if (!open) setLogs(null);
+                        if (!open) closeSelected();
                     }}
                 >
-                    <DialogClose onClose={() => setLogs(null)} />
+                    <DialogClose onClose={closeSelected} />
                     <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))" paddingInline={8} paddingBlock={4}>
-                        <ApiBoundary key={logs}>
-                            <SolutionLogs solutionId={logs} onClose={() => setLogs(null)} />
+                        <ApiBoundary key={selected.id}>
+                            <SolutionLogs solutionId={selected.id} onClose={closeSelected} />
                         </ApiBoundary>
                     </Stack>
                 </Dialog>
             )}
             {/* Offer direct MCP connection details and the selected Solution's credential-free package. */}
-            {mcp && (
+            {selected?.kind === 'mcp' && (
                 <Dialog
                     aria-label="Model Context Protocol"
                     isOpen
@@ -987,10 +1009,10 @@ function SolutionsSection({
                     maxHeight="calc(100dvh - var(--spacing-10) * 4)"
                     padding={0}
                     onOpenChange={(open) => {
-                        if (!open) setMcp(null);
+                        if (!open) closeSelected();
                     }}
                 >
-                    <DialogClose onClose={() => setMcp(null)} />
+                    <DialogClose onClose={closeSelected} />
                     <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                         <Layout
                             padding={0}
@@ -1031,12 +1053,12 @@ function SolutionsSection({
                                         </Stack>
                                         {/* Match the creation dialog's content-sized column and control width. */}
                                         <Stack gap={4} width={0} className="min-w-full">
-                                            <ApiBoundary key={mcp.id}>
-                                                <SolutionMcpUrl solutionId={mcp.id} onClose={() => setMcp(null)} />
+                                            <ApiBoundary key={selected.item.id}>
+                                                <SolutionMcpUrl solutionId={selected.item.id} onClose={closeSelected} />
                                             </ApiBoundary>
                                             <Button
                                                 as="a"
-                                                href={`/api/v1/solutions/${mcp.id}/plugin`}
+                                                href={`/api/v1/solutions/${selected.item.id}/plugin`}
                                                 label="Download plugin ZIP"
                                                 variant="primary"
                                                 width="100%"
@@ -1058,20 +1080,20 @@ function SolutionsSection({
             )}
             <DeletionDialog
                 confirmation={
-                    deletion
+                    selected?.kind === 'delete'
                         ? {
                               title: 'Delete solution',
-                              description: `Delete solution ${deletion.name}?`,
+                              description: `Delete solution ${selected.item.name}?`,
                               onDelete: async () => {
                                   // Refresh Solutions only after the delete request succeeds.
-                                  await api.delete(`/api/v1/solutions/${deletion.id}`);
+                                  await api.delete(`/api/v1/solutions/${selected.item.id}`);
                                   await invalidateSolutions();
-                                  setDeletion(null);
+                                  closeSelected();
                               },
                           }
                         : null
                 }
-                onClose={() => setDeletion(null)}
+                onClose={closeSelected}
             />
         </>
     );

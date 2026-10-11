@@ -163,20 +163,24 @@ INVALID_METADATA_LENGTH_HEADERS = [
 
 
 @pytest.mark.parametrize("headers", INVALID_METADATA_LENGTH_HEADERS)
-async def test_bounded_json_rejects_invalid_declared_response_sizes(headers: dict[str, str]) -> None:
+async def test_registry_json_rejects_invalid_declared_response_sizes(headers: dict[str, str]) -> None:
     """Reject oversized or malformed declared lengths despite a valid JSON body."""
 
     # Arrange
-    response = httpx2.Response(200, content=b"{}", headers=headers)
+    def respond(request: httpx2.Request) -> httpx2.Response:
+        """Return bounded JSON with an invalid declared length."""
+
+        return httpx2.Response(200, content=b"{}", headers=headers)
 
     # Act
-    result = await images.bounded_json(response)
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as client:
+        result = await images.registry_json(client, "https://ghcr.io/config")
 
     # Assert
     assert result is None
 
 
-async def test_bounded_json_rejects_streamed_metadata_larger_than_limit() -> None:
+async def test_registry_json_rejects_streamed_metadata_larger_than_limit() -> None:
     """Reject metadata that exceeds the limit without a declared content length."""
 
     # Arrange
@@ -191,10 +195,17 @@ async def test_bounded_json_rejects_streamed_metadata_larger_than_limit() -> Non
         async def aclose(self) -> None:
             """Close the in-memory stream."""
 
-    response = httpx2.Response(200, stream=OversizedStream())
+    def respond(request: httpx2.Request) -> httpx2.Response:
+        """Return oversized metadata without a declared length."""
+
+        return httpx2.Response(200, stream=OversizedStream())
+
+    # Act
+    async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as client:
+        result = await images.registry_json(client, "https://ghcr.io/config")
 
     # Assert
-    assert await images.bounded_json(response) is None
+    assert result is None
 
 
 @pytest.mark.parametrize(

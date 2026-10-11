@@ -31,24 +31,6 @@ def missing_envs(metadata: LongLinkMetadata, envs: Mapping[str, str]) -> list[st
     )
 
 
-async def bounded_json(response: httpx2.Response) -> object | None:
-    """Decode a registry response without buffering unbounded metadata."""
-
-    # Reject declared oversized or malformed response lengths before consuming the body.
-    content_length = response.headers.get("Content-Length")
-    if content_length is not None and (not content_length.isdecimal() or int(content_length) > IMAGE_METADATA_MAX_BYTES):
-        return None
-
-    # Stop reading once streamed response data exceeds the metadata boundary.
-    content = bytearray()
-    async for chunk in response.aiter_bytes():
-        content.extend(chunk)
-        if len(content) > IMAGE_METADATA_MAX_BYTES:
-            return None
-
-    return json.loads(content)
-
-
 async def registry_json(
     client: httpx2.AsyncClient,
     url: str,
@@ -78,7 +60,20 @@ async def registry_json(
         if not response.is_success:
             return None
 
-        payload = await bounded_json(response)
+        # Reject declared oversized or malformed response lengths before consuming the body.
+        content_length = response.headers.get("Content-Length")
+        if content_length is not None and (not content_length.isdecimal() or int(content_length) > IMAGE_METADATA_MAX_BYTES):
+            return None
+
+        # Stop reading once streamed response data exceeds the metadata boundary.
+        content = bytearray()
+        async for chunk in response.aiter_bytes():
+            content.extend(chunk)
+            if len(content) > IMAGE_METADATA_MAX_BYTES:
+                return None
+
+        # Return decoded metadata only when the registry supplied a non-null JSON value.
+        payload = json.loads(content)
         if payload is None:
             return None
 
