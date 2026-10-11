@@ -202,7 +202,7 @@ async def sync_users(user_id: UUID) -> None:
                 continue
 
             # Load the assigned Compute only while the Organization remains locked and active.
-            target = await organizations.infrastructure(session, organization_id)
+            target = await organizations.database_infrastructure(session, organization_id)
             if target is None:
                 continue
             organization, compute = target

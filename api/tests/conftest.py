@@ -1,6 +1,7 @@
 import os
 import yaml
 import pytest
+import shutil
 import subprocess
 import pytest_asyncio
 from uuid import UUID, uuid4
@@ -10,11 +11,14 @@ from pwdlib import PasswordHash
 from typing import TYPE_CHECKING, Self, cast
 from pathlib import Path
 from contextlib import AsyncExitStack, asynccontextmanager
+from sqlalchemy import create_engine
 from kr8s.asyncio import Api
 from collections.abc import AsyncIterator, AsyncGenerator
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 TEST_PASSWORD = "longlink-test-password"
+
+pytest_plugins = ["containers"]
 
 # Seed the required settings before importing the FastAPI app.
 os.environ["SMTP_HOST"] = "smtp.example.com"
@@ -347,6 +351,20 @@ def captured_mail(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, str, 
     return messages
 
 
+@pytest.fixture(scope="session")
+def database_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Build one closed, empty Platform schema for isolated per-test copies."""
+
+    # Initialize metadata once without retaining connections to the template database.
+    path = tmp_path_factory.mktemp("database") / "empty.db"
+    engine = create_engine(f"sqlite:///{path}")
+    try:
+        registry.metadata.create_all(engine)
+    finally:
+        engine.dispose()
+    return path
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def reset_db(
     tmp_path: Path,
@@ -359,14 +377,15 @@ async def reset_db(
         yield
         return
 
-    db_url = f"sqlite+aiosqlite:///{tmp_path / 'test.db'}"
+    # Copy only for database-backed tests; never share mutable database files or sessions.
+    template: Path = request.getfixturevalue("database_template")
+    path = tmp_path / "test.db"
+    shutil.copyfile(template, path)
+    db_url = f"sqlite+aiosqlite:///{path}"
     monkeypatch.setattr(env, "DATABASE_URL", db_url)
 
     engine = create_async_engine(db_url)
     session.enable_sqlite_foreign_keys(engine)
-    async with engine.begin() as conn:
-        await conn.run_sync(registry.metadata.create_all)
-
     monkeypatch.setattr(session, "Session", async_sessionmaker(engine, expire_on_commit=False))
 
     try:

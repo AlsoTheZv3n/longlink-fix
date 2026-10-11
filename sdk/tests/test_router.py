@@ -24,9 +24,8 @@ def test_solution_router_serves_prefixed_route_before_frontend_fallback() -> Non
     client = TestClient(app)
 
     # Act
-    with client:
-        response = client.get("/api/settings", headers={"accept": "text/html"})
-        root_response = client.get("/settings", headers={"accept": "application/json"})
+    response = client.get("/api/settings", headers={"accept": "text/html"})
+    root_response = client.get("/settings", headers={"accept": "application/json"})
 
     # Assert
     assert response.status_code == 200

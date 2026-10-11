@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
+import { MessagePort } from 'node:worker_threads';
 import { SolutionRuntime } from '@/components/Solution';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -18,6 +19,9 @@ describe('SolutionRuntime', () => {
         if (mountedRoot) await act(async () => mountedRoot.unmount());
 
         root = undefined;
+
+        // Restore transport observers after the runtime has released its capabilities.
+        vi.restoreAllMocks();
 
         // Clear cached queries before restoring their timers and globals.
         mountedClient?.clear();
@@ -130,22 +134,17 @@ describe('SolutionRuntime', () => {
         // Observe the real initialization transfer without owning another message listener.
         const transfer = vi.spyOn(frame.contentWindow, 'postMessage');
 
-        try {
-            // Authenticated window dispatch transfers the route parameters synchronously.
-            window.dispatchEvent(
-                new MessageEvent('message', { source: frame.contentWindow, origin: 'null', data: session })
-            );
-            expect(transfer).toHaveBeenCalledOnce();
-            expect(transfer.mock.calls[0]?.[0]).toHaveProperty('params', { issueId: '42' });
-            expect(output.querySelector('[data-title]')?.getAttribute('data-title')).toBe('Item');
+        // Authenticated window dispatch transfers the route parameters synchronously.
+        window.dispatchEvent(
+            new MessageEvent('message', { source: frame.contentWindow, origin: 'null', data: session })
+        );
+        expect(transfer).toHaveBeenCalledOnce();
+        expect(transfer.mock.calls[0]?.[0]).toHaveProperty('params', { issueId: '42' });
+        expect(output.querySelector('[data-title]')?.getAttribute('data-title')).toBe('Item');
 
-            // A successful handshake cancels the startup deadline without removing the frame.
-            await act(async () => vi.advanceTimersByTimeAsync(10_000));
-            expect(output.querySelector('iframe')).not.toBeNull();
-        } finally {
-            // Restore the transport observer even if an initialization assertion fails.
-            transfer.mockRestore();
-        }
+        // A successful handshake cancels the startup deadline without removing the frame.
+        await act(async () => vi.advanceTimersByTimeAsync(10_000));
+        expect(output.querySelector('iframe')).not.toBeNull();
     });
 
     it.each([
@@ -175,23 +174,99 @@ describe('SolutionRuntime', () => {
         const transfer = vi.spyOn(frame.contentWindow, 'postMessage');
         const handshake = { source: frame.contentWindow, origin: 'null', data: session };
 
+        // Act
+        window.dispatchEvent(new MessageEvent('message', { ...handshake, ...overrides }));
+
+        // Assert
+        // Window dispatch is synchronous, so rejection must not transfer a capability.
+        expect(transfer).not.toHaveBeenCalled();
+
+        // A correctly authenticated bootstrap must still acquire its port and cancel the deadline.
+        window.dispatchEvent(new MessageEvent('message', handshake));
+        expect(transfer).toHaveBeenCalledOnce();
+        expect(transfer.mock.calls[0]?.[0]).toEqual({ session, source, params: {} });
+        await act(async () => vi.advanceTimersByTimeAsync(10_000));
+        expect(output.querySelector('iframe')).toBe(frame);
+    });
+
+    it('rejects forbidden request options while keeping the capability channel usable', async () => {
+        // Arrange
+        const requests: string[] = [];
+        stubFetch((url) => {
+            if (url.endsWith('/views.json')) return Response.json([{ path: 'home.jsx', route: '/home' }]);
+
+            if (url.endsWith('/home.jsx')) return sourceResponse('export default function Home() { return null; }');
+            requests.push(new URL(url).pathname);
+
+            return Response.json({ value: 'accepted' });
+        });
+        const port = await connectView(await renderRuntime('/home'));
+        const replies: unknown[] = [];
+        port.onmessage = (event: { data: unknown }) => replies.push(event.data);
+
         try {
             // Act
-            window.dispatchEvent(new MessageEvent('message', { ...handshake, ...overrides }));
+            port.postMessage({ type: 'request', id: 1, path: 'items', method: 'GET', credentials: 'include' });
+            port.postMessage({ type: 'request', id: 2, path: 'items', method: 'GET' });
 
             // Assert
-            // Window dispatch is synchronous, so rejection must not transfer a capability.
-            expect(transfer).not.toHaveBeenCalled();
-
-            // A correctly authenticated bootstrap must still acquire its port and cancel the deadline.
-            window.dispatchEvent(new MessageEvent('message', handshake));
-            expect(transfer).toHaveBeenCalledOnce();
-            expect(transfer.mock.calls[0]?.[0]).toEqual({ session, source, params: {} });
-            await act(async () => vi.advanceTimersByTimeAsync(10_000));
-            expect(output.querySelector('iframe')).toBe(frame);
+            // The valid reply is a same-port barrier after the rejected command.
+            await vi.waitFor(() => expect(replies).toEqual([{ id: 2, ok: true, data: { value: 'accepted' } }]));
+            expect(requests).toEqual(['/items']);
         } finally {
-            // Restore the transport observer even if a security assertion fails.
-            transfer.mockRestore();
+            port.close();
+        }
+    });
+
+    it('aborts an outstanding request and delivers no reply after unmount', async () => {
+        // Arrange
+        let release!: (response: Response) => void;
+
+        const response = new Promise<Response>((resolve) => {
+            release = resolve;
+        });
+
+        let request: Request | undefined;
+        stubFetch((url, incoming) => {
+            if (url.endsWith('/views.json')) return Response.json([{ path: 'home.jsx', route: '/home' }]);
+
+            if (url.endsWith('/home.jsx')) return sourceResponse('export default function Home() { return null; }');
+            request = incoming;
+
+            return response;
+        });
+        const port = await connectView(await renderRuntime('/home'));
+        const replies: unknown[] = [];
+        port.onmessage = (event: { data: unknown }) => replies.push(event.data);
+        const barrier = new MessageChannel();
+
+        try {
+            // Act
+            port.postMessage({ type: 'request', id: 1, path: 'items', method: 'GET' });
+            await vi.waitFor(() => expect(request).toBeDefined());
+            expect(request?.signal.aborted).toBe(false);
+            await act(async () => root?.unmount());
+            root = undefined;
+
+            // Assert
+            // Observe cancellation before any teardown hook can abort the transport.
+            expect(request?.signal.aborted).toBe(true);
+            await act(async () => release(Response.json({ value: 'late' })));
+
+            // Drain the resumed transport and queued port messages without sleeping.
+            let drained = false;
+            barrier.port2.onmessage = () => {
+                drained = true;
+            };
+
+            barrier.port1.postMessage(null);
+            await vi.waitFor(() => expect(drained).toBe(true));
+            expect(replies).toEqual([]);
+        } finally {
+            await act(async () => release(Response.json(null)));
+            port.close();
+            barrier.port1.close();
+            barrier.port2.close();
         }
     });
 
@@ -267,6 +342,32 @@ describe('SolutionRuntime', () => {
         expect(response).toHaveBeenCalledOnce();
     });
 
+    /** Acquires the actual capability port through the authenticated bootstrap handshake. */
+    async function connectView(output: HTMLElement): Promise<MessagePort> {
+        await vi.waitFor(async () => {
+            await act(async () => {});
+            expect(output.querySelector('iframe')?.srcdoc).toContain('Content-Security-Policy');
+        });
+        const frame = output.querySelector('iframe');
+
+        if (!frame?.contentWindow) throw new Error('Missing isolated frame');
+        const session = frame.srcdoc.match(/__VIEW_SESSION__="([^"]+)"/)?.[1];
+
+        if (!session) throw new Error('Missing bootstrap session');
+        const transfer = vi.spyOn(frame.contentWindow, 'postMessage');
+        window.dispatchEvent(
+            new MessageEvent('message', { source: frame.contentWindow, origin: 'null', data: session })
+        );
+        // Inspect the transfer-list overload using Node's actual port, not the DOM constructor.
+        const args: readonly unknown[] = transfer.mock.calls[0] ?? [];
+        const ports = args[2];
+
+        if (!Array.isArray(ports) || !(ports[0] instanceof MessagePort))
+            throw new Error('Missing transferred capability port');
+
+        return ports[0];
+    }
+
     /** Mounts the real runtime with isolated queries and routing. */
     async function renderRuntime(initialPath = '/', viewsUrl = '/views.json'): Promise<HTMLDivElement> {
         const container = document.createElement('div');
@@ -325,7 +426,7 @@ function Location({ tabs, title }: { tabs: string; title?: string }) {
 }
 
 /** Stubs fetch at the runtime's HTTP boundary. */
-function stubFetch(response: (url: string, request: Request) => Response): void {
+function stubFetch(response: (url: string, request: Request) => Response | Promise<Response>): void {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
         // Normalize standard fetch inputs without depending on Ky's argument representation.
         const request = input instanceof Request ? input : new Request(input, init);

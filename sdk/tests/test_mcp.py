@@ -5,9 +5,11 @@ from typing import Annotated
 from fastapi import Header, Depends, Response, APIRouter, HTTPException
 from pathlib import Path
 from longlink import Context, identity
+from sqlalchemy import event
 from longlink.app import LongLink
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from longlink.database import audit
+from sqlalchemy.engine import Engine
 from fastapi.testclient import TestClient
 
 
@@ -176,15 +178,31 @@ def test_empty_mcp_catalog_does_not_allow_internal_tools() -> None:
 
 
 @pytest.mark.usefixtures("solution_source")
-def test_mcp_can_restart_without_duplicate_routes_or_stale_sessions() -> None:
+def test_mcp_can_restart_without_duplicate_routes_or_stale_sessions(monkeypatch: pytest.MonkeyPatch) -> None:
     """Rebuild the MCP catalog and close sessions across application lifespans."""
 
     # Use the same application for two lifespans with another route added between them.
+    monkeypatch.setenv("LONGLINK_ENV", "testing")
     app = LongLink()
+    disposed: list[Engine] = []
+
+    async def database_engine() -> Engine:
+        """Return the real initialized session bind and observe its eventual shutdown."""
+
+        async with app.state.longlink.database.session() as session:
+            engine = session.get_bind()
+            event.listen(engine, "engine_disposed", disposed.append)
+            return engine
+
     client = TestClient(app)
     with client:
         initialize_mcp(client)
         first_session = client.headers["mcp-session-id"]
+        assert client.portal is not None
+        first_engine = client.portal.call(database_engine)
+
+    # The first lifespan releases its initialized database before restarting.
+    assert disposed == [first_engine]
 
     @app.get("/api/value", response_model=int, operation_id="value")
     async def value() -> int:
@@ -197,12 +215,17 @@ def test_mcp_can_restart_without_duplicate_routes_or_stale_sessions() -> None:
     with client:
         initialize_mcp(client)
         assert client.headers["mcp-session-id"] != first_session
+        assert client.get("/ready").status_code == 200
+        assert client.portal is not None
+        second_engine = client.portal.call(database_engine)
+        assert second_engine is not first_engine
         discovery = client.post("/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         stale = client.post("/mcp", json={"jsonrpc": "2.0", "id": 3, "method": "tools/list"}, headers={"mcp-session-id": first_session})
 
     # Old sessions are unavailable and only current Solution operations are discoverable.
     assert {tool["name"] for tool in discovery.json()["result"]["tools"]} == {"value"}
     assert stale.status_code == 404
+    assert disposed == [first_engine, second_engine]
 
 
 @pytest.mark.usefixtures("solution_source")

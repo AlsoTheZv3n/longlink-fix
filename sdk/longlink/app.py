@@ -13,7 +13,6 @@ from fastapi.routing import APIRoute
 from longlink.errors import install_error_handlers
 from longlink.logger import ApiAccessFilter
 from longlink.routes import router
-from longlink.context import install_context_middleware
 from fastapi.responses import Response, RedirectResponse
 from starlette.routing import Match
 from longlink.constants import ROOT
@@ -24,6 +23,7 @@ from longlink.database.base import LOCAL_USER_ID, Database
 from longlink.utils.settings import Envs
 from fastmcp.utilities.openapi import HTTPRoute
 from fastmcp.server.dependencies import get_http_headers
+from longlink.middleware.identity import IdentityMiddleware
 from fastmcp.server.providers.openapi import MCPType
 
 
@@ -108,22 +108,19 @@ class LongLink(FastAPI):
         self.include_router(runtime_router)
         runtime_operation_ids = {route.unique_id for route in runtime_router.routes if isinstance(route, APIRoute)}
 
+        # Reject an incomplete production policy before the middleware stack is built.
+        if settings.ENV == "production" and not settings.IDENTITY_SECRET:
+            raise ValueError("Identity secret is required for protected Solution requests")
+
         # Only production requests with a valid Platform identity may reach Solution routes.
-        install_context_middleware(
-            self,
-            settings.IDENTITY_SECRET,
+        self.add_middleware(
+            IdentityMiddleware,
+            identity_secret=settings.IDENTITY_SECRET,
             require_identity=settings.ENV == "production",
             local_user_id=LOCAL_USER_ID if settings.ENV != "production" else None,
         )
 
         self.state.longlink = runtime
-
-        async def close_database() -> None:
-            """Dispose the active database when the application shuts down."""
-
-            await self.state.longlink.database.dispose()
-
-        self.router.add_event_handler("shutdown", close_database)
 
         # Views are registered once before the frontend mount is installed.
         for definition, content in discovered_views:
@@ -173,39 +170,43 @@ class LongLink(FastAPI):
             """Build the completed Solution catalog and close MCP sessions before runtime services."""
 
             async with runtime_lifespan(app) as state:
-                # Use a fresh schema, including routes registered after an earlier OpenAPI request.
-                schema = get_openapi(
-                    title=self.title,
-                    version=self.version,
-                    openapi_version=self.openapi_version,
-                    description=self.description,
-                    routes=self.routes,
-                )
-                transport = httpx2.ASGITransport(app=self, raise_app_exceptions=False)
-                client = httpx2.AsyncClient(
-                    transport=transport,
-                    base_url="http://solution",
-                    timeout=10.0,
-                    event_hooks={"request": [forward_credentials]},
-                )
-                async with client:
-                    mcp = FastMCP.from_openapi(
-                        openapi_spec=schema,
-                        client=client,
-                        name=self.title,
-                        route_map_fn=map_route,
+                try:
+                    # Use a fresh schema, including routes registered after an earlier OpenAPI request.
+                    schema = get_openapi(
+                        title=self.title,
+                        version=self.version,
+                        openapi_version=self.openapi_version,
+                        description=self.description,
+                        routes=self.routes,
                     )
+                    transport = httpx2.ASGITransport(app=self, raise_app_exceptions=False)
+                    client = httpx2.AsyncClient(
+                        transport=transport,
+                        base_url="http://solution",
+                        timeout=10.0,
+                        event_hooks={"request": [forward_credentials]},
+                    )
+                    async with client:
+                        mcp = FastMCP.from_openapi(
+                            openapi_spec=schema,
+                            client=client,
+                            name=self.title,
+                            route_map_fn=map_route,
+                        )
 
-                    # Place MCP ahead of all frontend routes and own its public lifespan context.
-                    mcp_app = mcp.http_app(path="/mcp", json_response=True)
-                    self.router.routes[0:0] = mcp_app.routes
-                    try:
-                        async with mcp_app.lifespan(mcp_app):
-                            yield state or {}
-                    finally:
-                        # Remove only these routes so later lifespans cannot reuse a closed transport.
-                        for route in mcp_app.routes:
-                            self.router.routes.remove(route)
+                        # Place MCP ahead of all frontend routes and own its public lifespan context.
+                        mcp_app = mcp.http_app(path="/mcp", json_response=True)
+                        self.router.routes[0:0] = mcp_app.routes
+                        try:
+                            async with mcp_app.lifespan(mcp_app):
+                                yield state or {}
+                        finally:
+                            # Remove only these routes so later lifespans cannot reuse a closed transport.
+                            for route in mcp_app.routes:
+                                self.router.routes.remove(route)
+                finally:
+                    # Close the active services after MCP, including when initialization fails.
+                    await self.state.longlink.database.dispose()
 
         self.router.lifespan_context = lifespan
 
@@ -239,7 +240,6 @@ class LongLink(FastAPI):
 
         # Remove the complete registration without handling framework errors.
         try:
-
             # Solution routes added after startup respect the same View endpoint contract.
             routes = self.router.routes[added:]
             for definition in self._views:

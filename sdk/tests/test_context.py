@@ -6,12 +6,48 @@ from types import SimpleNamespace
 from fastapi import FastAPI, WebSocket
 from longlink import context, identity
 from contextlib import asynccontextmanager
+from longlink.app import LongLink
 from collections.abc import AsyncGenerator
 from longlink.database import audit
 from fastapi.testclient import TestClient
+from longlink.responses import FileResponse
+from longlink.testclient import TestClient as SolutionTestClient
 from starlette.websockets import WebSocketDisconnect
+from longlink.middleware.identity import IdentityMiddleware
 
 IDENTITY_SECRET = "test-identity-secret-01234567890"
+
+
+@pytest.mark.usefixtures("solution_source")
+@pytest.mark.parametrize("download", [False, True], ids=["preview", "download"])
+def test_context_streams_stored_files(download: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serve real context previews and downloads with encoded display filenames."""
+
+    # Arrange
+    monkeypatch.setenv("LONGLINK_ENV", "testing")
+    app = LongLink()
+    client = SolutionTestClient(app)
+    app.state.longlink.storage.pipe_file("stored.bin", b"stored report")
+
+    @app.get("/api/report", response_class=FileResponse)
+    async def report(value: context.Context) -> FileResponse:
+        """Use the public helper with a path distinct from its display name."""
+
+        # Select the public disposition helper without replacing request services.
+        if download:
+            return value.download("stored.bin", filename="résumé.txt", media_type="text/plain")
+        return value.file("stored.bin", filename="résumé.txt", media_type="text/plain")
+
+    # Act
+    with client:
+        response = client.get("/api/report")
+
+    # Assert
+    disposition = "attachment" if download else "inline"
+    assert response.status_code == 200
+    assert response.content == b"stored report"
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+    assert response.headers["content-disposition"] == f"{disposition}; filename*=utf-8''r%C3%A9sum%C3%A9.txt"
 
 
 class RequestDatabase:
@@ -70,7 +106,7 @@ def test_data_resolves_request_services(
     request_database.user = user
     app = FastAPI()
     app.state.longlink = SimpleNamespace(storage=storage, database=request_database)
-    context.install_context_middleware(app, IDENTITY_SECRET)
+    app.add_middleware(IdentityMiddleware, identity_secret=IDENTITY_SECRET, require_identity=False, local_user_id=None)
 
     @app.get("/")
     async def get_context(value: context.Context) -> dict[str, bool]:
@@ -101,7 +137,7 @@ def test_data_closes_database_session_when_endpoint_fails() -> None:
     request_database = RequestDatabase()
     app = FastAPI()
     app.state.longlink = SimpleNamespace(storage=object(), database=request_database)
-    context.install_context_middleware(app, IDENTITY_SECRET)
+    app.add_middleware(IdentityMiddleware, identity_secret=IDENTITY_SECRET, require_identity=False, local_user_id=None)
 
     @app.get("/")
     async def fail(_value: context.Context) -> None:
@@ -129,7 +165,7 @@ def test_context_middleware_treats_untrusted_identity_as_anonymous(secret: str, 
 
     # Install the real context middleware around the shared anonymous probe route.
     app = FastAPI()
-    context.install_context_middleware(app, secret)
+    app.add_middleware(IdentityMiddleware, identity_secret=secret, require_identity=False, local_user_id=None)
 
     @app.get("/")
     async def get_identity() -> dict[str, bool]:
@@ -156,7 +192,7 @@ def test_production_context_requires_signed_identity_except_for_probes() -> None
 
     # Install the same production identity boundary used by the Solution application.
     app = FastAPI()
-    context.install_context_middleware(app, IDENTITY_SECRET, require_identity=True)
+    app.add_middleware(IdentityMiddleware, identity_secret=IDENTITY_SECRET, require_identity=True, local_user_id=None)
 
     @app.get("/views.json")
     async def views() -> dict[str, bool]:
@@ -216,7 +252,7 @@ async def test_context_middleware_isolates_concurrent_audit_identities() -> None
     second_outer_id = UUID("00000000-0000-0000-0000-000000000009")
     both_requests_arrived = asyncio.Barrier(2)
     app = FastAPI()
-    context.install_context_middleware(app, IDENTITY_SECRET)
+    app.add_middleware(IdentityMiddleware, identity_secret=IDENTITY_SECRET, require_identity=False, local_user_id=None)
 
     @app.get("/")
     async def current_user() -> dict[str, str | None]:

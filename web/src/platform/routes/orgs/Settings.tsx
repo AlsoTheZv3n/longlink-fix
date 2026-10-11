@@ -1,16 +1,17 @@
 import { z } from 'zod';
 import { api } from '@/lib/api';
+import { useState } from 'react';
 import Registries from './Registries';
 import { OpenAI } from '@/components/OpenAI';
 import { useApi } from '@/lib/hooks/use-api';
 import CreateSolution from './CreateSolution';
 import { NoIndex } from '@/components/NoIndex';
+import { Card } from '@astryxdesign/core/Card';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@astryxdesign/core/Badge';
 import { useQuery } from '@tanstack/react-query';
-import { useState, type MouseEvent } from 'react';
 import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
 import { useToast } from '@astryxdesign/core/Toast';
@@ -22,16 +23,17 @@ import { Selector } from '@astryxdesign/core/Selector';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { DialogClose } from '@/components/ui/DialogClose';
+import { SideNavItem } from '@/components/ui/SideNavItem';
 import { Stack, StackItem } from '@astryxdesign/core/Stack';
 import { ProgressBar } from '@astryxdesign/core/ProgressBar';
+import { useLocation, useOutletContext } from 'react-router';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
-import { useLocation, useNavigate, useOutletContext } from 'react-router';
+import { SideNav, SideNavSection } from '@astryxdesign/core/SideNav';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
-import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
 import {
     ArrowRight,
     ArrowUp,
@@ -44,6 +46,7 @@ import {
     RefreshCw,
     Trash,
     Users,
+    UserRound,
     Wrench,
 } from 'lucide-react';
 
@@ -278,7 +281,7 @@ function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps
 
 const organizationSections = [
     { id: 'general', label: 'General' },
-    { id: 'usage', label: 'Usage' },
+    { id: 'billing', label: 'Billing' },
     { id: 'private-registries', label: 'Private registries' },
 ];
 
@@ -290,37 +293,19 @@ const peopleSections = [
 /** Shares organization identity and permissions while sections own resource lifetimes. */
 export default function OrganizationSettings() {
     const membership = useOutletContext<z.output<typeof schemas.zUserOrganizationMembership>>();
+
     const base = `/api/v1/organizations/${membership.organization.id}`;
     const location = useLocation();
-    const navigate = useNavigate();
 
     // Unknown fragments select General; inactive sections never mount their queries or drafts.
     const section =
         [...organizationSections, ...peopleSections, { id: 'solutions', label: 'Solutions' }].find(
-            (item) => `#${item.id}` === location.hash
+            (item) => `#${item.id}` === (location.hash === '#usage' ? '#billing' : location.hash)
         )?.id ?? 'general';
 
     // Share the layout-resolved identity and permissions without loading inactive sections.
     const canMaintain = ['maintain', 'admin', 'owner'].includes(membership.role);
     const canAdminister = ['admin', 'owner'].includes(membership.role);
-
-    /** Preserves ordinary-click history pushes while leaving modified clicks to the native link. */
-    function selectSection(event: MouseEvent, id: string) {
-        // Leave prevented and modified activations to the native link.
-        if (
-            event.defaultPrevented ||
-            event.button !== 0 ||
-            event.altKey ||
-            event.ctrlKey ||
-            event.metaKey ||
-            event.shiftKey
-        )
-            return;
-
-        // Push even when the selected fragment is already current, matching the existing Menu behavior.
-        event.preventDefault();
-        void navigate({ pathname: location.pathname, search: location.search, hash: `#${id}` });
-    }
 
     return (
         <Stack gap={8}>
@@ -353,12 +338,10 @@ export default function OrganizationSettings() {
                                 >
                                     {organizationSections.map((item) => (
                                         <SideNavItem
-                                            as="a"
                                             href={`${location.pathname}${location.search}#${item.id}`}
                                             isSelected={section === item.id}
                                             key={item.id}
                                             label={item.label}
-                                            onClick={(event) => selectSection(event, item.id)}
                                         />
                                     ))}
                                 </SideNavItem>
@@ -369,22 +352,18 @@ export default function OrganizationSettings() {
                                 >
                                     {peopleSections.map((item) => (
                                         <SideNavItem
-                                            as="a"
                                             href={`${location.pathname}${location.search}#${item.id}`}
                                             isSelected={section === item.id}
                                             key={item.id}
                                             label={item.label}
-                                            onClick={(event) => selectSection(event, item.id)}
                                         />
                                     ))}
                                 </SideNavItem>
                                 <SideNavItem
-                                    as="a"
                                     href={`${location.pathname}${location.search}#solutions`}
                                     icon={<Boxes className="size-4" aria-hidden="true" />}
                                     isSelected={section === 'solutions'}
                                     label="Solutions"
-                                    onClick={(event) => selectSection(event, 'solutions')}
                                 />
                             </SideNavSection>
                         </SideNav>
@@ -392,8 +371,8 @@ export default function OrganizationSettings() {
                 }
             >
                 <Stack gap={3}>
-                    {section === 'usage' ? (
-                        <UsageSection base={base} />
+                    {section === 'billing' ? (
+                        <BillingSection base={base} />
                     ) : section === 'private-registries' ? (
                         <ApiBoundary key="registries">
                             <Registries base={base} canMaintain={canMaintain} />
@@ -745,8 +724,16 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
                                                     options={[
                                                         { value: 'read', label: 'read', icon: EyeOff },
                                                         { value: 'write', label: 'write', icon: ArrowUp },
-                                                        { value: 'maintain', label: 'maintain', icon: Wrench },
-                                                        { value: 'admin', label: 'admin', icon: CheckCheck },
+                                                        {
+                                                            value: 'maintain',
+                                                            label: 'maintain',
+                                                            icon: Wrench,
+                                                        },
+                                                        {
+                                                            value: 'admin',
+                                                            label: 'admin',
+                                                            icon: CheckCheck,
+                                                        },
                                                     ]}
                                                     onChange={(role) => setInvitation({ ...invitation, role })}
                                                     width="100%"
@@ -771,33 +758,118 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
     );
 }
 
-/** Keeps file-storage and database reads independent for the lifetime of the Usage section. */
-function UsageSection({ base }: { base: string }) {
+/** Shows the Free plan with independent reads for each resource's current usage. */
+function BillingSection({ base }: { base: string }) {
+    // Retain the settings shell's 260px navigation and fill the remaining content region with the plan card.
     return (
         <Stack gap={4}>
             <Stack justify="end" minHeight="var(--size-element-md)">
                 <Heading level={2} hasCapsize>
-                    Usage
+                    Billing
                 </Heading>
             </Stack>
             <Divider />
-            {(['storage', 'database'] as const).map((resource) => (
-                <ApiBoundary
-                    key={resource}
-                    fallback={<Text color="secondary">Loading {resource} usage…</Text>}
-                    fallbackRender={({ resetErrorBoundary }) => (
-                        <Stack direction="horizontal" align="center" justify="between" gap={4}>
-                            <Text color="secondary">
-                                {resource === 'storage' ? 'Storage' : 'Database'} usage unavailable.
-                            </Text>
-                            <Button label="Retry" onClick={resetErrorBoundary} />
-                        </Stack>
-                    )}
-                >
-                    <UsageMeter base={base} resource={resource} />
-                </ApiBoundary>
-            ))}
+            <Card padding={0} className="overflow-hidden">
+                <Stack gap={0}>
+                    <Stack
+                        direction="horizontal"
+                        gap={3}
+                        align="center"
+                        paddingInline={4}
+                        paddingBlock={2}
+                        className="bg-muted"
+                    >
+                        <UserRound className="size-6 shrink-0 text-accent" aria-hidden="true" />
+                        <StackItem size="fill">
+                            <Stack gap={0}>
+                                <Heading level={3} className="text-base" weight="medium">
+                                    LongLink Free
+                                </Heading>
+                                <Text type="supporting">The basics for organizations</Text>
+                            </Stack>
+                        </StackItem>
+                        <Button href="/pricing/" label="Upgrade" size="sm" variant="primary" />
+                    </Stack>
+                    <Divider />
+                    <Stack gap={4} padding={4}>
+                        {(['users', 'storage', 'database'] as const).map((resource) => (
+                            <ApiBoundary
+                                key={resource}
+                                fallback={<Text color="secondary">Loading {resource} usage…</Text>}
+                                fallbackRender={({ resetErrorBoundary }) => (
+                                    <Stack direction="horizontal" align="center" justify="between" gap={4}>
+                                        <Text color="secondary">
+                                            {resource === 'users'
+                                                ? 'User'
+                                                : resource === 'storage'
+                                                  ? 'Storage'
+                                                  : 'Database'}{' '}
+                                            usage unavailable.
+                                        </Text>
+                                        <Button label="Retry" onClick={resetErrorBoundary} />
+                                    </Stack>
+                                )}
+                            >
+                                {resource === 'users' ? (
+                                    <UsersUsageMeter base={base} />
+                                ) : (
+                                    <UsageMeter base={base} resource={resource} />
+                                )}
+                            </ApiBoundary>
+                        ))}
+                    </Stack>
+                </Stack>
+            </Card>
+            {/* Keep billing tables empty until payment records are connected. */}
+            <Stack gap={3} paddingBlock={2}>
+                <Heading level={3}>Connected cards</Heading>
+                <Table<{ id: string; card: string; expires: string; status: string }>
+                    data={[]}
+                    idKey="id"
+                    density="compact"
+                    columns={[
+                        { key: 'card', header: 'Card', width: proportional(2) },
+                        { key: 'expires', header: 'Expires', width: proportional(1) },
+                        { key: 'status', header: 'Status', width: proportional(1) },
+                    ]}
+                />
+            </Stack>
+            <Stack gap={3} paddingBlock={2}>
+                <Heading level={3}>Invoices</Heading>
+                <Table<{ id: string; date: string; amount: string; status: string }>
+                    data={[]}
+                    idKey="id"
+                    density="compact"
+                    columns={[
+                        { key: 'id', header: 'Invoice', width: proportional(2) },
+                        { key: 'date', header: 'Date', width: proportional(1) },
+                        {
+                            key: 'amount',
+                            header: 'Amount',
+                            align: 'end',
+                            width: proportional(1),
+                        },
+                        { key: 'status', header: 'Status', width: proportional(1) },
+                    ]}
+                />
+            </Stack>
         </Stack>
+    );
+}
+
+/** Shows accepted members against the advertised Free plan's five-user allowance. */
+function UsersUsageMeter({ base }: { base: string }) {
+    // Count current members, not pending invitations, using the organization details endpoint.
+    const [{ members }] = useApi(base, schemas.zOrganizationDetails);
+
+    return (
+        <ProgressBar
+            label="Users"
+            value={members.length}
+            max={5}
+            hasValueLabel
+            formatValueLabel={() => `${members.length} / 5 users`}
+        />
     );
 }
 
@@ -812,6 +884,7 @@ function UsageMeter({ base, resource }: { base: string; resource: 'storage' | 'd
     function formatStorage(bytes: number) {
         // Keep zero explicit and preserve readable precision for small usage amounts.
         const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+
         const unit = bytes === 0 ? 0 : Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
 
         return `${(bytes / 1024 ** unit).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${units[unit]}`;
@@ -819,7 +892,7 @@ function UsageMeter({ base, resource }: { base: string; resource: 'storage' | 'd
 
     return (
         <ProgressBar
-            label={resource === 'storage' ? 'Storage' : 'Database'}
+            label={resource === 'storage' ? 'File storage' : 'Database storage'}
             value={usage.space_used}
             max={usage.quota_bytes}
             hasValueLabel

@@ -1,20 +1,22 @@
 import pytest
 import asyncio
 from uuid import UUID, uuid4
-from httpx2 import AsyncClient
+from httpx2 import AsyncClient, ASGITransport
 from datetime import UTC, datetime
 from sqlmodel import col
 from factories import create_solution, fetch_operations, create_organization, assert_no_new_operations
-from sqlalchemy import func, select
+from sqlalchemy import func, event, select
 from src.errors import NotFoundError
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Mapper, selectinload
 from src.models.roles import OrganizationRoles
 from src.models.types import Image
+from sqlalchemy.engine import Connection
 from src.models.metadata import LongLinkMetadata, EnvironmentMetadata
 from src.database.session import session_scope
 from src.database.models.users import User
 from src.database.models.solutions import Revision, Solution
+from src.database.models.operations import Operation
 from src.database.models.association import UserOrganization
 
 
@@ -333,6 +335,125 @@ async def test_release_inspection_revalidates_concurrent_desired_changes(
         assert current is not None
         assert current.desired_revision_id == replacement_id
         assert current.desired_revision.envs == {"OTHER": "concurrent-secret"}
+
+
+@pytest.mark.parametrize(("method", "demotion_wait"), [("GET", 1), ("POST", 1), ("GET", 2)])
+async def test_release_inspection_rejects_demotion_during_metadata_wait(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    users: tuple[User, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    demotion_wait: int,
+) -> None:
+    """Recheck committed membership after both candidate and old-digest inspection."""
+
+    # Arrange
+    organization = await create_organization(users[0])
+    solution = await create_solution(organization, envs={"KEEP": "private-value"})
+    async with session_scope() as session:
+        session.add(UserOrganization(user_id=users[1].id, organization_id=organization.id, role=OrganizationRoles.maintain))
+        await session.commit()
+        result = await session.scalars(select(col(Revision.id)).where(col(Revision.solution_id) == solution.id))
+        previous_revisions = set(result.all())
+    previous_operations = await fetch_operations()
+    inspected: list[Image] = []
+    candidate = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:candidate"))
+
+    async def metadata(image: Image, _connection: object | None = None) -> LongLinkMetadata:
+        """Commit demotion while the request has released its registry-wait transaction."""
+
+        # Revoke the otherwise valid maintainer at the selected external wait.
+        inspected.append(image)
+        if len(inspected) == demotion_wait:
+            async with session_scope() as session:
+                membership = await session.get(UserOrganization, (users[1].id, organization.id))
+                assert membership is not None
+                membership.role = OrganizationRoles.read
+                await session.commit()
+        return candidate if len(inspected) == 1 else LongLinkMetadata(image=image)
+
+    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+
+    # Act
+    response = await clients[1].request(
+        method, f"/api/v1/solutions/{solution.id}/update", json={"expected_revision_id": str(solution.desired_revision_id)}
+    )
+
+    # Assert
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Permission required"}
+    assert inspected == [Image("ghcr.io/longlink/dashboard@sha256:test")] * demotion_wait
+    async with session_scope() as session:
+        current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
+        assert current is not None
+        assert current.desired_revision_id == solution.desired_revision_id
+        assert current.desired_revision.envs == {"KEEP": "private-value"}
+        result = await session.scalars(select(col(Revision.id)).where(col(Revision.solution_id) == solution.id))
+        assert set(result.all()) == previous_revisions
+    await assert_no_new_operations(previous_operations)
+
+
+async def test_update_rolls_back_revision_and_pointer_after_queue_insert_failure(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A late queue write failure must leave the complete committed release unchanged."""
+
+    from main import app
+
+    # Arrange
+    organization = await create_organization(users[0])
+    solution = await create_solution(organization, envs={"KEEP": "private-value"})
+    async with session_scope() as session:
+        result = await session.scalars(select(col(Revision.id)).where(col(Revision.solution_id) == solution.id))
+        previous_revisions = set(result.all())
+    previous_operations = await fetch_operations()
+    inserted_targets: list[UUID] = []
+
+    async def metadata(_image: Image, _connection: object | None = None) -> LongLinkMetadata:
+        """Provide a changed valid release at the metadata transport boundary."""
+
+        return LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:candidate"))
+
+    def fail_insert(_mapper: Mapper[Operation], connection: Connection, operation: Operation) -> None:
+        """Fail only after the real queue INSERT and release snapshot flush."""
+
+        # Observe actual SQL persistence before interrupting the request transaction.
+        assert connection.scalar(select(col(Revision.solution_id)).where(col(Revision.id) == operation.target_id)) == solution.id
+        assert connection.scalar(select(col(Operation.id)).where(col(Operation.id) == operation.id)) == operation.id
+        inserted_targets.append(operation.target_id)
+        raise RuntimeError("queue INSERT failed")
+
+    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    event.listen(Operation, "after_insert", fail_insert)
+    try:
+        # Act
+        async with AsyncClient(
+            transport=ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://testserver",
+            cookies=clients[0].cookies,
+            headers=clients[0].headers,
+        ) as client:
+            response = await client.post(
+                f"/api/v1/solutions/{solution.id}/update",
+                json={"expected_revision_id": str(solution.desired_revision_id), "envs": {"NEW": "new-value"}},
+            )
+    finally:
+        # Restore the narrow late-write seam even if the request fails unexpectedly.
+        event.remove(Operation, "after_insert", fail_insert)
+
+    # Assert
+    assert response.status_code == 500
+    assert response.json() == {"detail": "An unexpected error occurred. Please try again later."}
+    assert len(inserted_targets) == 1
+    assert inserted_targets[0] not in previous_revisions
+    async with session_scope() as session:
+        current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
+        assert current is not None
+        assert current.desired_revision_id == solution.desired_revision_id
+        assert current.desired_revision.envs == {"KEEP": "private-value"}
+        result = await session.scalars(select(col(Revision.id)).where(col(Revision.solution_id) == solution.id))
+        assert set(result.all()) == previous_revisions
+    await assert_no_new_operations(previous_operations)
 
 
 async def test_environment_patch_validates_merged_limits(

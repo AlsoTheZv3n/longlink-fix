@@ -35,6 +35,9 @@ class _ModelMetaclass(SQLModelMetaclass):
             optional = annotation in (User | None, "User | None", "longlink.shared.models.User | None")
             if not optional and annotation not in (User, "User", "longlink.shared.models.User"):
                 raise TypeError(f"{relation} must be annotated as User")
+
+            # Resolve supported postponed user annotations before SQLAlchemy maps relationships.
+            annotations[relation] = User | None if optional else User
             column = f"{relation}_id"
             if column in namespace or column in annotations:
                 raise ValueError(f"{column} is managed by UserRelationship()")
