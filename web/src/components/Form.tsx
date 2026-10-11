@@ -144,25 +144,29 @@ export function Form(props: {
     );
 
     // Reuse the same persistent panels and navigation in inline forms and bounded dialogs.
+    let stepIndex = 0;
+
     const content = (
         <Stack gap={steps.length > 0 ? 4 : 3}>
             {steps.length === 0
                 ? props.children
                 : children.map((child) => {
-                      // Keep all step fields mounted and enabled so final serialization remains complete.
-                      const index = steps.findIndex((candidate) => candidate === child);
+                      // Shared children do not consume a step index.
+                      if (!isValidElement<Parameters<typeof FormStep>[0]>(child) || child.type !== FormStep)
+                          return child;
 
-                      if (index < 0) return child;
+                      // Keep all step fields mounted and enabled so final serialization remains complete.
+                      const index = stepIndex++;
 
                       return (
                           <fieldset
-                              key={steps[index].key}
+                              key={child.key}
                               data-form-step={index}
                               hidden={index !== activeStep}
                               className="m-0 min-w-0 border-0 p-0"
-                              aria-label={steps[index].props.label}
+                              aria-label={child.props.label}
                           >
-                              {steps[index].props.children}
+                              {child.props.children}
                           </fieldset>
                       );
                   })}

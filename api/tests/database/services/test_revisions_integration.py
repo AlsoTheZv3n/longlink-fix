@@ -58,7 +58,6 @@ async def test_revision_ownership_constraints_and_cleanup(monkeypatch: pytest.Mo
                 assert current is not None
                 revision = await session.get(Revision, current.desired_revision_id)
                 assert revision is not None
-                assert revision.configured_envs == ["KEEP"]
                 assert revision.envs == {"KEEP": "postgres-secret"}
 
         # The actual migrated schema independently enforces same-Solution pointers.

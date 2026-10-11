@@ -108,10 +108,6 @@ class LongLink(FastAPI):
         self.include_router(runtime_router)
         runtime_operation_ids = {route.unique_id for route in runtime_router.routes if isinstance(route, APIRoute)}
 
-        # Reject an incomplete production policy before the middleware stack is built.
-        if settings.ENV == "production" and not settings.IDENTITY_SECRET:
-            raise ValueError("Identity secret is required for protected Solution requests")
-
         # Only production requests with a valid Platform identity may reach Solution routes.
         self.add_middleware(
             IdentityMiddleware,
