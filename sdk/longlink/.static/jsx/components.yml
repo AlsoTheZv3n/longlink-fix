@@ -756,6 +756,12 @@
       type: string
       description: Native form ID for associating external submit or reset buttons.
 
+    - name: height
+      type: string | number
+      description: Bounds the form height. With FormStep children, pins progress above
+        centered, independently scrollable fields. Use "100%" inside a
+        fixed-height Dialog with padding={0} and contentWidth="100%".
+
     - name: submitLabel
       type: string
       description: Label for the automatic final submit button when using FormStep

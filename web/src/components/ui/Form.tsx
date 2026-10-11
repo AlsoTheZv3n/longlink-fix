@@ -18,6 +18,8 @@ export function Form(props: {
     method?: 'post';
     /** Native form ID for associating external submit or reset buttons. */
     id?: string;
+    /** Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields. Use "100%" inside a fixed-height Dialog with padding={0} and contentWidth="100%". */
+    height?: number | string;
     /** Label for the automatic final submit button when using FormStep children; defaults to Save. */
     submitLabel?: string;
     /** Runs after a successful write and automatic cached-data refresh. */
@@ -30,6 +32,7 @@ export function Form(props: {
         <forms.Form
             hidden={props.hidden}
             id={props.id}
+            height={props.height}
             submitLabel={props.submitLabel}
             action={async (data) => {
                 // Route writes through the same validated bridge as explicit request calls.
