@@ -7,32 +7,29 @@
 Create the tools your company always needed
 </h3 >
 
-<a href="https://www.longlink.dev/">Website</a> &nbsp; · &nbsp; <a href="https://www.longlink.dev/docs/introduction/">Documentation</a> &nbsp; · &nbsp; <a href="https://github.com/xLongLink/sample">Sample</a> &nbsp; · &nbsp; <a href="https://pypi.org/project/longlink/">PyPI</a> &nbsp; · &nbsp; <a href="https://github.com/xLongLink/longlink/issues">Issues</a>
+Write your application logic using familiar Python tools. LongLink takes care of the common infrastructure, so you can focus on solving the actual problems.
 
-<a target="_blank" href="https://betalist.com/startups/longlink?utm_campaign=badge-longlink&amp;utm_medium=badge&amp;utm_source=badge-featured">
-  <img alt="LongLink - Build and operate business processes as code | BetaList" width="156" height="54" style="width: 156px; height: 54px" src="https://betalist.com/badges/featured?id=191156&amp;theme=color">
-</a>
+[![Tests](https://github.com/xLongLink/longlink/actions/workflows/tests.yml/badge.svg)](https://github.com/xLongLink/longlink/actions/workflows/tests.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python versions](https://img.shields.io/pypi/pyversions/longlink)](https://pypi.org/project/longlink/)
+[![PyPI version](https://img.shields.io/pypi/v/longlink)](https://pypi.org/project/longlink/)
+
 
 </div>
 
 
 <br />
 
+## What it does
 
+LongLink is a Python framework and platform for building and running business applications:
 
-## Introduction
-
-LongLink is a Python framework and platform for building and running business applications.
-
-Write your application logic using familiar Python tools. LongLink takes care of the common infrastructure, so you can focus on solving the actual problems.
-
-Some highlights:
-- **Built on FastAPI**: Use standard FastAPI routes, Pydantic, SQLModel, and your favorite Python libraries.
-- **Built-in UI**: Build modern interfaces without the complexity of maintaining a complete frontend.
-- **User management**: Built-in authentication, organizations, roles, and permissions.
-- **Managed infrastructure**: Databases, storage, logging, and deployment handled by the platform.
-- **AI integration**: Expose your applications to AI agents through an MCP server.
-- **Portable**: Applications run as standard containers.
+- ⚡ **Built on FastAPI**: Use standard FastAPI routes, Pydantic, SQLModel, and your favorite Python libraries.
+- 🖥️ **Built-in UI**: Build modern interfaces without the complexity of maintaining a complete frontend.
+- 👥 **User management**: Built-in authentication, organizations, roles, and permissions.
+- ☁️ **Managed infrastructure**: Databases, storage, logging, and deployment handled by the platform.
+- 🤖 **AI integration**: Expose your applications to AI agents through an MCP server.
+- 📦 **Portable**: Applications run as standard containers.
 
 
 
@@ -48,8 +45,6 @@ Requirements: Python 3.12 or later and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 uvx --from longlink longlink init --folder . --ci github
-uv sync --group dev
-uv run longlink dev
 ```
 
 Open `http://127.0.0.1:1707` to preview your Solution.
@@ -57,19 +52,7 @@ Open `http://127.0.0.1:1707` to preview your Solution.
 > [!NOTE]
 > See the [sample Solution](https://github.com/xLongLink/sample) for a complete example.
 
-<details>
-<summary>What about classic pip?</summary>
 
-```bash
-python -m pip install longlink
-longlink init --folder . --ci github
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-longlink dev
-```
-
-</details>
 
 <br />
 
@@ -136,8 +119,6 @@ Stop running development servers with **Ctrl+C** in their terminals. Then run:
 ```bash
 make down
 ```
-
-This command removes the local cluster, API database, and sample Solution in `sdk/dev/`, including any local edits in that directory.
 
 <br />
 <br />
