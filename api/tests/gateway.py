@@ -1,5 +1,7 @@
+import json
 import httpx2
 import pytest
+import hashlib
 from fastapi import Request
 from pathlib import Path
 from longlink import app
@@ -14,6 +16,16 @@ def create_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, secret: str)
     frontend = tmp_path / ".static" / "web" / "index.html"
     frontend.parent.mkdir(parents=True)
     frontend.write_text("<!doctype html><html></html>", encoding="utf-8")
+
+    # Supply the complete pinned runtime required by the SDK without building browser assets.
+    runtime = frontend.parent / "views"
+    runtime.mkdir()
+    script = "// Gateway test runtime\n"
+    styles = "/* Gateway test styles */\n"
+    (runtime / "runtime.js").write_text(script, encoding="utf-8")
+    (runtime / "runtime.css").write_text(styles, encoding="utf-8")
+    version = hashlib.sha256(f"{script}\n{styles}".encode()).hexdigest()
+    (runtime / "runtime.json").write_text(json.dumps({"version": version}), encoding="utf-8")
     monkeypatch.setattr(app, "ROOT", tmp_path)
 
     # Discover isolated Solution sources and services from the test directory and settings.

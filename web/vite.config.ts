@@ -29,8 +29,8 @@ export default defineConfig(({ mode }) => {
     const devServerPort = env.VITE_DEV_PORT ? Number.parseInt(env.VITE_DEV_PORT, 10) : 5173;
 
     return {
-        // Keep code-level test servers from replacing the running dev server's optimized dependencies.
-        cacheDir: mode === 'test' ? 'node_modules/.vite-test' : 'node_modules/.vite',
+        // Isolate Platform, SDK, and test dependency optimization from each other and default-cache tooling.
+        cacheDir: `node_modules/.vite-${mode}`,
         plugins: [
             {
                 name: 'documentation-catalog',

@@ -5,21 +5,25 @@ import { Document } from '@/components/layouts/Document';
 import '@fontsource/kalam';
 import '@fontsource/kalam/700.css';
 
+export { HydrateFallback } from '@/components/Root';
+
 /** Provides the shared runtime and native Platform fonts. */
 export default function PlatformRoot() {
     return <Root />;
 }
 
-/** Adds website analytics only to the Platform document. */
+/** Adds website analytics only to production Platform documents. */
 export function Layout({ children }: { children: ReactNode }) {
     return (
         <Document
             head={
-                <script
-                    defer
-                    src="https://cloud.umami.is/script.js"
-                    data-website-id="eff115b8-10d7-4507-abf5-6b3de55eab3f"
-                />
+                import.meta.env.PROD && (
+                    <script
+                        defer
+                        src="https://cloud.umami.is/script.js"
+                        data-website-id="eff115b8-10d7-4507-abf5-6b3de55eab3f"
+                    />
+                )
             }
         >
             {children}

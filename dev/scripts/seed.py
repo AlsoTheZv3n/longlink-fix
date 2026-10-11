@@ -137,7 +137,7 @@ async def create_sample(client: httpx2.AsyncClient, settings: SeedSettings, orga
             f"/api/v1/organizations/{organization.id}/solutions",
             json={
                 "name": "Invoices",
-                "image": "localhost:15000/sample:dev",
+                "image": "localhost:15000/sample:latest",
                 "envs": settings.SAMPLE_ENVS,
                 "min_scale": 1,
                 "idle_seconds": 0,
@@ -145,7 +145,7 @@ async def create_sample(client: httpx2.AsyncClient, settings: SeedSettings, orga
             },
         )
         if response.status_code == 404:
-            raise RuntimeError("Sample image 'localhost:15000/sample:dev' was not found in the local registry; run 'make image' first")
+            raise RuntimeError("Sample image 'localhost:15000/sample:latest' was not found in the local registry; run 'make image' first")
         response.raise_for_status()
         return
 
@@ -153,13 +153,13 @@ async def create_sample(client: httpx2.AsyncClient, settings: SeedSettings, orga
         # Leave in-flight provisioning alone; a later seed redeploys once it settles.
         return
 
-    # Re-resolve the mutable development tag so a rebuilt image deploys a fresh revision.
+    # Re-resolve latest, matching the API update policy, so a rebuilt image deploys a fresh revision.
     response = await client.post(
         f"/api/v1/solutions/{solution.id}/update",
         json={"envs": settings.SAMPLE_ENVS, "min_scale": 1, "idle_seconds": 0},
     )
     if response.status_code == 404:
-        raise RuntimeError("Sample image 'localhost:15000/sample:dev' was not found in the local registry; run 'make image' first")
+        raise RuntimeError("Sample image 'localhost:15000/sample:latest' was not found in the local registry; run 'make image' first")
     if response.status_code == 409 and str(response.json().get("detail", "")).endswith("No revision was created."):
         # The rebuilt image matches the deployed snapshot, keeping repeated seeding idempotent.
         return

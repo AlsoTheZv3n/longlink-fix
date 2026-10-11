@@ -61,6 +61,9 @@ export default {
     appDirectory: isSolution ? 'src/solution' : 'src/platform',
     buildDirectory: path.resolve(import.meta.dirname, 'build', isSolution ? 'sdk' : 'api'),
     ssr: false,
+
+    // Discover route dependencies before serving modules instead of re-optimizing them during page loading.
+    future: { unstable_optimizeDeps: true },
     prerender: isSolution ? undefined : publicPagePaths.map((pagePath) => (pagePath === '/' ? '/' : `${pagePath}/`)),
 
     /** Adapts Framework Mode's output to the embedded FastAPI frontend contract. */

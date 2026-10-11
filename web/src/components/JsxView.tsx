@@ -1,19 +1,20 @@
+import { ApiError } from '@/lib/api';
 import * as icons from '@/lib/icons';
 import * as host from '@/views/host';
-import { api, ApiError } from '@/lib/api';
 import { useNavigate } from 'react-router';
 import { PageError } from '@/components/Utils';
 import { resolveNavigationUrl } from '@/lib/url';
 import { Stack } from '@astryxdesign/core/Stack';
+import { useQuery } from '@tanstack/react-query';
+import type { ViewRuntime } from '@/views/manifest';
 import { useEffect, useRef, useState } from 'react';
-import { useSuspenseQuery } from '@tanstack/react-query';
 import {
     commandSchema,
     parametersSchema,
     MAX_PENDING_REQUESTS,
     MAX_PENDING_ICONS,
     MAX_MESSAGE_SIZE,
-    REQUEST_TIMEOUT,
+    MAX_RUNTIME_SIZE,
     messageSize,
     iconDataSchema,
     type ViewData,
@@ -27,11 +28,13 @@ export function JsxView({
     params,
     requestBaseUrl,
     navigationBaseUrl,
+    runtime,
 }: {
     source: string;
     params: Record<string, string>;
     requestBaseUrl: string;
     navigationBaseUrl: string;
+    runtime?: ViewRuntime;
 }) {
     const frame = useRef<HTMLIFrameElement>(null);
     const navigate = useNavigate();
@@ -42,22 +45,52 @@ export function JsxView({
 
     const parameters = JSON.stringify(params);
 
-    const { data: kernel } = useSuspenseQuery({
-        queryKey: ['view-runtime'],
+    const { data: kernel, error: runtimeError } = useQuery({
+        queryKey: ['view-runtime', runtime ? requestBaseUrl : null, runtime],
         staleTime: Infinity,
         retry: false,
         queryFn: async ({ signal }) => {
-            // Bound asset loading through body completion, not just response headers.
-            const lifetime = AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT)]);
+            // Legacy manifests keep using Platform assets; declared runtimes stay within their Solution proxy.
+            const urls = ['views/runtime.js', 'views/runtime.css'].map((path) => {
+                if (runtime) {
+                    const url = new URL(host.requestUrl(requestBaseUrl, path), window.location.origin);
+                    url.searchParams.set('v', runtime.version);
 
-            return Promise.all([
-                api('/views/runtime.js', { signal: lifetime, credentials: 'omit', timeout: false }).text(),
-                api('/views/runtime.css', { signal: lifetime, credentials: 'omit', timeout: false }).text(),
-            ]);
+                    return url.href;
+                }
+
+                return `/${path}`;
+            });
+
+            const assets = await Promise.all(
+                urls.map(async (url) => {
+                    const body = await host.load(url, { signal }, MAX_RUNTIME_SIZE);
+
+                    return body.text();
+                })
+            );
+
+            // Reject stale or mixed runtime assets instead of silently rendering with the wrong components.
+            if (runtime) {
+                const digest = await crypto.subtle.digest(
+                    'SHA-256',
+                    new TextEncoder().encode(`${assets[0]}\n${assets[1]}`)
+                );
+
+                const version = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(
+                    ''
+                );
+
+                if (version !== runtime.version)
+                    throw new Error('The Solution View runtime does not match its manifest');
+            }
+
+            return assets;
         },
     });
 
     useEffect(() => {
+        if (!kernel) return;
         const [script, styles] = kernel;
         const controller = new AbortController();
         const channel = new MessageChannel();
@@ -81,7 +114,7 @@ export function JsxView({
             setBootstrapState({ status: 'failed' });
         }
 
-        /** Connects one trusted bootstrap instance; subsequent window messages have no capabilities. */
+        /** Connects only this sandbox instance; subsequent window messages have no capabilities. */
         function ready(event: MessageEvent<unknown>): void {
             if (controller.signal.aborted) return;
 
@@ -189,7 +222,7 @@ export function JsxView({
             }
         };
 
-        /** Builds a trusted boot document; Solution source is transferred as data, never interpolated into HTML. */
+        /** Confines runtime assets to the sandbox; View source is transferred as data, never interpolated into HTML. */
         async function bootstrap(): Promise<void> {
             const code = `window.__VIEW_SESSION__=${JSON.stringify(session)};\n${script}`.replace(
                 /<\/script/gi,
@@ -218,7 +251,7 @@ export function JsxView({
         return dispose;
     }, [source, parameters, requestBaseUrl, navigationBaseUrl, navigate, kernel]);
 
-    if (bootstrapState.status === 'failed')
+    if (runtimeError || bootstrapState.status === 'failed')
         return (
             <PageError title="Unable to load this View" description="The isolated View runtime could not be loaded." />
         );

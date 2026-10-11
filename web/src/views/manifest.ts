@@ -19,6 +19,12 @@ function isRoute(route: string): boolean {
         });
 }
 
+const runtimeSchema = z.object({
+    version: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+export type ViewRuntime = z.infer<typeof runtimeSchema>;
+
 const viewSchema = z.object({
     path: z
         .string()
@@ -53,3 +59,9 @@ export const viewsSchema = z.array(viewSchema).superRefine((views, context) => {
         routes.add(routeKey);
     }
 });
+
+// Normalize legacy catalogs at the boundary while new manifests own one Solution-wide runtime.
+export const manifestSchema = z.union([
+    z.object({ views: viewsSchema, runtime: runtimeSchema }),
+    viewsSchema.transform((views) => ({ views, runtime: undefined })),
+]);

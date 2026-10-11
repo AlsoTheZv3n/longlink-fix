@@ -5,6 +5,7 @@ from fastapi import FastAPI, APIRouter
 from fastmcp import FastMCP
 from pathlib import Path
 from longlink import views
+from pydantic import FilePath, BaseModel
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from fsspec.spec import AbstractFileSystem
@@ -25,6 +26,16 @@ from fastmcp.utilities.openapi import HTTPRoute
 from fastmcp.server.dependencies import get_http_headers
 from longlink.middleware.identity import IdentityMiddleware
 from fastmcp.server.providers.openapi import MCPType
+
+
+class FrontendAssets(BaseModel):
+    """Validate the required frontend files packaged with this SDK."""
+
+    # Required frontend assets.
+    index: FilePath
+    script: FilePath
+    styles: FilePath
+    manifest: FilePath
 
 
 @dataclass(slots=True)
@@ -71,10 +82,17 @@ class LongLink(FastAPI):
         # Validate the Platform-provided runtime environment before loading Solution files.
         settings = Envs()
 
-        # Require the frontend entry point supplied by the packaged SDK.
-        frontend_index = ROOT / ".static" / "web" / "index.html"
-        if not frontend_index.is_file():
-            raise RuntimeError(f"LongLink embedded frontend is required: {frontend_index}")
+        # Require the frontend and component runtime packaged with this SDK before loading Solution files.
+        frontend_directory = ROOT / ".static" / "web"
+        frontend_assets = FrontendAssets(
+            index=frontend_directory / "index.html",
+            script=frontend_directory / "views" / "runtime.js",
+            styles=frontend_directory / "views" / "runtime.css",
+            manifest=frontend_directory / "views" / "runtime.json",
+        )
+
+        # Validate the manifest's content version separately from file existence.
+        view_runtime = views.ViewRuntime.model_validate_json(frontend_assets.manifest.read_bytes())
 
         # Solutions provide .jsx files in the generated source layout.
         views_directory = Path.cwd() / "src" / "views"
@@ -84,6 +102,12 @@ class LongLink(FastAPI):
         # Validate the complete catalog before installing runtime services.
         discovered_views = views.discover(views_directory)
         view_definitions = [definition for definition, _ in discovered_views]
+
+        # Declare the pinned runtime once for the complete Solution catalog.
+        view_manifest = views.ViewManifest(
+            views=view_definitions,
+            runtime=view_runtime,
+        )
 
         # Initialize Solution storage and database connections.
         runtime = RuntimeState.from_settings(settings)
@@ -104,7 +128,7 @@ class LongLink(FastAPI):
                 access_logger.addFilter(ApiAccessFilter())
 
         # Mount SDK-managed routes before user-facing assets.
-        runtime_router = router(view_definitions)
+        runtime_router = router(view_manifest)
         self.include_router(runtime_router)
         runtime_operation_ids = {route.unique_id for route in runtime_router.routes if isinstance(route, APIRoute)}
 
@@ -207,7 +231,7 @@ class LongLink(FastAPI):
         self.router.lifespan_context = lifespan
 
         # Serve the embedded frontend as low-priority routes so Solution routes take precedence.
-        self.frontend("/", directory=frontend_index.parent)
+        self.frontend("/", directory=frontend_assets.index.parent)
 
     # FastAPI accepts framework-defined router options with heterogeneous values.
     def include_router(self, router: APIRouter, **kwargs: Any) -> None:  # noqa: ANN401
