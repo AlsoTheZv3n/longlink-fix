@@ -1,5 +1,5 @@
 /** Displays invoice approvals using the shared, isolated LongLink frontend. */
-export default function Invoices() {
+export default function InvoiceTable() {
     const [page, setPage] = useState(1);
     const [open, setOpen] = useState(false);
     const [invoices] = useApi(`/api/items?page=${page}&page_size=8`);
@@ -7,7 +7,10 @@ export default function Invoices() {
     return (
         <Stack gap={4}>
             <Stack direction="horizontal" justify="between" align="center" wrap="wrap">
-                <Heading level={1}>Invoice approvals</Heading>
+                <Stack gap={0}>
+                    <Heading level={1}>Example Table View</Heading>
+                    <Text color="secondary">This can be used for reviewing invoices and managing approvals.</Text>
+                </Stack>
                 <Button label="New Invoice" onClick={() => setOpen(true)} />
             </Stack>
             {/* Match Platform creation dialogs with a viewport-bounded frame and centered form column. */}
@@ -56,7 +59,7 @@ export default function Invoices() {
                         renderCell: (row) => (
                             <Stack gap={0}>
                                 <Stack direction="horizontal" align="center" gap={2} wrap="wrap">
-                                    <Link to={`/items/${row.id}`}>{row.name}</Link>
+                                    <Link to={`/table/${row.id}`}>{row.name}</Link>
                                     <Badge
                                         variant={
                                             row.status === 'approved'

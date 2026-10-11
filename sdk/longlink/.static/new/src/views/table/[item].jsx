@@ -1,5 +1,5 @@
 /**
- * Displays an invoice, its attachments, and its approval controls.
+ * Displays a table invoice, its attachments, and its approval controls.
  * @param {ViewProps} props
  */
 export default function Invoice({ params }) {
