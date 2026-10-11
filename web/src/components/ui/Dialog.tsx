@@ -1,6 +1,7 @@
 import type { Spacing } from './types';
 import type { ReactNode } from 'react';
 import { Stack } from '@astryxdesign/core/Stack';
+import { DialogHeader } from '@astryxdesign/core/Dialog';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import { Dialog as AstryxDialog } from '@astryxdesign/core/Dialog';
 
@@ -13,9 +14,9 @@ export function Dialog(props: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     purpose?: 'form' | 'info' | 'required';
-    /** Preferred dialog width, clamped to the viewport. */
+    /** Preferred dialog width, clamped to the viewport, matching Platform dialogs. */
     width?: number | string;
-    /** Frame height; when set, short content is vertically centered while longer content scrolls. */
+    /** Frame height, limited by the viewport. Short content is vertically centered while longer content scrolls. */
     height?: number | string;
     /** Maximum dialog height within the View viewport. */
     maxHeight?: number | string;
@@ -33,18 +34,22 @@ export function Dialog(props: {
             isOpen={props.isOpen && !props.hidden}
             onOpenChange={props.onOpenChange}
             purpose={props.purpose ?? 'info'}
-            width={props.width}
-            maxHeight={props.maxHeight}
+            width={props.width ?? 960}
+            maxHeight={props.maxHeight ?? 'calc(100dvh - var(--spacing-10) * 4)'}
             padding={0}
         >
-            <Stack gap={0} height={props.height}>
-                <Layout height="fill" padding={0}>
+            <Stack gap={0} height={props.height ?? 'min(560px, calc(100dvh - var(--spacing-10) * 4))'}>
+                <Layout
+                    height="fill"
+                    padding={0}
+                    header={<DialogHeader title={props['aria-label']} onOpenChange={props.onOpenChange} />}
+                >
                     <LayoutContent padding={props.padding ?? 4}>
                         {/* Grow beyond the scrollport rather than clipping tall, centered forms. */}
                         <Stack
                             gap={0}
-                            minHeight={props.height === undefined ? undefined : '100%'}
-                            justify={props.height === undefined ? 'start' : 'center'}
+                            minHeight="100%"
+                            justify="center"
                             width="100%"
                             maxWidth={props.contentWidth}
                             className="mx-auto"

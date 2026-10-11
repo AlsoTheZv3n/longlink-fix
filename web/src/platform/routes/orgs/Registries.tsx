@@ -9,6 +9,7 @@ import { Dialog } from '@astryxdesign/core/Dialog';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@astryxdesign/core/TextInput';
+import { DialogClose } from '@/components/ui/DialogClose';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
@@ -127,6 +128,7 @@ function RegistryForm({
                 if (!open) onClose();
             }}
         >
+            <DialogClose onClose={onClose} />
             <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                 <Layout
                     padding={0}

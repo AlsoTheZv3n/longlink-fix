@@ -4727,9 +4727,9 @@ declare function Dialog(props: {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     purpose?: 'form' | 'info' | 'required';
-    /** Preferred dialog width, clamped to the viewport. */
+    /** Preferred dialog width, clamped to the viewport, matching Platform dialogs. */
     width?: number | string;
-    /** Frame height; when set, short content is vertically centered while longer content scrolls. */
+    /** Frame height, limited by the viewport. Short content is vertically centered while longer content scrolls. */
     height?: number | string;
     /** Maximum dialog height within the View viewport. */
     maxHeight?: number | string;
@@ -5041,6 +5041,8 @@ declare function Stepper(props: {
     children?: ViewNode;
     activeStep?: number;
     orientation?: 'horizontal' | 'vertical';
+    /** Enables step activation and receives the clicked step's zero-based index. */
+    onStepClick?: (index: number) => void;
 }): React.JSX.Element;
 
 /** @category Layouts @group Stepper */
@@ -5051,6 +5053,8 @@ declare function Step(props: {
     step: number;
     /** Visible label identifying the step. */
     label: string;
+    /** Supporting text displayed below the step label. */
+    description?: string;
 }): React.JSX.Element;
 
 /** @category Layouts */

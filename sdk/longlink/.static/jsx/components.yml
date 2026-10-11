@@ -523,18 +523,20 @@
 
     - name: width
       type: string | number
-      description: Preferred dialog width, clamped to the viewport.
-      default: 400
+      description: Preferred dialog width, clamped to the viewport, matching Platform
+        dialogs.
+      default: 960
 
     - name: height
       type: string | number
-      description: Frame height; when set, short content is vertically centered while
-        longer content scrolls.
+      description: Frame height, limited by the viewport. Short content is vertically
+        centered while longer content scrolls.
+      default: min(560px, calc(100dvh - var(--spacing-10) * 4))
 
     - name: maxHeight
       type: string | number
       description: Maximum dialog height within the View viewport.
-      default: 75dvh
+      default: calc(100dvh - var(--spacing-10) * 4)
 
     - name: padding
       type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
@@ -1690,6 +1692,10 @@
       description: Layout direction of the stepper.
       default: horizontal
 
+    - name: onStepClick
+      type: "(index: number) => void"
+      description: Enables step activation and receives the clicked step's zero-based index.
+
     - name: Step.hidden
       type: boolean
       description: Hides the step indicator and label without changing its index.
@@ -1701,6 +1707,10 @@
     - name: Step.label
       type: string
       description: Visible label identifying the step.
+
+    - name: Step.description
+      type: string
+      description: Supporting text displayed below the step label.
 
 
 - name: Switch

@@ -8,6 +8,7 @@ import { Form, FormStep } from '@/components/Form';
 import { Dialog } from '@astryxdesign/core/Dialog';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@/components/ui/TextInput';
+import { DialogClose } from '@/components/ui/DialogClose';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Owns one creation attempt, shared by the organization list and settings pages. */
@@ -72,6 +73,7 @@ export default function CreateSolution({
                 if (!open) onClose();
             }}
         >
+            <DialogClose onClose={onClose} />
             <Form
                 height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
                 action={createSolution}

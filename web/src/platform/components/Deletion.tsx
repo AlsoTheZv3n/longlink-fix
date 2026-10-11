@@ -1,5 +1,10 @@
-import { useRef, useTransition } from 'react';
-import { AlertDialog } from '@astryxdesign/core/AlertDialog';
+import { Text } from '@astryxdesign/core/Text';
+import { Stack } from '@astryxdesign/core/Stack';
+import { Button } from '@astryxdesign/core/Button';
+import { useId, useRef, useTransition } from 'react';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
+import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
+import { Layout, LayoutContent, LayoutFooter } from '@astryxdesign/core/Layout';
 
 /** Tracks deletion for its mounted lifetime; callers own the resource, mounting, and success-only closure. */
 export function DeletionDialog({
@@ -12,27 +17,27 @@ export function DeletionDialog({
     // Preserve pending state across dismissal for callers that keep this component mounted.
     const [isDeleting, startDeletion] = useTransition();
     const deletionInFlight = useRef(false);
+    const descriptionId = useId();
+    const isSmallScreen = useMediaQuery('(max-width: 640px)');
 
     if (!confirmation) return null;
 
-    // Preserve the existing 400px AlertDialog layout and transition-based failure propagation.
-    return (
-        <AlertDialog
-            isOpen
-            title={confirmation.title}
-            description={confirmation.description}
-            actionLabel="Delete"
-            isActionLoading={isDeleting}
-            onOpenChange={(open) => {
-                if (!open) onClose();
-            }}
-            onAction={() => {
+    // Keep the least-destructive focus target and narrow-screen action order unchanged.
+    const cancelButton = <Button key="cancel" label="Cancel" variant="ghost" data-autofocus onClick={onClose} />;
+
+    const deleteButton = (
+        <Button
+            key="delete"
+            label="Delete"
+            variant="destructive"
+            isLoading={isDeleting}
+            onClick={() => {
                 // Deduplicate same-tick clicks before the transition's pending state renders.
                 if (deletionInFlight.current) return;
 
                 deletionInFlight.current = true;
                 startDeletion(async () => {
-                    // Release the guard on success or failure without swallowing transition errors.
+                    // Release the guard without swallowing transition errors.
                     try {
                         await confirmation.onDelete();
                     } finally {
@@ -41,5 +46,42 @@ export function DeletionDialog({
                 });
             }}
         />
+    );
+
+    // Preserve alert semantics and cancellation focus while adding explicit header dismissal.
+    return (
+        <Dialog
+            isOpen
+            purpose="form"
+            role="alertdialog"
+            aria-describedby={descriptionId}
+            onOpenChange={(open) => {
+                if (!open) onClose();
+            }}
+        >
+            <Layout
+                header={<DialogHeader title={confirmation.title} onOpenChange={onClose} />}
+                content={
+                    <LayoutContent>
+                        <Text color="secondary" id={descriptionId}>
+                            {confirmation.description}
+                        </Text>
+                    </LayoutContent>
+                }
+                footer={
+                    <LayoutFooter>
+                        <Stack
+                            direction={isSmallScreen ? 'vertical' : 'horizontal'}
+                            gap={2}
+                            align={isSmallScreen ? 'stretch' : undefined}
+                            justify="end"
+                            wrap={isSmallScreen ? 'nowrap' : 'wrap'}
+                        >
+                            {isSmallScreen ? [deleteButton, cancelButton] : [cancelButton, deleteButton]}
+                        </Stack>
+                    </LayoutFooter>
+                }
+            />
+        </Dialog>
     );
 }
