@@ -55,18 +55,6 @@ export const zAuthorizationRedirect = z.object({
 });
 
 /**
- * Body_exchange_api_v1_mcp_token_post
- */
-export const zBodyExchangeApiV1McpTokenPost = z.object({
-    code: z.string().max(128),
-    resource: z.string().max(2048),
-    client_id: z.uuid(),
-    redirect_uri: z.string().max(2048),
-    code_verifier: z.string().regex(/^[A-Za-z0-9._~-]{43,128}$/),
-    grant_type: z.string().max(64)
-});
-
-/**
  * Body_request_password_reset_api_v1_auth_forgot_password_post
  */
 export const zBodyRequestPasswordResetApiV1AuthForgotPasswordPost = z.object({
@@ -555,6 +543,20 @@ export const zSolutionResponse = z.object({
 export const zPageSolutionResponse = z.object({
     items: z.array(zSolutionResponse),
     total: z.int().gte(0)
+});
+
+/**
+ * TokenExchange
+ *
+ * Validate the form fields binding one authorization-code exchange.
+ */
+export const zTokenExchange = z.object({
+    code: z.string().max(128),
+    resource: z.string().max(2048),
+    client_id: z.uuid(),
+    grant_type: z.string().max(64),
+    redirect_uri: z.string().max(2048),
+    code_verifier: z.string().regex(/^[A-Za-z0-9._~-]{43,128}$/)
 });
 
 /**

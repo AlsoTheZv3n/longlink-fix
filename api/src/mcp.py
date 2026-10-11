@@ -39,9 +39,10 @@ async def proxyuser(request: Request, solution_id: UUID, session: auth.Session, 
         return
 
     # Delegate browser sessions with deterministic cleanup; never fall back after invalid bearer proof.
-    if is_mcp and request.cookies.get(AUTH_COOKIE) is None:
+    credential = request.cookies.get(AUTH_COOKIE)
+    if is_mcp and credential is None:
         raise HTTPException(status_code=401, detail="Not authenticated", headers={"WWW-Authenticate": challenge})
-    async with aclosing(auth.authuser(request, session, request.cookies.get(AUTH_COOKIE))) as authenticated:
+    async with aclosing(auth.authuser(request, session, credential)) as authenticated:
         async for user in authenticated:
             yield user  # noqa: ASYNC119
 

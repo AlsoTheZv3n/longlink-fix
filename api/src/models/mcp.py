@@ -1,7 +1,7 @@
 from uuid import UUID
 from typing import Literal
 from datetime import datetime
-from pydantic import Field, HttpUrl, BaseModel, field_validator
+from pydantic import Field, HttpUrl, BaseModel, field_validator, model_validator
 
 
 class ClientRegistration(BaseModel):
@@ -90,6 +90,28 @@ class AuthorizationRedirect(BaseModel):
 
     # Navigation
     url: str
+
+
+class TokenExchange(BaseModel):
+    """Validate the form fields binding one authorization-code exchange."""
+
+    # Authorization proof
+    code: str = Field(max_length=128)
+    resource: str = Field(max_length=2048)
+    client_id: UUID
+    grant_type: str = Field(max_length=64)
+    redirect_uri: str = Field(max_length=2048)
+    code_verifier: str = Field(pattern=r"^[A-Za-z0-9._~-]{43,128}$")
+
+    @model_validator(mode="before")
+    @classmethod
+    def omit_empty_fields(cls, value: object) -> object:
+        """Preserve individual Form fields' treatment of empty values as missing."""
+
+        # Model-backed forms otherwise accept empty strings that individual required forms reject.
+        if isinstance(value, dict):
+            return {name: field for name, field in value.items() if field != ""}
+        return value
 
 
 class AccessToken(BaseModel):

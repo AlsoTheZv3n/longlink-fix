@@ -3269,7 +3269,7 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_exchange_api_v1_mcp_token_post"
+                "$ref": "#/components/schemas/TokenExchange"
               }
             }
           },
@@ -3638,50 +3638,6 @@
         ],
         "title": "AuthorizationRedirect",
         "description": "Return a validated client redirect after a browser consent decision."
-      },
-      "Body_exchange_api_v1_mcp_token_post": {
-        "properties": {
-          "code": {
-            "type": "string",
-            "maxLength": 128,
-            "title": "Code"
-          },
-          "resource": {
-            "type": "string",
-            "maxLength": 2048,
-            "title": "Resource"
-          },
-          "client_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Client Id"
-          },
-          "redirect_uri": {
-            "type": "string",
-            "maxLength": 2048,
-            "title": "Redirect Uri"
-          },
-          "code_verifier": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9._~-]{43,128}$",
-            "title": "Code Verifier"
-          },
-          "grant_type": {
-            "type": "string",
-            "maxLength": 64,
-            "title": "Grant Type"
-          }
-        },
-        "type": "object",
-        "required": [
-          "code",
-          "resource",
-          "client_id",
-          "redirect_uri",
-          "code_verifier",
-          "grant_type"
-        ],
-        "title": "Body_exchange_api_v1_mcp_token_post"
       },
       "Body_request_password_reset_api_v1_auth_forgot_password_post": {
         "properties": {
@@ -5104,6 +5060,51 @@
         ],
         "title": "Status",
         "description": "Lifecycle states shared by Platform-managed resources."
+      },
+      "TokenExchange": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Code"
+          },
+          "resource": {
+            "type": "string",
+            "maxLength": 2048,
+            "title": "Resource"
+          },
+          "client_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Id"
+          },
+          "grant_type": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Grant Type"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "maxLength": 2048,
+            "title": "Redirect Uri"
+          },
+          "code_verifier": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._~-]{43,128}$",
+            "title": "Code Verifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "resource",
+          "client_id",
+          "grant_type",
+          "redirect_uri",
+          "code_verifier"
+        ],
+        "title": "TokenExchange",
+        "description": "Validate the form fields binding one authorization-code exchange."
       },
       "TokenPayload": {
         "properties": {

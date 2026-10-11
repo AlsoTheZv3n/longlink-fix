@@ -93,7 +93,7 @@ def create_oauth_state_token(provider: OAuthProvider, state: str, verifier: str,
     )
 
 
-def _oauth_state_claims(token: str, provider: OAuthProvider) -> tuple[str, str, str]:
+def oauth_state_claims(token: str, provider: OAuthProvider) -> tuple[str, str, str]:
     """Decode and validate OAuth callback proof and its optional continuation once."""
 
     # Bind callbacks to their initiating provider before exchanging an authorization code.
@@ -106,22 +106,6 @@ def _oauth_state_claims(token: str, provider: OAuthProvider) -> tuple[str, str, 
     # Older credentials without a navigation hint retain the standard login destination.
     return_to = data.get("return_to")
     return state, verifier, return_to if isinstance(return_to, str) else "/user/organizations"
-
-
-def oauth_state_claims(token: str, provider: OAuthProvider) -> tuple[str, str]:
-    """Return state and verifier from one valid OAuth browser credential."""
-
-    # Keep the callback proof contract independent of its optional navigation hint.
-    state, verifier, _ = _oauth_state_claims(token, provider)
-    return state, verifier
-
-
-def oauth_return_path(credential: str, provider: OAuthProvider) -> str:
-    """Read the signed first-party continuation without changing login credentials."""
-
-    # Verify purpose and provider before returning an optional navigation hint.
-    _, _, return_to = _oauth_state_claims(credential, provider)
-    return return_to
 
 
 async def password_reset_user(session: AsyncSession, token: str) -> User:

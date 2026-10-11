@@ -152,7 +152,7 @@ async def test_oauth_login_redirects_with_browser_bound_state_and_pkce(
     assert "Path=/api/v1/auth/oauth" in response.headers["set-cookie"]
     credential = client.cookies.get("longlink_oauth")
     assert credential is not None
-    state, verifier = token.oauth_state_claims(credential, provider)
+    state, verifier, _ = token.oauth_state_claims(credential, provider)
     redirect = urlparse(response.headers["location"])
     parameters = parse_qs(redirect.query)
     assert redirect.geturl().startswith(oauth.GOOGLE_AUTHORIZATION_URL if provider == "google" else oauth.GITHUB_AUTHORIZATION_URL)
