@@ -8,6 +8,22 @@ from src.models.roles import OrganizationRoles
 pytestmark = pytest.mark.no_db
 
 
+@pytest.fixture
+def sent_mail(monkeypatch: pytest.MonkeyPatch) -> list[tuple[EmailMessage, dict[str, object]]]:
+    """Capture composed messages and options at the SMTP boundary."""
+
+    # Keep rendering and MIME composition real while preventing external delivery.
+    messages: list[tuple[EmailMessage, dict[str, object]]] = []
+
+    async def capture(message: EmailMessage, **options: object) -> None:
+        """Record the SMTP message and its delivery configuration."""
+
+        messages.append((message, options))
+
+    monkeypatch.setattr(mail.aiosmtplib, "send", capture)
+    return messages
+
+
 def test_render_mjml_template_rejects_compilation_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     """Expose MJML compiler errors instead of delivering incomplete email HTML."""
 
@@ -51,32 +67,24 @@ def test_render_mjml_template_preserves_escaped_context_in_html() -> None:
     ],
 )
 async def test_send_mail_delivers_multipart_message_with_configured_smtp(
-    monkeypatch: pytest.MonkeyPatch, transport: str, use_tls: bool, start_tls: bool
+    monkeypatch: pytest.MonkeyPatch, sent_mail: list[tuple[EmailMessage, dict[str, object]]], transport: str, use_tls: bool, start_tls: bool
 ) -> None:
     """Deliver HTML mail through the configured SMTP transport."""
 
     # Arrange
-    sent: list[tuple[EmailMessage, dict[str, object]]] = []
-
-    async def capture(message: EmailMessage, **options: object) -> None:
-        """Capture the SMTP message and its delivery configuration."""
-
-        sent.append((message, options))
-
     monkeypatch.setattr(env, "SMTP_HOST", "smtp.example.com")
     monkeypatch.setattr(env, "SMTP_PORT", 465)
     monkeypatch.setattr(env, "SMTP_USERNAME", "mailer@example.com")
     monkeypatch.setattr(env, "SMTP_FROM", "mailer@example.com")
     monkeypatch.setattr(env, "SMTP_PASSWORD", "smtp-password")
     monkeypatch.setattr(env, "SMTP_TRANSPORT", transport)
-    monkeypatch.setattr(mail.aiosmtplib, "send", capture)
 
     # Act
     await mail.send_mail("user@example.com", "Welcome", "Plain message", "<p>HTML message</p>")
 
     # Assert
-    assert len(sent) == 1
-    message, options = sent[0]
+    assert len(sent_mail) == 1
+    message, options = sent_mail[0]
     assert message["From"] == "LongLink <mailer@example.com>"
     assert message["To"] == "user@example.com"
     assert message["Subject"] == "Welcome"
@@ -98,7 +106,7 @@ async def test_send_mail_delivers_multipart_message_with_configured_smtp(
 
 
 async def test_password_reset_email_keeps_credential_in_url_fragment(
-    monkeypatch: pytest.MonkeyPatch, captured_mail: list[tuple[str, str, str, str | None]]
+    monkeypatch: pytest.MonkeyPatch, sent_mail: list[tuple[EmailMessage, dict[str, object]]]
 ) -> None:
     """Build reset links with an encoded credential outside the HTTP request path."""
 
@@ -110,17 +118,20 @@ async def test_password_reset_email_keeps_credential_in_url_fragment(
 
     # Assert
     reset_url = "https://longlink.dev/auth/reset-password#token=token+with+spaces"
-    assert len(captured_mail) == 1
-    recipient, subject, text, html = captured_mail[0]
-    assert recipient == "user@example.com"
-    assert subject == "Reset your LongLink password"
-    assert text == f"Reset your password:\n\n{reset_url}\n"
-    assert html is not None
-    assert f'href="{reset_url}"' in html
+    assert len(sent_mail) == 1
+    message, _ = sent_mail[0]
+    assert message["To"] == "user@example.com"
+    assert message["Subject"] == "Reset your LongLink password"
+    plain_body = message.get_body(("plain",))
+    html_body = message.get_body(("html",))
+    assert plain_body is not None
+    assert html_body is not None
+    assert plain_body.get_content() == f"Reset your password:\n\n{reset_url}\n"
+    assert f'href="{reset_url}"' in html_body.get_content()
 
 
 async def test_organization_invitation_email_prefills_the_recipient(
-    monkeypatch: pytest.MonkeyPatch, captured_mail: list[tuple[str, str, str, str | None]]
+    monkeypatch: pytest.MonkeyPatch, sent_mail: list[tuple[EmailMessage, dict[str, object]]]
 ) -> None:
     """Build invitation links from the recipient address and membership role."""
 
@@ -131,11 +142,16 @@ async def test_organization_invitation_email_prefills_the_recipient(
     await mail.send_organization_invitation_email("user+team@example.com", "Engineering", OrganizationRoles.maintain)
 
     # Assert
-    assert len(captured_mail) == 1
-    recipient, subject, text, html = captured_mail[0]
-    assert recipient == "user+team@example.com"
-    assert subject == "Invitation to join Engineering on LongLink"
-    assert html is not None
+    assert len(sent_mail) == 1
+    message, _ = sent_mail[0]
+    assert message["To"] == "user+team@example.com"
+    assert message["Subject"] == "Invitation to join Engineering on LongLink"
+    plain_body = message.get_body(("plain",))
+    html_body = message.get_body(("html",))
+    assert plain_body is not None
+    assert html_body is not None
+    text = plain_body.get_content()
+    html = html_body.get_content()
     assert 'href="https://longlink.dev/auth/register?email=user%2Bteam%40example.com"' in html
     assert "Join Engineering with maintain access." in html
     assert "https://longlink.dev/auth/register?email=user%2Bteam%40example.com" in text

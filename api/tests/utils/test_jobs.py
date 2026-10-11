@@ -2,6 +2,7 @@ import pytest
 import asyncio
 import pytest_asyncio
 from uuid import UUID
+from types import SimpleNamespace
 from datetime import UTC, datetime, timedelta
 from factories import claim_operation, queue_operation, fetch_operations
 from functools import partial
@@ -22,15 +23,13 @@ def leased_operation() -> Operation:
     )
 
 
-@pytest.mark.no_db
-async def test_execute_finishes_terminal_transition_when_cancelled(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_execute_finishes_terminal_transition_when_cancelled(monkeypatch: pytest.MonkeyPatch, operation: Operation) -> None:
     """Finish the claimed Operation transition before propagating cancellation."""
 
     # Arrange
-    operation = leased_operation()
     started = asyncio.Event()
     release = asyncio.Event()
-    completed_operation_ids: list[UUID] = []
+    complete = operation_worker.operations.complete
 
     async def complete_handler(target_id: UUID) -> None:
         """Complete one claimed Operation."""
@@ -39,30 +38,42 @@ async def test_execute_finishes_terminal_transition_when_cancelled(monkeypatch: 
 
     monkeypatch.setitem(operation_worker.handlers, operation.kind, complete_handler)
 
-    async def fake_complete(session: object, operation_id: UUID) -> bool:
+    async def delayed_complete(session: AsyncSession, operation_id: UUID) -> bool:
         """Delay the terminal transition until after worker cancellation."""
 
         assert operation_id == operation.id
         started.set()
         await release.wait()
-        completed_operation_ids.append(operation_id)
-        return True
+        return await complete(session, operation_id)
 
-    monkeypatch.setattr(operation_worker.operations, "complete", fake_complete)
+    monkeypatch.setattr(operation_worker.operations, "complete", delayed_complete)
 
     # Act
     execution = asyncio.create_task(operation_worker.execute(operation))
-    await started.wait()
-    execution.cancel()
-    await asyncio.sleep(0)
-    execution.cancel()
-    await asyncio.sleep(0)
-    release.set()
+    try:
+        await asyncio.wait_for(started.wait(), timeout=3)
+        execution.cancel()
+        await asyncio.sleep(0)
+        execution.cancel()
+        await asyncio.sleep(0)
+        release.set()
 
-    # Assert
-    with pytest.raises(asyncio.CancelledError):
-        await execution
-    assert completed_operation_ids == [operation.id]
+        # Assert cancellation from the worker, never cancellation from the diagnostic timeout.
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(asyncio.shield(execution), timeout=3)
+    finally:
+        # Unblock persistence and reap the worker even if an assertion or wait fails.
+        release.set()
+        execution.cancel()
+        async with asyncio.timeout(3):
+            await asyncio.gather(execution, return_exceptions=True)
+
+    # Read the committed terminal outcome through an independent session.
+    [persisted] = await fetch_operations()
+    assert persisted.id == operation.id
+    assert persisted.status == OperationStatus.completed
+    assert persisted.finished_at is not None
+    assert persisted.lease_expires_at is None
 
 
 @pytest.mark.no_db
@@ -83,14 +94,21 @@ async def test_finish_transition_preserves_cancellation_when_terminal_persistenc
 
     # Act
     transition = asyncio.create_task(operation_worker._finish_transition(partial(fail, reason="Operation cancelled"), UUID(int=1)))
-    await started.wait()
-    transition.cancel()
-    await asyncio.sleep(0)
-    release.set()
+    try:
+        await asyncio.wait_for(started.wait(), timeout=3)
+        transition.cancel()
+        await asyncio.sleep(0)
+        release.set()
 
-    # Assert
-    with pytest.raises(asyncio.CancelledError):
-        await transition
+        # Assert cancellation from the transition, never cancellation from the diagnostic timeout.
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(asyncio.shield(transition), timeout=3)
+    finally:
+        # Unblock and reap the protected transition on failures as well as normal cancellation.
+        release.set()
+        transition.cancel()
+        async with asyncio.timeout(3):
+            await asyncio.gather(transition, return_exceptions=True)
 
 
 @pytest_asyncio.fixture
@@ -293,6 +311,14 @@ async def test_scheduler_recovers_from_worker_failures(
         if execution_failure is not None:
             raise execution_failure
 
+    # Yield for recovery and cancellation without waiting through the real retry delay.
+    async def sleep(_delay: float) -> None:
+        """Suspend the scheduler without waiting for its retry interval."""
+
+        await asyncio.sleep(0)
+
+    # Replace only the scheduler module's timer boundary, not the shared asyncio module.
+    monkeypatch.setattr(operation_worker, "asyncio", SimpleNamespace(sleep=sleep))
     monkeypatch.setattr(operation_worker.operations, "claim", claim)
     monkeypatch.setattr(operation_worker, "execute", execute)
 

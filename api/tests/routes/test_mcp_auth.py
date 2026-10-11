@@ -1,19 +1,16 @@
 import httpx2
 import pytest
 import asyncio
+import gateway
 import hashlib
 import pytest_asyncio
 from uuid import UUID
-from fastapi import Request
 from pathlib import Path
 from datetime import UTC, datetime, timedelta
-from longlink import app
 from factories import create_compute, create_solution, create_organization
 from sqlalchemy import delete, select
-from longlink.app import LongLink
 from urllib.parse import parse_qs, urlsplit
 from src.environments import env
-from longlink.database import audit
 from src.models.statuses import Status
 from src.database.session import session_scope
 from src.database.services import mcp
@@ -185,23 +182,38 @@ async def test_mcp_expired_code_cannot_be_exchanged(
     assert response.json()["error"] == "invalid_grant"
 
 
-async def test_mcp_code_exchange_rechecks_revoked_membership(
+@pytest.mark.parametrize("invalidation", ["membership", "password", "deleted-account"])
+async def test_mcp_code_exchange_rechecks_identity_and_membership(
     client: httpx2.AsyncClient,
     users: tuple[User, User, User],
     authorization: tuple[Solution, dict[str, str], dict[str, str]],
+    invalidation: str,
 ) -> None:
-    """Do not convert previous consent into access after Organization membership is removed."""
+    """Reject previous consent after membership, password, or account invalidation without issuing access."""
 
     # Arrange
-    _, _, exchange = authorization
+    solution, _, exchange = authorization
     async with session_scope() as session:
-        await session.execute(delete(UserOrganization).where(UserOrganization.user_id == users[0].id))
+        if invalidation == "membership":
+            await session.execute(delete(UserOrganization).where(UserOrganization.user_id == users[0].id))
+        else:
+            user = await session.get(User, users[0].id)
+            assert user is not None
+            if invalidation == "password":
+                user.password = "changed-password-hash"
+            else:
+                user.deleted_at = datetime.now(UTC)
         await session.commit()
 
-    # Act and Assert
+    # Act
     response = await client.post("/api/v1/mcp/token", data=exchange)
+
+    # Assert
     assert response.status_code == 400
     assert response.json()["error"] == "invalid_grant"
+    async with session_scope() as session:
+        tokens = await session.scalars(select(MCPToken).where(MCPToken.user_id == users[0].id, MCPToken.solution_id == solution.id))
+        assert tokens.all() == []
 
 
 async def test_mcp_concurrent_code_exchange_issues_only_one_token(
@@ -321,6 +333,13 @@ async def test_mcp_consent_rejects_unregistered_callbacks_and_untrusted_origins(
     assert query["error"] == ["access_denied"]
     assert "code" not in query
 
+    # Rejected and declined consent must not persist reusable authorization proof.
+    async with session_scope() as session:
+        codes = await session.scalars(select(MCPCode))
+        assert codes.all() == []
+        grants = await session.scalars(select(MCPToken))
+        assert grants.all() == []
+
 
 async def test_mcp_bearer_is_limited_to_its_resource_and_cannot_authenticate_platform_routes(
     client: httpx2.AsyncClient,
@@ -346,7 +365,7 @@ async def test_mcp_bearer_is_limited_to_its_resource_and_cannot_authenticate_pla
     assert profile.status_code == 401
 
 
-@pytest.mark.parametrize("invalidation", ["expiry", "revoke", "membership", "password"])
+@pytest.mark.parametrize("invalidation", ["expiry", "revoke", "membership", "password", "deleted-account"])
 async def test_mcp_grants_recheck_expiry_revocation_identity_and_permissions(
     client: httpx2.AsyncClient,
     users: tuple[User, User, User],
@@ -375,12 +394,48 @@ async def test_mcp_grants_recheck_expiry_revocation_identity_and_permissions(
             else:
                 user = await session.get(User, users[0].id)
                 assert user is not None
-                user.password = "changed-password-hash"
+                if invalidation == "password":
+                    user.password = "changed-password-hash"
+                else:
+                    user.deleted_at = datetime.now(UTC)
             await session.commit()
 
     # Act and Assert
     response = await client.post(f"/api/v1/solutions/{solution.id}/proxy/mcp", headers={"authorization": f"Bearer {credential}"})
     assert response.status_code == (403 if invalidation == "membership" else 401)
+
+
+async def test_mcp_client_revocation_cannot_revoke_another_clients_grant(
+    client: httpx2.AsyncClient,
+    authorization: tuple[Solution, dict[str, str], dict[str, str]],
+) -> None:
+    """Keep client-bound grants intact when another registered client requests revocation."""
+
+    # Arrange
+    solution, request, exchange = authorization
+    issued = await client.post("/api/v1/mcp/token", data=exchange)
+    assert issued.status_code == 200, issued.text
+    credential = issued.json()["access_token"]
+    registration = await client.post("/api/v1/mcp/register", json={"redirect_uris": ["https://other-client.example/callback"]})
+    assert registration.status_code == 201, registration.text
+    other_client_id = registration.json()["client_id"]
+
+    # Act
+    rejected = await client.post("/api/v1/mcp/revoke", data={"token": credential, "client_id": other_client_id})
+
+    # Assert
+    assert rejected.status_code == 200
+    async with session_scope() as session:
+        grant = await session.scalar(select(MCPToken).where(MCPToken.hash == mcp.digest(credential)))
+        assert grant is not None
+        assert str(grant.client_id) == request["client_id"]
+        assert grant.solution_id == solution.id
+
+    # Verify the owning client's otherwise identical request removes the persisted grant.
+    revoked = await client.post("/api/v1/mcp/revoke", data={"token": credential, "client_id": request["client_id"]})
+    assert revoked.status_code == 200
+    async with session_scope() as session:
+        assert await session.scalar(select(MCPToken).where(MCPToken.hash == mcp.digest(credential))) is None
 
 
 async def test_mcp_browser_revocation_is_owner_only(
@@ -393,14 +448,25 @@ async def test_mcp_browser_revocation_is_owner_only(
     # Arrange
     solution, _, exchange = authorization
     issued = await client.post("/api/v1/mcp/token", data=exchange)
+    assert issued.status_code == 200, issued.text
     listing = await clients[0].get("/api/v1/mcp/tokens")
+    assert listing.status_code == 200
     grant_id = listing.json()[0]["id"]
     headers = {"authorization": f"Bearer {issued.json()['access_token']}"}
 
     # Act and Assert
-    await clients[1].delete(f"/api/v1/mcp/tokens/{grant_id}")
+    other_listing = await clients[1].get("/api/v1/mcp/tokens")
+    assert other_listing.status_code == 200
+    assert other_listing.json() == []
+    other_revocation = await clients[1].delete(f"/api/v1/mcp/tokens/{grant_id}")
+    assert other_revocation.status_code == 204
+    async with session_scope() as session:
+        assert await session.get(MCPToken, UUID(grant_id)) is not None
     assert (await client.post(f"/api/v1/solutions/{solution.id}/proxy/mcp", headers=headers)).status_code == 503
-    await clients[0].delete(f"/api/v1/mcp/tokens/{grant_id}")
+    owner_revocation = await clients[0].delete(f"/api/v1/mcp/tokens/{grant_id}")
+    assert owner_revocation.status_code == 204
+    async with session_scope() as session:
+        assert await session.get(MCPToken, UUID(grant_id)) is None
     assert (await client.post(f"/api/v1/solutions/{solution.id}/proxy/mcp", headers=headers)).status_code == 401
 
 
@@ -425,38 +491,8 @@ async def test_oauth_mcp_session_discovers_and_calls_real_sdk_tools(
     issued = await client.post("/api/v1/mcp/token", data=exchange)
     assert issued.status_code == 200, issued.text
 
-    # Arrange an isolated frontend artifact; MCP behavior must not depend on a local SDK build.
-    frontend = tmp_path / ".static" / "web" / "index.html"
-    frontend.parent.mkdir(parents=True)
-    frontend.write_text("<!doctype html><html></html>", encoding="utf-8")
-    monkeypatch.setattr(app, "ROOT", tmp_path)
-
-    # Discover a real isolated SDK application rather than replacing protocol behavior.
-    (tmp_path / "src" / "views").mkdir(parents=True)
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("LONGLINK_ENV", "testing")
-    monkeypatch.setenv("LONGLINK_IDENTITY_SECRET", secret)
-    sdk = LongLink()
-
-    @sdk.get("/api/identity", response_model=dict[str, str | None], operation_id="current_identity")
-    async def current_identity(request: Request) -> dict[str, str | None]:
-        """Inspect the admitted actor and credentials at the real Solution boundary."""
-
-        return {
-            "user": str(audit.current_actor.get()),
-            "authorization": request.headers.get("authorization"),
-            "cookie": request.headers.get("cookie"),
-        }
-
-    # Replace only the gateway network boundary; retain API admission and SDK identity checks.
-    transport = httpx2.ASGITransport(app=sdk)
-
-    async def send(_transport: object, request: httpx2.Request) -> httpx2.Response:
-        """Deliver signed proxy traffic to the SDK without external networking."""
-
-        return await transport.handle_async_request(request)
-
-    monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", send)
+    # Route signed gateway requests into an isolated real SDK application.
+    sdk = gateway.create_runtime(tmp_path, monkeypatch, secret)
     path = f"/api/v1/solutions/{solution.id}/proxy/mcp"
     headers = {"authorization": f"Bearer {issued.json()['access_token']}", "accept": "application/json, text/event-stream"}
 

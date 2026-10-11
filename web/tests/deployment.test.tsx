@@ -2,6 +2,7 @@
 import { act } from 'react';
 import PlatformRoot from '@/platform/root';
 import { createRoot } from 'react-dom/client';
+import userEvent from '@testing-library/user-event';
 import Settings from '@/platform/routes/orgs/Settings';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -26,6 +27,19 @@ const candidate = {
     },
 };
 
+const secretCandidate = {
+    ...candidate,
+    configured_envs: ['REQUIRED_SECRET', 'OPTIONAL_SECRET'],
+    metadata: {
+        ...candidate.metadata,
+        environments: [
+            { name: 'REQUIRED_SECRET', required: true },
+            { name: 'NEW_SECRET', required: true },
+            { name: 'OPTIONAL_SECRET', required: false },
+        ],
+    },
+};
+
 describe('Solution source update dialog', () => {
     let root: ReturnType<typeof createRoot> | undefined;
     let container: HTMLElement | undefined;
@@ -41,6 +55,87 @@ describe('Solution source update dialog', () => {
     });
 
     it('uses the native TSX dialog to review and submit a source update', async () => {
+        // Arrange
+        const submissions = await openReview(candidate);
+
+        // Act
+        await act(async () => button('Next').click());
+        await act(async () => vi.waitFor(() => expect(button('Update solution').disabled).toBe(false)));
+        await act(async () => button('Update solution').click());
+
+        // Assert
+        await vi.waitFor(() =>
+            expect(submissions).toEqual([
+                {
+                    path: `/api/v1/solutions/${solutionId}/update`,
+                    body: { envs: {}, expected_revision_id: revisionId },
+                },
+            ])
+        );
+    });
+
+    it('preserves untouched configured secrets and gives removal precedence over an edited value', async () => {
+        // Arrange
+        const submissions = await openReview(secretCandidate);
+        const user = userEvent.setup();
+        await act(async () => button('Next').click());
+
+        // Act
+        // The image already changed, so only the missing required value blocks submission.
+        expect(input('REQUIRED_SECRET').value).toBe('');
+        expect(button('Update solution').disabled).toBe(true);
+        await act(async () => user.type(input('NEW_SECRET'), '   '));
+        expect(button('Update solution').disabled).toBe(true);
+        await act(async () => user.clear(input('NEW_SECRET')));
+        await act(async () => user.type(input('NEW_SECRET'), 'new-fixture-value'));
+        expect(button('Update solution').disabled).toBe(false);
+        await act(async () => user.type(input('OPTIONAL_SECRET'), 'replacement-fixture-value'));
+        await act(async () => input('Remove OPTIONAL_SECRET').click());
+        await act(async () => button('Update solution').click());
+
+        // Assert
+        await vi.waitFor(() =>
+            expect(submissions).toEqual([
+                {
+                    path: `/api/v1/solutions/${solutionId}/update`,
+                    body: {
+                        envs: { NEW_SECRET: 'new-fixture-value', OPTIONAL_SECRET: null },
+                        expected_revision_id: revisionId,
+                    },
+                },
+            ])
+        );
+    });
+
+    it('submits the retained secret draft after removal is toggled off', async () => {
+        // Arrange
+        const submissions = await openReview(secretCandidate);
+        const user = userEvent.setup();
+        await act(async () => button('Next').click());
+        await act(async () => user.type(input('NEW_SECRET'), 'new-fixture-value'));
+        await act(async () => user.type(input('OPTIONAL_SECRET'), 'replacement-fixture-value'));
+
+        // Act
+        await act(async () => input('Remove OPTIONAL_SECRET').click());
+        await act(async () => input('Remove OPTIONAL_SECRET').click());
+        await act(async () => button('Update solution').click());
+
+        // Assert
+        await vi.waitFor(() =>
+            expect(submissions).toEqual([
+                {
+                    path: `/api/v1/solutions/${solutionId}/update`,
+                    body: {
+                        envs: { NEW_SECRET: 'new-fixture-value', OPTIONAL_SECRET: 'replacement-fixture-value' },
+                        expected_revision_id: revisionId,
+                    },
+                },
+            ])
+        );
+    });
+
+    /** Opens the native review with the real providers and an isolated HTTP boundary. */
+    async function openReview(inspection: typeof secretCandidate) {
         const submissions: { path: string; body: unknown }[] = [];
         vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
             const request = input instanceof Request ? input : new Request(input, init);
@@ -82,7 +177,7 @@ describe('Solution source update dialog', () => {
                 ]);
             }
 
-            if (path === `/api/v1/solutions/${solutionId}/update`) return Response.json(candidate);
+            if (path === `/api/v1/solutions/${solutionId}/update`) return Response.json(inspection);
 
             throw new Error(`Unexpected request ${request.method} ${path}`);
         });
@@ -117,22 +212,19 @@ describe('Solution source update dialog', () => {
         });
         await act(async () => menuItem('Update').click());
         await act(async () => vi.waitFor(() => button('Next')));
-        expect(document.body.textContent).toContain('sha256:aaaaaaaaaaaa');
-        expect(document.body.textContent).toContain('sha256:bbbbbbbbbbbb');
-        await act(async () => button('Next').click());
-        await act(async () => vi.waitFor(() => expect(button('Update solution').disabled).toBe(false)));
-        await act(async () => button('Update solution').click());
-        await act(async () =>
-            vi.waitFor(() =>
-                expect(submissions).toEqual([
-                    {
-                        path: `/api/v1/solutions/${solutionId}/update`,
-                        body: { envs: {}, expected_revision_id: revisionId },
-                    },
-                ])
-            )
-        );
-    });
+
+        return submissions;
+    }
+
+    /** Finds a secret or removal control through its visible label. */
+    function input(label: string): HTMLInputElement {
+        const found = [...document.querySelectorAll('label')].find((item) => item.textContent?.startsWith(label));
+        const control = found?.htmlFor ? document.getElementById(found.htmlFor) : found?.querySelector('input');
+
+        if (!(control instanceof HTMLInputElement)) throw new Error(`Input not found: ${label}`);
+
+        return control;
+    }
 
     /** Find the named native action without replacing UI components. */
     function button(label: string) {

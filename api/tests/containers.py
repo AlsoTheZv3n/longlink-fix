@@ -1,9 +1,12 @@
 import docker
 import pytest
-from contextlib import closing, contextmanager
+from uuid import uuid4
+from contextlib import closing
+from sqlalchemy import text, create_engine
 from docker.errors import DockerException
 from collections.abc import Iterator
 from docker.constants import DEFAULT_DOCKER_API_VERSION
+from sqlalchemy.engine import URL, make_url
 from testcontainers.community.mysql import MySqlContainer
 from testcontainers.community.postgres import PostgresContainer
 
@@ -20,44 +23,85 @@ def require_docker_daemon() -> None:
         pytest.skip(f"Docker daemon is not available: {exc}")
 
 
-@contextmanager
-def _running[T: PostgresContainer | MySqlContainer](container: T) -> Iterator[T]:
-    """Start one Testcontainers database and always stop it after startup begins."""
+@pytest.fixture(scope="session")
+def postgres_server() -> Iterator[PostgresContainer]:
+    """Own one PostgreSQL server until all test-local databases and connections are released."""
 
-    # Delegate startup readiness and cleanup, including failed startup, to Testcontainers.
+    # Probe Docker before delegating server startup and cleanup to Testcontainers.
     require_docker_daemon()
+    container = PostgresContainer(
+        "postgres:16-alpine",
+        username="longlink",
+        password="sec@ret",
+        dbname="postgres",
+        driver="psycopg",
+    )
 
     with container:
         yield container
 
 
-@contextmanager
-def postgres_container(username: str, password: str, database: str) -> Iterator[PostgresContainer]:
-    """Provide a ready disposable PostgreSQL container for one integration test."""
+@pytest.fixture(scope="session")
+def mysql_server() -> Iterator[MySqlContainer]:
+    """Own one MySQL server while tests receive fresh, independently granted databases."""
 
-    container = PostgresContainer(
-        "postgres:16-alpine",
-        username=username,
-        password=password,
-        dbname=database,
-        driver="psycopg",
-    )
-
-    with _running(container) as running:
-        yield running
-
-
-@contextmanager
-def mysql_container(username: str, password: str, database: str) -> Iterator[MySqlContainer]:
-    """Provide a ready disposable MySQL container for one integration test."""
-
+    # Keep root credentials confined to test-local database provisioning and cleanup.
+    require_docker_daemon()
     container = MySqlContainer(
         "mysql:8.4",
-        username=username,
-        password=password,
-        dbname=database,
+        username="longlink",
+        password="sec@ret",
+        root_password="test-root-password",
+        dbname="longlink",
         dialect="pymysql",
     )
 
-    with _running(container) as running:
-        yield running
+    with container:
+        yield container
+
+
+@pytest.fixture
+def postgres_url(postgres_server: PostgresContainer) -> Iterator[URL]:
+    """Provide a fresh PostgreSQL database with cleanup after consuming engines are disposed."""
+
+    # CREATE DATABASE requires a maintenance connection outside a transaction.
+    server_url = make_url(postgres_server.get_connection_url())
+    database = f"test{uuid4().hex}"
+    engine = create_engine(server_url, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as connection:
+            name = connection.dialect.identifier_preparer.quote(database)
+            connection.exec_driver_sql(f"CREATE DATABASE {name}")
+            try:
+                yield server_url.set(database=database)
+            finally:
+                connection.exec_driver_sql(f"DROP DATABASE {name}")
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture
+def mysql_url(mysql_server: MySqlContainer) -> Iterator[URL]:
+    """Provide a fresh MySQL database without exposing root credentials to tests."""
+
+    # Grant only the test database to the ordinary application user.
+    server_url = make_url(mysql_server.get_connection_url())
+    administrator_url = server_url.set(username="root", password=mysql_server.root_password)
+    database = f"test{uuid4().hex}"
+    engine = create_engine(administrator_url, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as connection:
+            name = connection.dialect.identifier_preparer.quote(database)
+            connection.exec_driver_sql(f"CREATE DATABASE {name}")
+            try:
+                connection.execute(text(f"GRANT ALL PRIVILEGES ON {name}.* TO 'longlink'@'%'"))
+                try:
+                    yield server_url.set(database=database)
+                finally:
+                    # Revoke only after the grant succeeds, even when the test fails.
+                    connection.execute(text(f"REVOKE ALL PRIVILEGES ON {name}.* FROM 'longlink'@'%'"))
+            finally:
+                # Remove the database even if granting or revoking its access fails.
+                connection.exec_driver_sql(f"DROP DATABASE {name}")
+    finally:
+        engine.dispose()
