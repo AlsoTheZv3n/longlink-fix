@@ -1,6 +1,4 @@
-import { z } from 'zod';
 import { ApiError } from '@/lib/api';
-import { isObjectLike } from 'es-toolkit/compat';
 import { createContext, useContext } from 'react';
 import { isNetworkError, isTimeoutError } from 'ky';
 import { isCancelledError } from '@tanstack/react-query';
@@ -34,11 +32,10 @@ export function createErrorReporter(notify: (message: string) => void): ErrorRep
         if (isCanceledRequest(cause)) return;
 
         // Object identity is useful even when a transport throws something other than an Error.
-        const failure = z.custom<object>(isObjectLike).safeParse(cause);
-
-        if (failure.success) {
-            if (reported.has(failure.data)) return;
-            reported.add(failure.data);
+        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- WeakSet eligibility is an identity check, not input validation.
+        if (typeof cause === 'object' && cause !== null) {
+            if (reported.has(cause)) return;
+            reported.add(cause);
         }
 
         // Only backend-authored messages are suitable for direct display.

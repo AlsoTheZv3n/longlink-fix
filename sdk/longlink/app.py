@@ -15,7 +15,7 @@ from longlink.logger import ApiAccessFilter
 from longlink.routes import router
 from longlink.context import install_context_middleware
 from fastapi.responses import Response, RedirectResponse
-from starlette.routing import Match, BaseRoute
+from starlette.routing import Match
 from longlink.constants import ROOT
 from longlink.middleware import FrontendMiddleware
 from fastapi.openapi.utils import get_openapi
@@ -239,17 +239,14 @@ class LongLink(FastAPI):
 
         # Remove the complete registration without handling framework errors.
         try:
-            self._ensure_no_view_overlap(self.router.routes[added:])
+
+            # Solution routes added after startup respect the same View endpoint contract.
+            routes = self.router.routes[added:]
+            for definition in self._views:
+                view_path = f"/{definition.path}"
+                scope = {"type": "http", "method": "GET", "path": view_path}
+                if any(route.matches(scope)[0] is Match.FULL for route in routes):
+                    raise ValueError(f"View endpoint '{view_path}' overlaps a Solution route")
         except ValueError:
             del self.router.routes[added:]
             raise
-
-    def _ensure_no_view_overlap(self, routes: list[BaseRoute]) -> None:
-        """Reject routes that would overlap a registered View endpoint."""
-
-        # Solution routes added after startup respect the same View endpoint contract.
-        for definition in self._views:
-            view_path = f"/{definition.path}"
-            scope = {"type": "http", "method": "GET", "path": view_path}
-            if any(route.matches(scope)[0] is Match.FULL for route in routes):
-                raise ValueError(f"View endpoint '{view_path}' overlaps a Solution route")

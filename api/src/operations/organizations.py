@@ -69,15 +69,18 @@ async def delete(organization_id: UUID) -> None:
         # An absent tombstone means a previous execution completed cleanup.
         async with session_scope() as session:
             target = await src.database.services.organizations.infrastructure(session, organization_id)
-        if target is None:
-            logger.info("Organization %s no longer exists; skipping deletion", organization_id)
-            return
-        organization, compute = target
-        if organization.deleted_at is None:
-            raise ForbiddenError("Active Organizations cannot be deleted by lifecycle cleanup")
-        async with session_scope() as session:
+
+            # Validate the tombstone before collecting every retained Solution account.
+            if target is None:
+                logger.info("Organization %s no longer exists; skipping deletion", organization_id)
+                return
+            organization, compute = target
+            if organization.deleted_at is None:
+                raise ForbiddenError("Active Organizations cannot be deleted by lifecycle cleanup")
             result = await session.scalars(select(col(Solution.id)).where(col(Solution.organization_id) == organization_id))
             solution_ids = result.all()
+
+        # Release the read session before acquiring external cleanup resources.
         cluster = Kubernetes(
             compute.kubeconfig,
         )
