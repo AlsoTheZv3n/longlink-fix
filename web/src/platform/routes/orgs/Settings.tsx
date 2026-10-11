@@ -5,6 +5,7 @@ import { OpenAI } from '@/components/OpenAI';
 import { useApi } from '@/lib/hooks/use-api';
 import CreateSolution from './CreateSolution';
 import { NoIndex } from '@/components/NoIndex';
+import { Card } from '@astryxdesign/core/Card';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
@@ -44,6 +45,7 @@ import {
     RefreshCw,
     Trash,
     Users,
+    UserRound,
     Wrench,
 } from 'lucide-react';
 
@@ -278,7 +280,7 @@ function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps
 
 const organizationSections = [
     { id: 'general', label: 'General' },
-    { id: 'usage', label: 'Usage' },
+    { id: 'billing', label: 'Billing' },
     { id: 'private-registries', label: 'Private registries' },
 ];
 
@@ -297,7 +299,7 @@ export default function OrganizationSettings() {
     // Unknown fragments select General; inactive sections never mount their queries or drafts.
     const section =
         [...organizationSections, ...peopleSections, { id: 'solutions', label: 'Solutions' }].find(
-            (item) => `#${item.id}` === location.hash
+            (item) => `#${item.id}` === (location.hash === '#usage' ? '#billing' : location.hash)
         )?.id ?? 'general';
 
     // Share the layout-resolved identity and permissions without loading inactive sections.
@@ -392,8 +394,8 @@ export default function OrganizationSettings() {
                 }
             >
                 <Stack gap={3}>
-                    {section === 'usage' ? (
-                        <UsageSection base={base} />
+                    {section === 'billing' ? (
+                        <BillingSection base={base} />
                     ) : section === 'private-registries' ? (
                         <ApiBoundary key="registries">
                             <Registries base={base} canMaintain={canMaintain} />
@@ -771,33 +773,113 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
     );
 }
 
-/** Keeps file-storage and database reads independent for the lifetime of the Usage section. */
-function UsageSection({ base }: { base: string }) {
+/** Shows the Free plan with independent reads for each resource's current usage. */
+function BillingSection({ base }: { base: string }) {
+    // Retain the settings shell's 260px navigation and fill the remaining content region with the plan card.
     return (
         <Stack gap={4}>
             <Stack justify="end" minHeight="var(--size-element-md)">
                 <Heading level={2} hasCapsize>
-                    Usage
+                    Billing
                 </Heading>
             </Stack>
             <Divider />
-            {(['storage', 'database'] as const).map((resource) => (
-                <ApiBoundary
-                    key={resource}
-                    fallback={<Text color="secondary">Loading {resource} usage…</Text>}
-                    fallbackRender={({ resetErrorBoundary }) => (
-                        <Stack direction="horizontal" align="center" justify="between" gap={4}>
-                            <Text color="secondary">
-                                {resource === 'storage' ? 'Storage' : 'Database'} usage unavailable.
-                            </Text>
-                            <Button label="Retry" onClick={resetErrorBoundary} />
-                        </Stack>
-                    )}
-                >
-                    <UsageMeter base={base} resource={resource} />
-                </ApiBoundary>
-            ))}
+            <Card padding={0} className="overflow-hidden">
+                <Stack gap={0}>
+                    <Stack
+                        direction="horizontal"
+                        gap={3}
+                        align="center"
+                        paddingInline={4}
+                        paddingBlock={2}
+                        className="bg-muted"
+                    >
+                        <UserRound className="size-6 shrink-0 text-accent" aria-hidden="true" />
+                        <StackItem size="fill">
+                            <Stack gap={0}>
+                                <Heading level={3} className="text-base" weight="medium">
+                                    LongLink Free
+                                </Heading>
+                                <Text type="supporting">The basics for organizations</Text>
+                            </Stack>
+                        </StackItem>
+                        <Button href="/pricing/" label="Upgrade" size="sm" variant="primary" />
+                    </Stack>
+                    <Divider />
+                    <Stack gap={4} padding={4}>
+                        {(['users', 'storage', 'database'] as const).map((resource) => (
+                            <ApiBoundary
+                                key={resource}
+                                fallback={<Text color="secondary">Loading {resource} usage…</Text>}
+                                fallbackRender={({ resetErrorBoundary }) => (
+                                    <Stack direction="horizontal" align="center" justify="between" gap={4}>
+                                        <Text color="secondary">
+                                            {resource === 'users'
+                                                ? 'User'
+                                                : resource === 'storage'
+                                                  ? 'Storage'
+                                                  : 'Database'}{' '}
+                                            usage unavailable.
+                                        </Text>
+                                        <Button label="Retry" onClick={resetErrorBoundary} />
+                                    </Stack>
+                                )}
+                            >
+                                {resource === 'users' ? (
+                                    <UsersUsageMeter base={base} />
+                                ) : (
+                                    <UsageMeter base={base} resource={resource} />
+                                )}
+                            </ApiBoundary>
+                        ))}
+                    </Stack>
+                </Stack>
+            </Card>
+            {/* Keep billing tables empty until payment records are connected. */}
+            <Stack gap={3} paddingBlock={2}>
+                <Heading level={3}>Connected cards</Heading>
+                <Table<{ id: string; card: string; expires: string; status: string }>
+                    data={[]}
+                    idKey="id"
+                    density="compact"
+                    columns={[
+                        { key: 'card', header: 'Card', width: proportional(2) },
+                        { key: 'expires', header: 'Expires', width: proportional(1) },
+                        { key: 'status', header: 'Status', width: proportional(1) },
+                    ]}
+                />
+            </Stack>
+            <Stack gap={3} paddingBlock={2}>
+                <Heading level={3}>Invoices</Heading>
+                <Table<{ id: string; date: string; amount: string; status: string }>
+                    data={[]}
+                    idKey="id"
+                    density="compact"
+                    columns={[
+                        { key: 'id', header: 'Invoice', width: proportional(2) },
+                        { key: 'date', header: 'Date', width: proportional(1) },
+                        { key: 'amount', header: 'Amount', align: 'end', width: proportional(1) },
+                        { key: 'status', header: 'Status', width: proportional(1) },
+                    ]}
+                />
+            </Stack>
         </Stack>
+    );
+}
+
+/** Shows accepted members against the advertised Free plan's five-user allowance. */
+function UsersUsageMeter({ base }: { base: string }) {
+    // Count current members, not pending invitations, using the organization details endpoint.
+    const [{ members }] = useApi(base, schemas.zOrganizationDetails);
+
+    return (
+        <ProgressBar
+            label="Users"
+            value={members.length}
+            max={5}
+            hasValueLabel
+            formatValueLabel={() => `${members.length} / 5 users`}
+        />
     );
 }
 
@@ -819,7 +901,7 @@ function UsageMeter({ base, resource }: { base: string; resource: 'storage' | 'd
 
     return (
         <ProgressBar
-            label={resource === 'storage' ? 'Storage' : 'Database'}
+            label={resource === 'storage' ? 'File storage' : 'Database storage'}
             value={usage.space_used}
             max={usage.quota_bytes}
             hasValueLabel
