@@ -12,6 +12,8 @@ export function Stepper({
     children?: ReactNode;
     activeStep?: number;
     orientation?: 'horizontal' | 'vertical';
+    /** Enables step activation and receives the clicked step's zero-based index. */
+    onStepClick?: (index: number) => void;
 }) {
     // Compact horizontal steppers render the active label outside the individual step's element.
     const activeStepHidden = Children.toArray(children).some(
@@ -35,7 +37,7 @@ export function Stepper({
     );
 }
 
-/** Defines the label and index of a step. */
+/** Defines the label, description, and index of a step. */
 export function Step(props: {
     /** Hides the step indicator and label without changing its index. */
     hidden?: boolean;
@@ -43,6 +45,8 @@ export function Step(props: {
     step: number;
     /** Visible label identifying the step. */
     label: string;
+    /** Supporting text displayed below the step label. */
+    description?: string;
 }) {
     return <AstryxStep {...props} className={props.hidden ? 'hidden!' : undefined} />;
 }

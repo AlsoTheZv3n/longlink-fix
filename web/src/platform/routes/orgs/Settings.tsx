@@ -19,6 +19,7 @@ import { MoreMenu } from '@astryxdesign/core/MoreMenu';
 import { Selector } from '@astryxdesign/core/Selector';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
 import { TextInput } from '@astryxdesign/core/TextInput';
+import { DialogClose } from '@/components/ui/DialogClose';
 import { Stack, StackItem } from '@astryxdesign/core/Stack';
 import { ProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Table, proportional } from '@astryxdesign/core/Table';
@@ -119,6 +120,7 @@ function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps
                 if (!open) onClose();
             }}
         >
+            <DialogClose onClose={onClose} />
             <Form
                 height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
                 action={updateSolution}
@@ -639,6 +641,7 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
                 maxHeight="calc(100dvh - var(--spacing-10) * 4)"
                 padding={0}
             >
+                <DialogClose onClose={() => setInviting(false)} />
                 <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                     <Layout
                         padding={0}
@@ -898,6 +901,7 @@ function SolutionsSection({
                         if (!open) setLogs(null);
                     }}
                 >
+                    <DialogClose onClose={() => setLogs(null)} />
                     <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))" paddingInline={8} paddingBlock={4}>
                         <ApiBoundary key={logs}>
                             <SolutionLogs solutionId={logs} onClose={() => setLogs(null)} />
@@ -918,6 +922,7 @@ function SolutionsSection({
                         if (!open) setMcp(null);
                     }}
                 >
+                    <DialogClose onClose={() => setMcp(null)} />
                     <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                         <Layout
                             padding={0}

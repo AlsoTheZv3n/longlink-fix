@@ -10,7 +10,7 @@ export default function DialogPage() {
     return (
         <ViewLayout
             name="Dialog"
-            introduction="Dialog is modal within the isolated View viewport. It does not block the surrounding Platform navigation. Its content scrolls when it exceeds the available View height."
+            introduction="Dialog is modal within the isolated View viewport. It defaults to the Platform's 960px width and 560px height, limited by the available viewport. It does not block the surrounding Platform navigation. Its content scrolls when it exceeds the available View height."
             examples={[
                 {
                     title: 'Dialog',

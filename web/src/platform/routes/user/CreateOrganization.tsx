@@ -6,6 +6,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { Dialog } from '@astryxdesign/core/Dialog';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@astryxdesign/core/TextInput';
+import { DialogClose } from '@/components/ui/DialogClose';
 import { zOrganizationCreate } from '@/lib/generated/platform-api-v1/zod.gen';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
 
@@ -42,6 +43,7 @@ export default function CreateOrganization({
             maxHeight="calc(100dvh - var(--spacing-10) * 4)"
             padding={0}
         >
+            <DialogClose onClose={() => onOpenChange(false)} />
             <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                 <Layout
                     padding={0}
