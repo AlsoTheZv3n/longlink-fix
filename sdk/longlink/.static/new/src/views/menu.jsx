@@ -10,9 +10,11 @@ export default function InvoiceSettings() {
 
     // Keep section selection in the runtime-managed URL fragment.
     return (
-        <Stack gap={0}>
-            <Heading level={1}>Example Menu View</Heading>
-            <Text color="secondary">This can be used for organizing settings into navigable sections.</Text>
+        <Stack gap={4}>
+            <Stack gap={0}>
+                <Heading level={1}>Example Menu View</Heading>
+                <Text color="secondary">This can be used for organizing settings into navigable sections.</Text>
+            </Stack>
             <Menu>
                 <MenuSection title="Invoices">
                     <MenuItem label="General">

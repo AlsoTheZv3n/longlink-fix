@@ -146,6 +146,7 @@ export function Menu({
             hidden={hidden}
             className={hidden ? 'hidden!' : undefined}
             height="auto"
+            padding={0}
             start={
                 <LayoutPanel isScrollable={false} label="Settings navigation" padding={0} role="navigation" width={260}>
                     <AstryxSideNav className="h-auto w-full pr-4 [&>div:first-child]:pt-0 [&_.astryx-side-nav-section>div:first-child]:pt-0 [&_.astryx-side-nav-section>div:first-child]:pl-0">
