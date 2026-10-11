@@ -146,7 +146,7 @@ async def test_update_enforces_idempotency_and_min_scale_bounds(
         revision = await session.get(Revision, current.desired_revision_id)
         assert revision is not None
         assert revision.source == source
-        assert revision.configured_envs == ["DROP", "KEEP"]
+        assert revision.envs == {"KEEP": "private-value", "DROP": "old-value"}
         assert revision.min_scale == 0
 
     # Act
@@ -600,4 +600,4 @@ async def test_local_registry_release_roundtrip(
         revision = await session.get(Revision, current.desired_revision_id)
         assert revision is not None
         assert revision.source == source
-        assert revision.configured_envs == sorted({*envs, "EXTRA"})
+        assert revision.envs == {**envs, "EXTRA": "replacement"}

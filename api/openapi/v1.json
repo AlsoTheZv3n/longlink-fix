@@ -757,7 +757,7 @@
     "/api/v1/solutions/{solution_id}/update": {
       "get": {
         "summary": "Check Update",
-        "description": "Inspect the desired release source without changing deployment state.",
+        "description": "Inspect the repository's latest image without changing deployment state.",
         "operationId": "check_update_api_v1_solutions__solution_id__update_get",
         "parameters": [
           {
@@ -822,7 +822,7 @@
       },
       "post": {
         "summary": "Apply Update",
-        "description": "Re-resolve the desired source and deploy a changed image or configuration.",
+        "description": "Re-resolve latest and deploy a changed immutable image or configuration.",
         "operationId": "apply_update_api_v1_solutions__solution_id__update_post",
         "parameters": [
           {
