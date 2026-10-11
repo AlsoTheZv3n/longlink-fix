@@ -1,13 +1,14 @@
 import { z } from 'zod';
-import { api } from '@/lib/api';
 import { Info } from 'lucide-react';
+import { Form } from '@/components/Form';
+import { api, ApiError } from '@/lib/api';
 import { useApiError } from '@/lib/errors';
-import { useEffect, useState } from 'react';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
+import { useEffect, useId, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { FileInput } from '@astryxdesign/core/FileInput';
@@ -145,6 +146,7 @@ export default function Compute() {
 /** Owns a fresh registration draft for the lifetime of the form dialog. */
 function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promise<void>; onClose: () => void }) {
     const reportApiError = useApiError();
+    const formId = useId();
 
     // Opening a new dialog starts with blank fields; dismissal discards this draft.
     const [registration, setRegistration] = useState<z.input<typeof registrationSchema>>({
@@ -159,8 +161,6 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
     const [fileRead, setFileRead] = useState<
         { kind: 'idle' } | { kind: 'reading' } | { kind: 'error'; message: string }
     >({ kind: 'idle' });
-
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Ignore an obsolete read after replacing, clearing, or dismissing the selected file.
     useEffect(() => {
@@ -200,20 +200,18 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
 
     /** Registers the validated Compute draft and refreshes the list. */
     async function registerCompute() {
-        // Block keyboard submission as well as button clicks until a complete draft is available.
-        if (fileRead.kind === 'reading' || isSubmitting || !registration.kubeconfig.trim()) return;
-
         // Validate the draft and refresh the list only after registration succeeds.
-        setIsSubmitting(true);
-
         try {
             await api.post('/api/v1/computes', { json: registrationSchema.parse(registration) });
             await invalidate();
             onClose();
         } catch (cause) {
             reportApiError(cause);
-        } finally {
-            setIsSubmitting(false);
+
+            // Keep submitted credentials and untrusted diagnostics out of the shared form's error banner.
+            throw new Error(
+                cause instanceof ApiError ? cause.message : 'The request could not be completed. Please try again.'
+            );
         }
     }
 
@@ -227,8 +225,12 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
             }}
         >
             <DialogHeader title="Register Compute" onOpenChange={onClose} />
-            <form action={registerCompute}>
-                <Stack gap={3}>
+            <Stack gap={3}>
+                <Form
+                    id={formId}
+                    action={registerCompute}
+                    submitDisabled={fileRead.kind === 'reading' || !registration.kubeconfig.trim()}
+                >
                     <TextInput
                         label="Name"
                         value={registration.name}
@@ -253,7 +255,6 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
                         label="Kubeconfig file"
                         accept=".yaml,.yml"
                         value={file}
-                        isDisabled={isSubmitting}
                         status={fileRead.kind === 'error' ? { type: 'error', message: fileRead.message } : undefined}
                         onChange={(files) => {
                             // Clear previous contents immediately so invalid or pending files cannot submit stale YAML.
@@ -268,23 +269,24 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
                         value={registration.kubeconfig}
                         placeholder="Paste the Compute kubeconfig"
                         isRequired
-                        isDisabled={fileRead.kind === 'reading' || isSubmitting}
+                        isDisabled={fileRead.kind === 'reading'}
                         isLoading={fileRead.kind === 'reading'}
                         hasSpellCheck={false}
                         onChange={(kubeconfig) => setRegistration((draft) => ({ ...draft, kubeconfig }))}
                     />
-                    <Stack direction="horizontal" gap={2} justify="end">
-                        <Button label="Cancel" variant="ghost" onClick={onClose} />
-                        <Button
-                            label="Register"
-                            variant="primary"
-                            type="submit"
-                            isLoading={isSubmitting}
-                            isDisabled={fileRead.kind === 'reading' || !registration.kubeconfig.trim()}
-                        />
-                    </Stack>
+                </Form>
+                {/* Keep Cancel usable while the shared form disables its fields during submission. */}
+                <Stack direction="horizontal" gap={2} justify="end">
+                    <Button label="Cancel" variant="ghost" onClick={onClose} />
+                    <Button
+                        label="Register"
+                        variant="primary"
+                        type="submit"
+                        form={formId}
+                        isDisabled={fileRead.kind === 'reading' || !registration.kubeconfig.trim()}
+                    />
                 </Stack>
-            </form>
+            </Stack>
         </Dialog>
     );
 }

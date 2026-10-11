@@ -34,14 +34,20 @@ async def lock(session: AsyncSession, organization_id: UUID) -> Organization | N
     return await session.get(Organization, organization_id, populate_existing=True)
 
 
-async def connection(organization: Organization, cluster: Kubernetes) -> postgres.Postgres:
-    """Build the Organization's private, CA-verified PostgreSQL connection."""
+async def connection(
+    organization: Organization,
+    cluster: Kubernetes,
+    *,
+    certificate: str | None = None,
+) -> postgres.Postgres:
+    """Build a private PostgreSQL connection using the caller's CA snapshot or a fresh cluster lookup."""
 
     # Platform workers can run outside the compute cluster and its private DNS/network.
     port = await cluster.forward_database(organization.id)
 
     # Preserve the cluster DNS hostname for certificate verification even through a local tunnel.
-    certificate = await database_resources.certificate(cluster, organization.id)
+    if certificate is None:
+        certificate = await database_resources.certificate(cluster, organization.id)
     return postgres.Postgres(
         host=namespace.database_hostname(organization.id),
         port=port,
