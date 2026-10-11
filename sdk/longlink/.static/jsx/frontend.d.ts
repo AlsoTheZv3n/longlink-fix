@@ -4887,6 +4887,8 @@ declare function TextInput(
         defaultValue?: string;
         onChange?: (value: string) => void;
         placeholder?: string;
+        /** Maximum Unicode code points, matching Python string length. Validates without truncating input. */
+        maxLength?: number;
         type?: 'text' | 'password' | 'email';
         size?: 'sm' | 'md' | 'lg';
         autoComplete?: string;
@@ -4905,6 +4907,7 @@ declare function TextArea(
         onChange?: (value: string) => void;
         placeholder?: string;
         rows?: number;
+        /** Maximum Unicode code points, matching Python string length. Validates without truncating input. */
         maxLength?: number;
         hasAutoFocus?: boolean;
         autoComplete?: string;
