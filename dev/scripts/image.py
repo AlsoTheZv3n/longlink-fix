@@ -43,7 +43,7 @@ def main() -> None:
 
         # Use the installed SDK CLI to build and push through the normal context filtering.
         subprocess.run(
-            [sys.executable, "-m", "longlink", "build", "--registry", "localhost:15000", "--push", "--tag", "dev"],
+            [sys.executable, "-m", "longlink", "build", "--registry", "localhost:15000", "--push", "--tag", "latest"],
             cwd=solution,
             env=environment,
             check=True,

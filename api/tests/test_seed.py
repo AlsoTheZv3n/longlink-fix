@@ -64,7 +64,7 @@ async def test_local_seed_creates_example_through_api(
     async def metadata(image: Image, _connection: object | None = None) -> LongLinkMetadata:
         """Resolve the seed through the same metadata boundary as deployment."""
 
-        assert image == "localhost:15000/sample:dev"
+        assert image == "localhost:15000/sample:latest"
         return LongLinkMetadata(image=Image("localhost:15000/sample@sha256:resolved"))
 
     monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
@@ -94,4 +94,4 @@ async def test_local_seed_creates_example_through_api(
     assert solution.name == "Invoices"
     assert solution.organization_id == organization.id
     assert solution.description == "Manage invoices for ACME Ink."
-    assert solution.desired_revision.source == "localhost:15000/sample:dev"
+    assert solution.desired_revision.source == "localhost:15000/sample:latest"

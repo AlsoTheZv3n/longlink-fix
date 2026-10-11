@@ -75,6 +75,7 @@ TEMP
 /web/node_modules/
 /web/public/views/runtime.js
 /web/public/views/runtime.css
+/web/public/views/runtime.json
 /web/*.local
 /web/.vscode/*
 !/web/.vscode/extensions.json

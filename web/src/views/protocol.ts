@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const MAX_RUNTIME_SIZE = 8_000_000;
+
 export const MAX_SOURCE_SIZE = 1_000_000;
 
 export const MAX_MESSAGE_SIZE = 2_000_000;

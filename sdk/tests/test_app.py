@@ -1,3 +1,4 @@
+import json
 import pytest
 import logging
 from pathlib import Path
@@ -155,8 +156,13 @@ def test_startup_rejects_a_missing_embedded_frontend(monkeypatch: pytest.MonkeyP
 
     # Reject startup with the missing artifact's exact location.
     frontend_index = tmp_path / ".static" / "web" / "index.html"
-    with pytest.raises(RuntimeError, match=f"LongLink embedded frontend is required: {frontend_index}"):
+    with pytest.raises(ValidationError) as raised:
         LongLink()
+
+    # Report the missing entry point as a filesystem validation error.
+    assert raised.value.errors()[0]["loc"] == ("index",)
+    assert raised.value.errors()[0]["type"] == "path_not_file"
+    assert raised.value.errors()[0]["input"] == frontend_index
 
 
 def test_production_startup_rejects_incomplete_runtime_settings(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -207,6 +213,7 @@ def test_dynamic_view_is_registered_from_jsx_without_sidecar_metadata(solution_s
     view_path.parent.mkdir(parents=True, exist_ok=True)
     view_path.write_text(content, encoding="utf-8")
     view_path.with_suffix(".json").write_text('{"name": "Custom title", "icon": "banknote"}', encoding="utf-8")
+    runtime = json.loads((longlink_app.ROOT / ".static" / "web" / "views" / "runtime.json").read_text(encoding="utf-8"))
 
     # Act
     app = LongLink()
@@ -219,7 +226,10 @@ def test_dynamic_view_is_registered_from_jsx_without_sidecar_metadata(solution_s
     assert "text/plain" in response.headers["content-type"]
     assert response.text == content
     assert views_response.status_code == 200
-    assert views_response.json() == [{"path": "views/issues/[issue]", "route": "/issues/:issue"}]
+    assert views_response.json() == {
+        "views": [{"path": "views/issues/[issue]", "route": "/issues/:issue"}],
+        "runtime": runtime,
+    }
 
 
 def test_view_catalog_orders_paths_and_redirects_to_first_static_view(solution_source: Path) -> None:
@@ -231,6 +241,7 @@ def test_view_catalog_orders_paths_and_redirects_to_first_static_view(solution_s
     (nested_directory / "[id].jsx").write_text("export default function Detail() { return <Text>Detail</Text>; }", encoding="utf-8")
     (nested_directory / "alpha.jsx").write_text("export default function Alpha() { return <Text>Alpha</Text>; }", encoding="utf-8")
     (solution_source / "views" / "zebra.jsx").write_text("export default function Zebra() { return <Text>Zebra</Text>; }", encoding="utf-8")
+    runtime = json.loads((longlink_app.ROOT / ".static" / "web" / "views" / "runtime.json").read_text(encoding="utf-8"))
     app = LongLink()
     client = TestClient(app)
 
@@ -240,11 +251,14 @@ def test_view_catalog_orders_paths_and_redirects_to_first_static_view(solution_s
 
     # Assert
     assert catalog_response.status_code == 200
-    assert catalog_response.json() == [
-        {"path": "views/admin/[id]", "route": "/admin/:id"},
-        {"path": "views/admin/alpha", "route": "/admin/alpha"},
-        {"path": "views/zebra", "route": "/zebra"},
-    ]
+    assert catalog_response.json() == {
+        "views": [
+            {"path": "views/admin/[id]", "route": "/admin/:id"},
+            {"path": "views/admin/alpha", "route": "/admin/alpha"},
+            {"path": "views/zebra", "route": "/zebra"},
+        ],
+        "runtime": runtime,
+    }
     assert root_response.status_code == 307
     assert root_response.headers["location"] == "/admin/alpha"
 

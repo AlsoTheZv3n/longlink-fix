@@ -1,9 +1,9 @@
 from fastapi import Request, APIRouter
 from sqlalchemy import text
-from longlink.views import ViewDefinition
+from longlink.views import ViewManifest
 
 
-def router(views: list[ViewDefinition]) -> APIRouter:
+def router(manifest: ViewManifest) -> APIRouter:
     """Build SDK-managed routes around the startup view catalog."""
 
     routes = APIRouter()
@@ -24,11 +24,11 @@ def router(views: list[ViewDefinition]) -> APIRouter:
 
         return {"ok": True}
 
-    @routes.get("/views.json", response_model=list[ViewDefinition])
-    async def get_views() -> list[ViewDefinition]:
+    @routes.get("/views.json", response_model=ViewManifest)
+    async def get_views() -> ViewManifest:
         """Return the registered SDK runtime views."""
 
         # View handlers are registered from the SDK views directory during app startup.
-        return views
+        return manifest
 
     return routes
