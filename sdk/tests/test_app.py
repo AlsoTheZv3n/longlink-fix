@@ -4,8 +4,10 @@ from pathlib import Path
 from longlink import Context
 from longlink import app as longlink_app
 from pydantic import ValidationError
+from sqlalchemy import event
 from longlink.app import LongLink
 from longlink.logger import ApiAccessFilter
+from sqlalchemy.engine import Engine
 from fastapi.testclient import TestClient
 from longlink.testclient import TestClient as SolutionTestClient
 
@@ -18,11 +20,14 @@ def test_longlink_solution_serves_runtime_routes_and_frontend(monkeypatch: pytes
     # Arrange
     monkeypatch.setenv("LONGLINK_ENV", environment)
     app = LongLink()
+    disposed: list[Engine] = []
 
     @app.get("/api/me", response_model=str)
     async def current_user(value: Context) -> str:
         """Return the locally seeded user name."""
 
+        # Observe actual engine shutdown after a request initializes the runtime database.
+        event.listen(value.database.get_bind(), "engine_disposed", disposed.append)
         return value.user.name
 
     # Act
@@ -45,6 +50,7 @@ def test_longlink_solution_serves_runtime_routes_and_frontend(monkeypatch: pytes
     assert ready_response.json() == {"ok": True}
     assert user_response.status_code == 200
     assert user_response.json() == name
+    assert len(disposed) == 1
 
 
 @pytest.mark.usefixtures("solution_source")
@@ -55,11 +61,14 @@ def test_solution_test_client_replaces_development_services_with_testing_service
     monkeypatch.setenv("LONGLINK_ENV", "development")
     app = LongLink()
     assert "file" in app.state.longlink.storage.protocol
+    disposed: list[Engine] = []
 
     @app.get("/api/me", response_model=str)
     async def testing_user(value: Context) -> str:
         """Return the user selected by the testing client."""
 
+        # Observe disposal of the replacement services rather than the original development database.
+        event.listen(value.database.get_bind(), "engine_disposed", disposed.append)
         return value.user.name
 
     # Act
@@ -70,6 +79,8 @@ def test_solution_test_client_replaces_development_services_with_testing_service
     # Assert
     assert user_response.status_code == 200
     assert user_response.json() == "Testing user"
+    assert len(disposed) == 1
+    assert not Path("dev.db").exists()
 
     # Exercise relative in-memory file operations without creating a local report.
     storage = app.state.longlink.storage
@@ -78,7 +89,37 @@ def test_solution_test_client_replaces_development_services_with_testing_service
     assert storage.cat_file("report.txt") == b"report"
     assert storage.ls("", detail=False) == ["report.txt"]
     assert not Path("report.txt").exists()
-    assert app.state.longlink.database._env.ENV == "testing"
+
+
+@pytest.mark.usefixtures("solution_source")
+async def test_startup_disposes_initialized_database_when_mcp_construction_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Close initialized runtime resources when MCP startup fails before serving requests."""
+
+    # Arrange
+    monkeypatch.setenv("LONGLINK_ENV", "testing")
+    app = LongLink()
+    disposed: list[Engine] = []
+    async with app.state.longlink.database.session() as session:
+        event.listen(session.get_bind(), "engine_disposed", disposed.append)
+    original_routes = app.routes.copy()
+    failure = RuntimeError("MCP construction failed")
+
+    def fail_construction(**_kwargs: object) -> None:
+        """Fail only the MCP construction boundary after real database initialization."""
+
+        raise failure
+
+    monkeypatch.setattr(longlink_app.FastMCP, "from_openapi", fail_construction)
+
+    # Act
+    with pytest.raises(RuntimeError) as raised:
+        async with app.router.lifespan_context(app):
+            pytest.fail("Failed MCP startup must not serve requests")
+
+    # Assert
+    assert raised.value is failure
+    assert len(disposed) == 1
+    assert app.routes == original_routes
 
 
 def test_readiness_fails_when_the_solution_database_is_unavailable(solution_source: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -170,9 +211,8 @@ def test_dynamic_view_is_registered_from_jsx_without_sidecar_metadata(solution_s
     # Act
     app = LongLink()
     client = TestClient(app)
-    with client:
-        response = client.get("/views/issues/[issue]")
-        views_response = client.get("/views.json")
+    response = client.get("/views/issues/[issue]")
+    views_response = client.get("/views.json")
 
     # Assert
     assert response.status_code == 200
@@ -195,9 +235,8 @@ def test_view_catalog_orders_paths_and_redirects_to_first_static_view(solution_s
     client = TestClient(app)
 
     # Act
-    with client:
-        catalog_response = client.get("/views.json")
-        root_response = client.get("/", follow_redirects=False)
+    catalog_response = client.get("/views.json")
+    root_response = client.get("/", follow_redirects=False)
 
     # Assert
     assert catalog_response.status_code == 200

@@ -40,7 +40,7 @@ def test_token_claims_reject_wrong_audience(
     encoded = create_token(user)
 
     # Act and assert
-    with pytest.raises(jwt.InvalidTokenError):
+    with pytest.raises(jwt.InvalidAudienceError):
         read_claims(encoded)
 
 
@@ -53,7 +53,7 @@ async def test_password_reset_user_rejects_registration_token_audience() -> None
 
     # Act and assert
     async with AsyncSession() as session:
-        with pytest.raises(jwt.InvalidTokenError):
+        with pytest.raises(jwt.InvalidAudienceError):
             await token.password_reset_user(session, registration)
 
 
@@ -102,7 +102,7 @@ def test_token_claims_reject_expired_token(claims: dict[str, str], function: Cal
     encoded = expired_token(claims)
 
     # Act and assert
-    with pytest.raises(jwt.InvalidTokenError):
+    with pytest.raises(jwt.ExpiredSignatureError):
         function(encoded)
 
 
@@ -133,7 +133,7 @@ def test_oauth_state_claims_reject_expired_token() -> None:
     )
 
     # Act and assert
-    with pytest.raises(jwt.InvalidTokenError):
+    with pytest.raises(jwt.ExpiredSignatureError):
         token.oauth_state_claims(encoded, "google")
 
 
@@ -225,11 +225,16 @@ async def test_password_reset_user_rejects_missing_account() -> None:
             await token.password_reset_user(session, encoded)
 
 
-async def test_password_reset_user_rejects_changed_password(users: tuple[User, User, User]) -> None:
+async def test_password_reset_user_rejects_changed_password() -> None:
     """Invalidate a recovery link when its account password changes."""
 
     # Arrange
-    user = users[0]
+    user = User(email="member@example.com", password="original-password-hash")
+    async with session_scope() as session:
+        session.add(user)
+        await session.commit()
+
+    # Bind the credential to the persisted original password before changing it.
     reset_token = token.create_password_reset_token(user)
 
     async with session_scope() as session:

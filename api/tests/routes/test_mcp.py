@@ -1,12 +1,10 @@
 import httpx2
 import pytest
+import gateway
 import pytest_asyncio
-from fastapi import Request
 from pathlib import Path
-from longlink import app
 from factories import create_solution, create_organization
 from longlink.app import LongLink
-from longlink.database import audit
 from src.models.statuses import Status
 from src.database.session import session_scope
 from src.database.models.users import User
@@ -31,38 +29,8 @@ async def mcp_gateway(
         persisted.status = Status.running
         await session.commit()
 
-    # Supply a test-local frontend artifact without requiring an existing SDK build.
-    frontend = tmp_path / ".static" / "web" / "index.html"
-    frontend.parent.mkdir(parents=True)
-    frontend.write_text("<!doctype html><html></html>", encoding="utf-8")
-    monkeypatch.setattr(app, "ROOT", tmp_path)
-
-    # The SDK discovers Solution sources from the current directory and process settings.
-    (tmp_path / "src" / "views").mkdir(parents=True)
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("LONGLINK_ENV", "testing")
-    monkeypatch.setenv("LONGLINK_IDENTITY_SECRET", secret)
-    sdk = LongLink()
-
-    @sdk.get("/api/identity", response_model=dict[str, str | None], operation_id="current_identity")
-    async def current_identity(request: Request) -> dict[str, str | None]:
-        """Expose the admitted actor and credentials to verify the real trust boundary."""
-
-        return {
-            "user": str(audit.current_actor.get()),
-            "cookie": request.headers.get("cookie"),
-            "authorization": request.headers.get("authorization"),
-        }
-
-    # Replace only gateway network I/O; retain actual proxy, MCP, and SDK route behavior.
-    transport = httpx2.ASGITransport(app=sdk)
-
-    async def send(_transport: object, request: httpx2.Request) -> httpx2.Response:
-        """Deliver the actual signed gateway request to the real SDK application."""
-
-        return await transport.handle_async_request(request)
-
-    monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", send)
+    # Route signed gateway requests into an isolated real SDK application.
+    sdk = gateway.create_runtime(tmp_path, monkeypatch, secret)
     return solution, sdk
 
 

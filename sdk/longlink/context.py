@@ -1,13 +1,11 @@
-from uuid import UUID
 from typing import Annotated
-from fastapi import Depends, FastAPI, Request, HTTPException
+from fastapi import Depends, Request, HTTPException
 from dataclasses import dataclass
 from fsspec.spec import AbstractFileSystem
 from collections.abc import AsyncGenerator
 from longlink.database import audit
 from longlink.responses import FileResponse
 from longlink.shared.models import User
-from longlink.middleware.identity import IdentityMiddleware
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 
@@ -49,25 +47,3 @@ async def _data(request: Request) -> AsyncGenerator[_ContextData, None]:
 
 
 Context = Annotated[_ContextData, Depends(_data)]
-
-
-def install_context_middleware(
-    app: FastAPI,
-    identity_secret: str | None,
-    *,
-    require_identity: bool = False,
-    local_user_id: UUID | None = None,
-) -> None:
-    """Bind trusted Platform identity for the complete request lifecycle."""
-
-    # Reject an incomplete production policy before the middleware stack is built.
-    if require_identity and not identity_secret:
-        raise ValueError("Identity secret is required for protected Solution requests")
-
-    # One ASGI owner handles transport admission and the complete audit scope.
-    app.add_middleware(
-        IdentityMiddleware,
-        identity_secret=identity_secret,
-        require_identity=require_identity,
-        local_user_id=local_user_id,
-    )

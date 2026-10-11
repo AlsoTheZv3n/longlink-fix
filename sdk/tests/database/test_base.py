@@ -4,7 +4,7 @@ import asyncio
 import sqlite3
 from typing import Literal
 from pathlib import Path
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, select
 from sqlalchemy import text, event
 from sqlalchemy.exc import OperationalError
 from longlink.database import base as database_base
@@ -140,40 +140,33 @@ async def test_create_engine_selects_database_url_and_options(
         await engine.dispose()
 
 
-async def test_concurrent_sessions_initialize_one_engine(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Initialize the lazy database engine only once."""
+async def test_concurrent_sessions_share_a_usable_engine_until_disposal() -> None:
+    """Share one usable engine and initialize a fresh one after disposal."""
 
     # Arrange
-    create_count = 0
-    create_engine = database_base.create_engine
-
-    def counted_create_engine(env: Envs):
-        """Create an isolated engine while recording initialization attempts."""
-        nonlocal create_count
-        create_count += 1
-        return create_engine(env)
-
-    monkeypatch.setattr(database_base, "create_engine", counted_create_engine)
     database = database_base.Database(Envs(ENV="testing"))
 
-    async def open_session() -> None:
-        """Open and close one SDK-managed database session."""
-        async with database.session():
-            pass
+    async def open_session() -> AsyncEngine | AsyncConnection | None:
+        """Query through an SDK-managed session and return its public bind."""
+
+        async with database.session() as session:
+            result = await session.exec(select(1))
+            assert result.one() == 1
+            return session.bind
 
     try:
         # Act
-        await asyncio.gather(open_session(), open_session())
+        first_engine, second_engine = await asyncio.gather(open_session(), open_session())
 
         # Assert
-        assert create_count == 1
+        assert first_engine is not None
+        assert second_engine is first_engine
 
         # Dispose the cached resources, then verify a later session recreates them.
         await database.dispose()
-        await open_session()
-        assert create_count == 2
+        fresh_engine = await open_session()
+        assert fresh_engine is not None
+        assert fresh_engine is not first_engine
     finally:
         await database.dispose()
 

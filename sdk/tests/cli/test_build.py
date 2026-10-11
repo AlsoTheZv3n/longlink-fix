@@ -597,10 +597,7 @@ def test_build_solution_filters_expanded_context(chdir_project: Path) -> None:
         ("path-list", ""),
         ("workspace-list", ""),
         ("build-list", ""),
-        pytest.param("path-list", " with spaces", id="spaces"),
-        pytest.param("path-list", " with'quotes\"", id="quotes"),
-        pytest.param("path-list", " $HOME", id="literal-variable"),
-        pytest.param("path-list", " with\\slashes", id="backslash"),
+        pytest.param("path-list", " with spaces 'single' \"double\" $HOME \\backslash", id="literal-path"),
     ],
 )
 def test_build_solution_preserves_workspace_manifests_without_unrelated_sources(

@@ -1,33 +1,31 @@
 import pytest
-from uuid import UUID
+from uuid import UUID, uuid4
 from src.utils import postgres
-from containers import postgres_container
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
-from collections.abc import Iterator
 from longlink.shared import audit as shared_audit
 from src.models.types import DatabaseSSLMode
 from sqlalchemy.ext.asyncio import create_async_engine
+from testcontainers.community.postgres import PostgresContainer
 
 pytestmark = pytest.mark.no_db
 
 
 @pytest.fixture
-def postgres_database() -> Iterator[tuple[postgres.Postgres, UUID, UUID]]:
-    """Provide SQL provisioning against a disposable PostgreSQL database."""
+def postgres_database(postgres_server: PostgresContainer) -> tuple[postgres.Postgres, UUID, UUID]:
+    """Provide SQL provisioning with fresh database and runtime-role identities for each test."""
 
-    with postgres_container("longlink", "secret", "postgres") as container:
-        organization_id = UUID("33333333-3333-3333-3333-333333333333")
-        solution_id = UUID("44444444-4444-4444-4444-444444444444")
-        adapter = postgres.Postgres(
-            host=container.get_container_host_ip(),
-            port=container.get_exposed_port(5432),
-            username="longlink",
-            password="secret",
-            sslmode=DatabaseSSLMode.disable,
-        )
-
-        yield adapter, organization_id, solution_id
+    # Isolate Organization databases and cluster-wide roles without restarting PostgreSQL.
+    organization_id = uuid4()
+    solution_id = uuid4()
+    adapter = postgres.Postgres(
+        host=postgres_server.get_container_host_ip(),
+        port=postgres_server.get_exposed_port(5432),
+        username="longlink",
+        password=postgres_server.password,
+        sslmode=DatabaseSSLMode.disable,
+    )
+    return adapter, organization_id, solution_id
 
 
 @pytest.mark.integration

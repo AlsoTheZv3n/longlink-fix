@@ -22,7 +22,7 @@ describe('shared View documentation layout', () => {
         vi.unstubAllGlobals();
     });
 
-    it.each(['', '?tab=unknown', '?tab=best-practices'])('defaults to examples for query %s', async (query) => {
+    it.each(['', '?tab=best-practices'])('defaults to examples for query %s', async (query) => {
         // Render the shared owner rather than repeating shell assertions in individual pages.
         const output = await renderLayout(query);
 

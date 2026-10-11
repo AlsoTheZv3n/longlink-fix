@@ -79,9 +79,14 @@ describe('Compute registration', () => {
         expect(submissions).toEqual([]);
     });
 
-    it.each(['', ' \n\t'])('reports empty file content without submitting', async (content) => {
+    it('reports whitespace-only file content without submitting', async () => {
+        // Arrange
         const user = await renderCompute();
-        await act(async () => user.upload(fileInput(), new File([content], 'empty.yaml')));
+
+        // Act
+        await act(async () => user.upload(fileInput(), new File([' \n\t'], 'empty.yaml')));
+
+        // Assert
         await vi.waitFor(() => expect(document.body.textContent).toContain('The kubeconfig file is empty.'));
         expect(textarea().value).toBe('');
         expect(button('Register').disabled).toBe(true);

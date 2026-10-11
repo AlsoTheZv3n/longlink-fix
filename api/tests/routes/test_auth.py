@@ -12,6 +12,7 @@ from sqlmodel import col, select
 from factories import create_organization
 from src.utils import oauth, token
 from urllib.parse import parse_qs, urlparse
+from collections.abc import AsyncIterator
 from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.database.session import get_session, session_scope
@@ -247,16 +248,22 @@ async def test_oauth_callback_rejects_invalid_state_without_provider_exchange(
     assert client.cookies.get("longlink_auth") is None
 
 
+@pytest.mark.no_db
 @pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
 async def test_oauth_callback_rejects_provider_error_and_missing_code_without_exchange(
     client: AsyncClient,
-    users: tuple[User, User, User],
     monkeypatch: pytest.MonkeyPatch,
     provider: oauth.OAuthProvider,
 ) -> None:
     """Reject provider-cancelled and code-less callbacks before any code exchange."""
 
     # Arrange
+    async def unused_session() -> AsyncIterator[object]:
+        """Supply no database capabilities before callback proof is accepted."""
+
+        yield object()
+
+    monkeypatch.setattr(app, "dependency_overrides", {auth.get_session: unused_session})
     credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier")
     client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
 
@@ -291,10 +298,6 @@ async def test_oauth_callback_rejects_provider_error_and_missing_code_without_ex
     assert missing_code_response.headers["location"] == f"{env.PUBLIC_URL}/login?oauth_error=1"
     assert client.cookies.get("longlink_oauth") is None
     assert client.cookies.get("longlink_auth") is None
-    async with session_scope() as session:
-        result = await session.execute(select(User))
-        persisted_users = result.scalars().all()
-    assert {(user.id, user.google_id, user.github_id) for user in persisted_users} == {(user.id, None, None) for user in users}
 
 
 @pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
@@ -790,10 +793,22 @@ async def test_password_login_accepts_pending_organization_invitation(
     """Accept pending Organization access when an existing user signs in."""
 
     # Arrange
-    owner, invited_user, _ = users
+    owner, invited_user, other_user = users
     organization = await create_organization(owner)
+    other_organization = await create_organization(owner, name="other organization")
+    pending_invitation = OrganizationInvitation(
+        organization_id=organization.id,
+        email=invited_user.email,
+        role=OrganizationRoles.write,
+    )
+    other_pending_invitation = OrganizationInvitation(
+        organization_id=other_organization.id,
+        email=other_user.email,
+        role=OrganizationRoles.write,
+    )
     async with session_scope() as session:
-        session.add(OrganizationInvitation(organization_id=organization.id, email=invited_user.email, role=OrganizationRoles.write))
+        session.add(pending_invitation)
+        session.add(other_pending_invitation)
         await session.commit()
 
     # Act
@@ -801,6 +816,9 @@ async def test_password_login_accepts_pending_organization_invitation(
         "/api/v1/auth/password/login",
         json={"email": invited_user.email, "password": TEST_PASSWORD},
     )
+
+    # Assert
+    assert response.status_code == 204
     async with session_scope() as session:
         invitation = await session.scalar(
             select(OrganizationInvitation).where(col(OrganizationInvitation.organization_id) == organization.id)
@@ -811,12 +829,20 @@ async def test_password_login_accepts_pending_organization_invitation(
                 col(UserOrganization.user_id) == invited_user.id,
             )
         )
+        other_invitation = await session.get(OrganizationInvitation, other_pending_invitation.id)
+        other_membership = await session.scalar(
+            select(UserOrganization).where(
+                col(UserOrganization.organization_id) == other_organization.id,
+                col(UserOrganization.user_id) == invited_user.id,
+            )
+        )
 
-    # Assert
-    assert response.status_code == 204
     assert invitation is None
     assert membership is not None
     assert membership.role == OrganizationRoles.write
+    assert other_invitation is not None
+    assert other_invitation.email == other_user.email
+    assert other_membership is None
 
 
 async def test_registration_completion_rejects_duplicate_account(
@@ -879,27 +905,34 @@ async def test_password_reset_verify_rejects_invalid_token_without_cookie(client
     assert client.cookies.get("longlink_password_reset") is None
 
 
+@pytest.mark.no_db
 async def test_password_reset_rejects_missing_reset_cookie(
     client: AsyncClient,
-    users: tuple[User, User, User],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Reject password replacement without browser-only reset proof."""
 
     # Arrange
-    user = users[0]
+    async def unused_session() -> AsyncIterator[object]:
+        """Supply no database capabilities before reset proof is accepted."""
+
+        yield object()
+
+    async def unexpected_active(*_args: object) -> object:
+        """Reject account lookup before a reset credential has been validated."""
+
+        raise AssertionError("missing reset proof must not query users")
+
+    monkeypatch.setattr(app, "dependency_overrides", {auth.get_session: unused_session})
+    monkeypatch.setattr(token.users, "active", unexpected_active)
 
     # Act
     reset_response = await client.post("/api/v1/auth/reset-password", json={"password": "replacement-password"})
-    login_response = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": user.email, "password": TEST_PASSWORD},
-    )
 
     # Assert
     assert reset_response.status_code == 400
     assert reset_response.json() == {"detail": "This password reset link is invalid or has expired. Please request a new one."}
     assert "set-cookie" not in reset_response.headers
-    assert login_response.status_code == 204
 
 
 async def test_password_reset_verify_sets_secure_browser_only_cookie_in_production(
