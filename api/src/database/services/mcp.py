@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 from src.errors import ForbiddenError
 from src.models import mcp
 from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
-from sqlalchemy.orm import defer, load_only
+from sqlalchemy.orm import load_only
 from collections.abc import Sequence
 from src.environments import env
 from src.models.roles import OrganizationRoles
@@ -73,7 +73,7 @@ def redirect(uri: str, values: dict[str, str]) -> str:
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, ""))
 
 
-async def _validate_request(session: AsyncSession, request: mcp.AuthorizationRequest) -> tuple[MCPClient, UUID]:
+async def validate_request(session: AsyncSession, request: mcp.AuthorizationRequest) -> tuple[MCPClient, UUID]:
     """Require an immutable registered callback and an exact local Solution audience."""
 
     # Keep callback lookup and validation together before permitting any navigation.
@@ -86,8 +86,19 @@ async def _validate_request(session: AsyncSession, request: mcp.AuthorizationReq
 async def _permitted_solution(session: AsyncSession, user: User, solution_id: UUID) -> Solution:
     """Require current access to the active Solution before approval or token issuance."""
 
-    # Do not decrypt runtime secrets to render consent metadata.
-    solution = await session.scalar(select(Solution).options(defer(attr(Solution.secrets))).where(Solution.id == solution_id))
+    # Load only permission and consent metadata, without decrypting runtime secrets.
+    solution = await session.scalar(
+        select(Solution)
+        .options(
+            load_only(
+                attr(Solution.id),
+                attr(Solution.name),
+                attr(Solution.deleted_at),
+                attr(Solution.organization_id),
+            )
+        )
+        .where(Solution.id == solution_id)
+    )
     if solution is None or solution.deleted_at is not None:
         raise ForbiddenError("Access required")
     await organizations.require_membership(session, user.id, solution.organization_id, OrganizationRoles.write)
@@ -106,8 +117,20 @@ async def _credential_user(session: AsyncSession, user_id: UUID, fingerprint: st
 async def authenticate(session: AsyncSession, credential: str, solution_id: UUID) -> User | None:
     """Resolve only an unexpired token issued for this exact Solution resource."""
 
-    # The caller rejects tokens outside the MCP route before this database lookup.
-    grant = await session.scalar(select(MCPToken).where(MCPToken.hash == digest(credential)))
+    # Load only authentication bindings after the caller restricts tokens to the MCP route.
+    grant = await session.scalar(
+        select(MCPToken)
+        .options(
+            load_only(
+                attr(MCPToken.user_id),
+                attr(MCPToken.resource),
+                attr(MCPToken.expires_at),
+                attr(MCPToken.fingerprint),
+                attr(MCPToken.solution_id),
+            )
+        )
+        .where(MCPToken.hash == digest(credential))
+    )
     if (
         grant is None
         or grant.solution_id != solution_id
@@ -131,18 +154,10 @@ async def register(session: AsyncSession, payload: mcp.ClientRegistration) -> UU
     return client.id
 
 
-async def authorization_url(session: AsyncSession, request: mcp.AuthorizationRequest) -> str:
-    """Validate a registered callback before opening first-party approval."""
-
-    await _validate_request(session, request)
-    query = urlencode(request.model_dump(mode="json"))
-    return f"{env.PUBLIC_URL}/mcp/authorize?{query}"
-
-
 async def consent(session: AsyncSession, user: User, request: mcp.AuthorizationRequest) -> dict[str, str]:
     """Describe the actual client and Solution only after current permission checks."""
 
-    client, solution_id = await _validate_request(session, request)
+    client, solution_id = await validate_request(session, request)
     solution = await _permitted_solution(session, user, solution_id)
     return {"client_name": client.name, "redirect_uri": request.redirect_uri, "solution_name": solution.name}
 
@@ -151,7 +166,7 @@ async def approve(session: AsyncSession, user: User, payload: mcp.Approval) -> s
     """Recheck authorization and persist single-use PKCE proof for an explicit browser decision."""
 
     # Revalidate both the client callback and user permissions at the approval boundary.
-    client, solution_id = await _validate_request(session, payload)
+    client, solution_id = await validate_request(session, payload)
     await _permitted_solution(session, user, solution_id)
     if not payload.approve:
         return redirect(payload.redirect_uri, {"error": "access_denied", "state": payload.state})
@@ -176,33 +191,24 @@ async def approve(session: AsyncSession, user: User, payload: mcp.Approval) -> s
     return redirect(payload.redirect_uri, {"code": code, "state": payload.state})
 
 
-async def exchange(
-    session: AsyncSession,
-    *,
-    code: str,
-    resource: str,
-    client_id: UUID,
-    redirect_uri: str,
-    code_verifier: str,
-    grant_type: str,
-) -> dict[str, str | int]:
+async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[str, str | int]:
     """Atomically exchange valid PKCE proof for one hashed, resource-bound access credential."""
 
     # Accept only the advertised grant and the exact local resource audience.
-    if grant_type != "authorization_code":
+    if payload.grant_type != "authorization_code":
         raise OAuthError("unsupported_grant_type", "Only authorization_code is supported")
-    solution_id = resource_id(resource)
+    solution_id = resource_id(payload.resource)
 
     # Keep the proof lookup and complete binding validation together before consuming the code.
-    proof = await session.get(MCPCode, digest(code))
+    proof = await session.get(MCPCode, digest(payload.code))
     if (
         proof is None
         or proof.expires_at <= datetime.now(UTC)
-        or proof.client_id != client_id
+        or proof.client_id != payload.client_id
         or proof.solution_id != solution_id
-        or proof.resource != resource
-        or proof.redirect_uri != redirect_uri
-        or not hmac.compare_digest(proof.challenge, challenge(code_verifier))
+        or proof.resource != payload.resource
+        or proof.redirect_uri != payload.redirect_uri
+        or not hmac.compare_digest(proof.challenge, challenge(payload.code_verifier))
     ):
         raise OAuthError("invalid_grant", "Invalid or expired authorization code")
 
@@ -223,9 +229,9 @@ async def exchange(
     access = MCPToken(
         hash=digest(credential),
         user_id=user.id,
-        client_id=client_id,
+        client_id=payload.client_id,
         solution_id=solution_id,
-        resource=resource,
+        resource=payload.resource,
         fingerprint=proof.fingerprint,
         expires_at=datetime.now(UTC) + timedelta(seconds=ACCESS_LIFETIME_SECONDS),
     )

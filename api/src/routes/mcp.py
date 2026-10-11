@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import Form, Query, Request, Response, APIRouter
 from src.logger import logger
 from src.models import mcp as models
+from urllib.parse import urlencode
 from collections.abc import Callable, Coroutine
 from fastapi.routing import APIRoute
 from src.environments import env
@@ -30,7 +31,7 @@ class OAuthRoute(APIRoute):
                 if not request.url.path.startswith("/api/v1/mcp/"):
                     raise
                 code = "invalid_client_metadata" if request.url.path == "/api/v1/mcp/register" else "invalid_request"
-                failure = mcp.OAuthError(code, "Invalid request parameters")
+                description = "Invalid request parameters"
 
                 # Identify rejected registration fields without logging request values, callbacks, or credentials.
                 if request.url.path == "/api/v1/mcp/register":
@@ -40,14 +41,17 @@ class OAuthRoute(APIRoute):
                         if len(issue["loc"]) > 1 and issue["loc"][1] in models.ClientRegistration.model_fields
                     )
                     logger.warning("MCP client registration rejected: %s", details or "request body")
-                    failure = mcp.OAuthError(code, f"Invalid client metadata: {details or 'request body'}")
+                    description = f"Invalid client metadata: {details or 'request body'}"
+
+                # Construct the public validation failure once after selecting its description.
+                failure = mcp.OAuthError(code, description)
             except mcp.OAuthError as exc:
                 failure = exc
 
             return JSONResponse(
                 status_code=400,
                 content={"error": failure.error, "error_description": failure.description},
-                headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+                headers={"Pragma": "no-cache"},
             )
 
         return handle
@@ -94,8 +98,10 @@ async def register(payload: models.ClientRegistration, session: auth.Session) ->
 async def authorize(request: Annotated[models.AuthorizationRequest, Query()], session: auth.Session) -> RedirectResponse:
     """Validate the client request before navigating to first-party login and consent."""
 
-    url = await mcp.authorization_url(session, request)
-    return RedirectResponse(url, status_code=302)
+    # Validate the callback and audience before navigating to first-party approval.
+    await mcp.validate_request(session, request)
+    query = urlencode(request.model_dump(mode="json"))
+    return RedirectResponse(f"{env.PUBLIC_URL}/mcp/authorize?{query}", status_code=302)
 
 
 @router.get("/api/v1/mcp/consent", response_model=models.Consent)
@@ -119,24 +125,11 @@ async def approve(payload: models.Approval, user: auth.CurrentUser, session: aut
 async def exchange(
     session: auth.Session,
     response: Response,
-    code: Annotated[str, Form(max_length=128)],
-    resource: Annotated[str, Form(max_length=2048)],
-    client_id: Annotated[UUID, Form()],
-    redirect_uri: Annotated[str, Form(max_length=2048)],
-    code_verifier: Annotated[str, Form(pattern=r"^[A-Za-z0-9._~-]{43,128}$")],
-    grant_type: Annotated[str, Form(max_length=64)],
+    payload: Annotated[models.TokenExchange, Form()],
 ) -> dict[str, str | int]:
     """Exchange a single-use code with exact client, resource, redirect, and PKCE binding."""
 
-    result = await mcp.exchange(
-        session,
-        code=code,
-        resource=resource,
-        client_id=client_id,
-        redirect_uri=redirect_uri,
-        code_verifier=code_verifier,
-        grant_type=grant_type,
-    )
+    result = await mcp.exchange(session, payload)
     response.headers["Pragma"] = "no-cache"
     return result
 

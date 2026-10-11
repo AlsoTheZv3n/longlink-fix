@@ -118,7 +118,7 @@ async def complete_oauth_login(
 
     # Validate the provider callback before processing a provider-declared cancellation or failure.
     try:
-        expected_state, verifier = token.oauth_state_claims(oauth_state or "", provider)
+        expected_state, verifier, _ = token.oauth_state_claims(oauth_state or "", provider)
     except jwt.PyJWTError:
         return oauth_failure_response()
     if state is None or not hmac.compare_digest(expected_state, state) or error is not None or code is None:
@@ -150,8 +150,9 @@ async def complete_oauth_login(
     if user.deleted_at is not None:
         return oauth_failure_response()
 
-    # Commit verified identity changes before publishing browser authentication.
-    destination = oauth.login_destination(token.oauth_return_path(oauth_state or "", provider))
+    # Recheck callback proof expiry after provider I/O before publishing browser authentication.
+    _, _, return_to = token.oauth_state_claims(oauth_state or "", provider)
+    destination = oauth.login_destination(return_to)
     response = RedirectResponse(f"{env.PUBLIC_URL}{destination}", status_code=302)
     try:
         await set_auth_session(session, response, user)
