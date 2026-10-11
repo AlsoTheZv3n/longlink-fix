@@ -4637,6 +4637,24 @@ declare function Badge(props: {
 }): React.JSX.Element;
 
 /** @category Display */
+declare function Token(props: {
+    /** Hides the component without unmounting it. */
+    hidden?: boolean;
+    /** Visible text and accessible name for the token. Long labels truncate to fit. */
+    label: string;
+    size?: 'sm' | 'md' | 'lg';
+    color?: 'default' | 'gray' | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'cyan' | 'blue' | 'purple' | 'pink';
+    icon?: StoneIconName;
+    disabled?: boolean;
+    /** Accessible description of the tag or selection. */
+    description?: string;
+    /** Runs when the token is clicked. Use Button or Link for primary actions or navigation. */
+    onClick?: () => void;
+    /** Shows a remove button and runs when it is clicked. */
+    onRemove?: () => void;
+}): React.JSX.Element;
+
+/** @category Display */
 declare function StatusDot(props: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;

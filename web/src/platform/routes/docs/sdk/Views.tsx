@@ -7,6 +7,7 @@ import { Form } from '@/components/ui/Form';
 import { BadgeExample } from './views/Badge';
 import { StackExample } from './views/Stack';
 import { TableExample } from './views/Table';
+import { TokenExample } from './views/Token';
 import { AvatarExample } from './views/Avatar';
 import { DialogExample } from './views/Dialog';
 import { SliderExample } from './views/Slider';
@@ -119,6 +120,7 @@ const previews = new Map(
         Stepper: <StepperExample orientation="vertical" />,
         Switch: <SwitchExample />,
         Table: <TableExample />,
+        Token: <TokenExample />,
         // Keep the thumbnail focused on the tab strip rather than its panel content.
         Tabs: (
             <TabList value="overview" onChange={() => undefined} size="sm">
