@@ -120,24 +120,24 @@ async def test_update_rejects_solution_without_desired_revision(
 async def test_update_enforces_idempotency_and_min_scale_bounds(
     clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Preserve release defaults and source while rejecting unchanged or invalid updates."""
+    """Follow latest and preserve release defaults while rejecting unchanged or invalid updates."""
 
     # Arrange
     organization = await create_organization(users[0])
     solution = await create_solution(organization, envs={"KEEP": "private-value", "DROP": "old-value"})
     url = f"/api/v1/solutions/{solution.id}/update"
-    source = "ghcr.io/longlink/dashboard@sha256:test"
+    source = "ghcr.io/longlink/dashboard:latest"
     resolved = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:first"))
 
     async def metadata(image: Image, _connection: object | None = None) -> LongLinkMetadata:
-        """Resolve metadata for the persisted source at the external boundary."""
+        """Require latest at the external registry boundary."""
 
         assert image == source
         return resolved
 
     monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
 
-    # Verify the first update preserves committed source, environment names, and scale defaults.
+    # Verify the first update saves latest while preserving environment names and scale defaults.
     initial_response = await clients[0].post(url, json={})
     assert initial_response.status_code == 204
     async with session_scope() as session:
@@ -173,7 +173,7 @@ async def test_update_reresolves_moved_tag_and_enforces_required_envs(
     organization = await create_organization(users[0])
     solution = await create_solution(organization, envs={"KEEP": "private-value", "DROP": "old-value"})
     url = f"/api/v1/solutions/{solution.id}/update"
-    source = "ghcr.io/longlink/dashboard@sha256:test"
+    source = "ghcr.io/longlink/dashboard:latest"
     resolved = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:first"))
     inspected: list[str] = []
 
@@ -382,7 +382,7 @@ async def test_release_inspection_rejects_demotion_during_metadata_wait(
     # Assert
     assert response.status_code == 403
     assert response.json() == {"detail": "Permission required"}
-    assert inspected == [Image("ghcr.io/longlink/dashboard@sha256:test")] * demotion_wait
+    assert inspected == [Image("ghcr.io/longlink/dashboard:latest"), Image("ghcr.io/longlink/dashboard@sha256:test")][:demotion_wait]
     async with session_scope() as session:
         current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
         assert current is not None
@@ -566,7 +566,7 @@ async def test_local_registry_release_roundtrip(
     from src.utils import images
 
     # All Platform mutations use the isolated test database; registry requests are read-only.
-    source = Image("localhost:15000/sample:dev")
+    source = Image("localhost:15000/sample:latest")
     try:
         metadata = await images.required_metadata(source)
     except NotFoundError:

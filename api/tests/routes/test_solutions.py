@@ -321,9 +321,10 @@ async def test_solution_responses_do_not_expose_environment_secrets(
 
     # Resolve update metadata at the external boundary without registry I/O.
     async def metadata(image: Image, _connection: object | None = None) -> LongLinkMetadata:
-        """Return deterministic metadata for the persisted test source."""
+        """Resolve latest and the current digest to the same immutable test image."""
 
-        return LongLinkMetadata(image=image)
+        assert image in ("ghcr.io/longlink/dashboard:latest", "ghcr.io/longlink/dashboard@sha256:first")
+        return LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:first"))
 
     monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
 
