@@ -248,6 +248,18 @@ export const zOrganizationCreate = z.object({
 });
 
 /**
+ * OrganizationDatabaseUsageResponse
+ *
+ * Report PostgreSQL database bytes against the Organization's provisioned capacity.
+ *
+ * Database bytes include every schema and index, but not WAL, backups, or replicas.
+ */
+export const zOrganizationDatabaseUsageResponse = z.object({
+    space_used: z.int().gte(0),
+    quota_bytes: z.int().gte(0)
+});
+
+/**
  * OrganizationQuotasResponse
  *
  * Represent stored per-Organization quotas in administrator responses.

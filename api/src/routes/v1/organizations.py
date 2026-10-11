@@ -1,18 +1,25 @@
+import httpx
 import asyncio
 from src import auth
+from kr8s import ServerError, NotFoundError, APITimeoutError, ConnectionClosedError
 from uuid import UUID
 from fastapi import Depends, APIRouter, HTTPException, BackgroundTasks
 from src.utils import s3, mail, roles
 from src.logger import logger
+from sqlalchemy.exc import SQLAlchemyError
+from src.operations import databases
 from src.models.roles import OrganizationRoles
 from src.models.users import UserOrganizationMembership
 from botocore.exceptions import ClientError, BotoCoreError
 from src.models.storages import OrganizationStorageUsageResponse
+from src.models.databases import OrganizationDatabaseUsageResponse
 from src.models.resources import OrganizationIdentity, OrganizationSolutionSummary
 from src.database.services import organizations
+from src.kubernetes.client import Kubernetes
 from src.models.pagination import Page, Pagination
 from src.kubernetes.storage import Storage
 from src.models.organizations import (
+    DatabaseState,
     OrganizationCreate,
     OrganizationDetails,
     OrganizationMemberUpdate,
@@ -23,6 +30,7 @@ from src.database.models.organizations import Organization
 
 router = APIRouter()
 STORAGE_USAGE_TIMEOUT_SECONDS = 15
+DATABASE_USAGE_TIMEOUT_SECONDS = 15
 
 
 @router.get("/organizations", response_model=Page[OrganizationIdentity])
@@ -129,6 +137,53 @@ async def get_organization_storage_usage(
         )
         raise HTTPException(status_code=503, detail="Storage resources unavailable") from exc
     return {"space_used": usage, "quota_bytes": membership.organization.storage_quota_bytes}
+
+
+@router.get(
+    "/organizations/{organization_id}/database",  # noqa: FAST003 - Consumed by auth.OrganizationMember.
+    response_model=OrganizationDatabaseUsageResponse,
+)
+async def get_organization_database_usage(
+    membership: auth.OrganizationMember,
+    session: auth.Session,
+):
+    """Return live PostgreSQL usage against provisioned capacity for an authorized Organization."""
+
+    # Read only the authorized Organization's database assignment before external I/O.
+    target = await organizations.database_infrastructure(session, membership.organization_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    organization, compute = target
+    await session.commit()
+
+    # Usage reads never provision or repair an unavailable database.
+    if organization.database_state != DatabaseState.available:
+        raise HTTPException(status_code=503, detail="Database usage unavailable")
+
+    # Bound both tunnel establishment and SQL measurement, releasing connections on every outcome.
+    try:
+        async with asyncio.timeout(DATABASE_USAGE_TIMEOUT_SECONDS):
+            cluster = Kubernetes(
+                compute.kubeconfig,
+            )
+            async with cluster:
+                database = await databases.connection(organization, cluster)
+                usage = await database.usage(organization.id)
+    except (
+        TimeoutError,
+        OSError,
+        RuntimeError,
+        SQLAlchemyError,
+        ServerError,
+        NotFoundError,
+        APITimeoutError,
+        ConnectionClosedError,
+        httpx.HTTPError,
+    ) as exc:
+        logger.warning("Database usage unavailable for organization '%s': %s", organization.id, exc)
+        raise HTTPException(status_code=503, detail="Database usage unavailable") from exc
+
+    return {"space_used": usage, "quota_bytes": organization.database_size_mib * 1024 * 1024}
 
 
 @router.post("/organizations/{organization_id}/invitations", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
