@@ -41,7 +41,7 @@ LongLink is an open-source platform for building and running custom business too
 > [!WARNING]
 > LongLink is under active development. APIs may change before version 1.0.
 > 
-Requirements: Python 3.12 or later and [`uv`](https://docs.astral.sh/uv/).
+Requirements: Python 3.12 or later and [`uv`](https://docs.astral.sh/uv/). See the [sample Solution](https://github.com/xLongLink/sample) for a complete example.
 
 ```bash
 uvx --from longlink longlink init --folder . --ci github
@@ -49,8 +49,6 @@ uvx --from longlink longlink init --folder . --ci github
 
 Open `http://127.0.0.1:1707` to preview your Solution.
 
-> [!NOTE]
-> See the [sample Solution](https://github.com/xLongLink/sample) for a complete example.
 
 
 
@@ -60,13 +58,26 @@ Open `http://127.0.0.1:1707` to preview your Solution.
 
 ![Invoice approvals in the sample Solution](sample.png)
 
-
-
 `LongLink()` is a headless FastAPI application with the common runtime already configured. Your routes remain standard FastAPI routes, while `Context` provides access to the current user, database, and storage.
 
 The same code runs in development, testing, and production. When deployed, LongLink packages the Solution as a standard container image.
 
 Each View is defined in a single file that describes its layout, elements, and actions.
+
+
+<br />
+
+## Where it can be used
+
+LongLink is designed for business processes that need more than spreadsheets, manual work, or generic software. It lets you build applications tailored to how your organization actually operates:
+
+- 🛠️ **Internal tools**: Build dashboards, admin panels, employee portals, and custom applications for everyday operations.
+
+- 🔄 **Workflow automation**: Manage approvals, requests, task assignments, and multi-step business processes.
+
+- 🗂️ **Data management**: Create applications to collect, validate, organize, and maintain business data.
+
+- 📋 **Operations management**: Track orders, inventory, projects, resources, and other operational activities.
 
 
 
@@ -79,6 +90,9 @@ AI has made custom software faster and cheaper to create. As the cost of buildin
 LongLink provides that foundation. It turns processes into maintainable business software built with Python. Each project becomes a Solution, while the Platform handles common needs: authentication, permissions, deployment, storage, logging, and governance.
 
 Specific workflows can be customized through code, built quickly with modern AI-assisted tooling, and maintained using standard engineering practices. LongLink brings software-development principles to operational processes, making them testable, reviewable, and maintainable.
+
+
+
 
 
 <br />
