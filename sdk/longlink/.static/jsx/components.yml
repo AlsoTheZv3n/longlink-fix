@@ -38,7 +38,7 @@
       description: Alt text (falls back to name).
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Avatar size. Use a named size or a numeric pixel value. Avatar
         shares Icon's abbreviated scale, but its tiers are larger because
         avatars align with media rather than glyphs. Inside an AvatarGroup the
@@ -92,7 +92,7 @@
       default: secondary
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Size variant.
       default: md
 
@@ -171,7 +171,7 @@
       default: horizontal
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Default size for buttons in the group. Individual buttons can override.
       default: md
 
@@ -483,7 +483,7 @@
       default: false
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Size of the input control.
       default: md
 
@@ -587,7 +587,7 @@
 
     - name: button
       type: '{ label: string; variant?: "primary" | "secondary" | "ghost" |
-        "destructive"; size?: "sm" | "md" | "lg"; isDisabled?: boolean; }'
+        "destructive"; size?: "sm" | "lg" | "md"; isDisabled?: boolean; }'
       description: Props for the trigger button (Button props except onClick).
         Mutually exclusive with `trigger`.
       default:
@@ -908,7 +908,7 @@
         bypass an existing alias, such as lucide:logs."
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Icon size. An explicit value wins. When omitted, Icon uses the
         nearest default supplied by an owning Astryx component for its icon
         slot, then falls back to md when no contextual default exists.
@@ -937,7 +937,7 @@
       default: secondary
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Size variant.
       default: md
 
@@ -1342,7 +1342,7 @@
       default: Select...
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Size variant for the selector.
       default: md
 
@@ -1430,7 +1430,7 @@
       description: Placeholder text.
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Size variant.
       default: md
 
@@ -1488,7 +1488,7 @@
       default: false
 
     - name: variant
-      type: '"success" | "error" | "warning" | "neutral" | "accent"'
+      type: '"accent" | "success" | "error" | "warning" | "neutral"'
       description: Semantic color variant.
       default: accent
 
@@ -1639,7 +1639,7 @@
       default: Select...
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Size variant for the selector.
       default: md
 
@@ -1830,7 +1830,7 @@
       description: Accessible label surfaced via aria-label.
 
     - name: variant
-      type: '"success" | "error" | "warning" | "neutral" | "accent"'
+      type: '"accent" | "success" | "error" | "warning" | "neutral"'
       description: Semantic color variant.
 
     - name: tooltip
@@ -2039,7 +2039,8 @@
 
 - name: Text
   category: Display
-  introduction: Displays View text with a small set of semantic styles.
+  introduction: Displays View text with Astryx's semantic typography, alignment,
+    wrapping, and truncation controls.
   properties:
     - name: hidden
       type: boolean
@@ -2050,18 +2051,83 @@
       description: Text content.
 
     - name: color
-      type: '"primary" | "secondary"'
+      type: '"primary" | "secondary" | "disabled" | "placeholder" | "accent" |
+        "inherit"'
       description: Text color. Defaults to 'secondary' for the 'supporting' type,
         'primary' for all others. Themes may add custom colors.
-      default: "(props.type === 'supporting' ? 'secondary' : 'primary')"
 
     - name: type
-      type: '"body" | "large" | "label" | "supporting" | "code"'
+      type: '"inherit" | "body" | "large" | "label" | "supporting" | "code" |
+        "display-1" | "display-2" | "display-3"'
       description: "Semantic text type. Determines size, weight, and line-height from
         the theme. 'inherit' takes all three from the surrounding text instead.
         Themes may add custom types. Note: this prop is called `type`, not
         `variant`."
       default: body
+
+    - name: size
+      type: '"4xs" | "3xs" | "2xs" | "xsm" | "sm" | "base" | "lg" | "xl" | "2xl" |
+        "3xl" | "4xl"'
+      description: Explicit font size override. Overrides the size from `type` but
+        preserves other type properties. Prefer using `type` alone.
+
+    - name: weight
+      type: '"normal" | "medium" | "semibold" | "bold"'
+      description: Font weight override.
+
+    - name: display
+      type: '"inline" | "block"'
+      description: Display type. Silently overridden to 'block' when maxLines > 0 or
+        hasCapsize is true.
+      default: inline
+
+    - name: as
+      type: '"label" | "span" | "p" | "div" | "h1" | "h2" | "h3"'
+      description: HTML element to render.
+      default: span
+
+    - name: maxLines
+      type: number
+      description: Maximum lines before truncation. 0 means no truncation. When set,
+        shows a tooltip on hover if content is truncated.
+      default: 0
+
+    - name: hasTruncateTooltip
+      type: boolean | "start" | "end" | "above" | "below"
+      description: Controls tooltip behavior for truncated text. true shows the
+        tooltip at the default position, false disables it, or a placement
+        string ('above' | 'below' | 'start' | 'end') sets a specific position.
+      default: true
+
+    - name: wordBreak
+      type: '"break-word" | "break-all"'
+      description: Word break behavior when truncating. Defaults to 'break-all' for
+        single-line truncation, 'break-word' otherwise.
+
+    - name: textWrap
+      type: '"nowrap" | "wrap" | "balance" | "pretty"'
+      description: Text wrapping behavior.
+
+    - name: justify
+      type: '"start" | "center" | "end"'
+      description: Text alignment (justification). Uses logical values (start/end) for
+        i18n/RTL compatibility.
+      default: start
+
+    - name: hasCapsize
+      type: boolean
+      description: Enable optical alignment using text-box-trim. Forces block display.
+      default: false
+
+    - name: hasStrikethrough
+      type: boolean
+      description: Apply strikethrough text decoration.
+      default: false
+
+    - name: hasTabularNumbers
+      type: boolean
+      description: Use tabular (monospace) numbers for aligned numeric data.
+      default: false
 
 
 - name: TextArea
@@ -2202,7 +2268,7 @@
       default: text
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Size variant of the input.
       default: md
 
@@ -2321,7 +2387,7 @@
       default: Select a time
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: Controls the height of the input element.
       default: md
 
@@ -2369,7 +2435,7 @@
         truncate to fit.
 
     - name: size
-      type: '"sm" | "md" | "lg"'
+      type: '"sm" | "lg" | "md"'
       description: The size of the token.
       default: md
 
