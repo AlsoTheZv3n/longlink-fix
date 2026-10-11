@@ -489,8 +489,13 @@ def build_solution(root: Path, build_context: Path, *, pyproject_data: Mapping[s
             if name in ignored:
                 continue
 
-            # Prune unrelated projects even when the Solution is the workspace root.
+            # Leave separately selected directories to their own copy traversal.
             path = Path(directory, name)
+            if path in selected_paths:
+                ignored.add(name)
+                continue
+
+            # Prune unrelated projects even when the Solution is the workspace root.
             if path in manifest_only_paths and not any(selected.is_relative_to(path) for selected in selected_paths):
                 ignored.add(name)
                 continue

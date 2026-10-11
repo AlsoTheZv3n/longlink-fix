@@ -44,28 +44,31 @@ export default function ViewLayout({
     const activeTab = tabs.find((tab) => tab.value === searchParams.get('tab')) ?? tabs[0];
     const runtime = component.category === 'Runtime';
 
-    // Keep every property table generated, including grouped JSX children and the Buttons companion.
-    const entries =
-        name === 'Button'
-            ? [component, ...componentCatalog.filter((entry) => entry.name === 'ButtonGroup')]
-            : [component];
-
+    // Prepare property tables only for the panel that displays them.
     const groups = new Map<string, ViewProperty[]>();
 
-    for (const entry of entries) {
-        for (const property of entry.properties ?? []) {
-            const separator = property.name.indexOf('.');
-            const group = separator < 0 ? entry.name : property.name.slice(0, separator);
+    if (!runtime && activeTab.value === 'properties') {
+        // Include grouped JSX children and the Buttons companion in the generated tables.
+        const entries =
+            name === 'Button'
+                ? [component, ...componentCatalog.filter((entry) => entry.name === 'ButtonGroup')]
+                : [component];
 
-            const row = {
-                ...property,
-                name: separator < 0 ? property.name : property.name.slice(separator + 1),
-            };
+        for (const entry of entries) {
+            for (const property of entry.properties ?? []) {
+                const separator = property.name.indexOf('.');
+                const group = separator < 0 ? entry.name : property.name.slice(0, separator);
 
-            const properties = groups.get(group);
+                const row = {
+                    ...property,
+                    name: separator < 0 ? property.name : property.name.slice(separator + 1),
+                };
 
-            if (properties) properties.push(row);
-            else groups.set(group, [row]);
+                const properties = groups.get(group);
+
+                if (properties) properties.push(row);
+                else groups.set(group, [row]);
+            }
         }
     }
 

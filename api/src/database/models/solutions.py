@@ -110,12 +110,6 @@ class Revision(AuditTable, table=True):
     failed: bool = Field(default=False)
     deployed_at: datetime | None = Field(default=None)
 
-    @property
-    def configured_envs(self) -> list[str]:
-        """Expose configured names without returning their encrypted values."""
-
-        return sorted(self.envs)
-
 
 @event.listens_for(Revision, "before_update")
 def protect_snapshot(_mapper: Mapper[Revision], _connection: Connection, revision: Revision) -> None:

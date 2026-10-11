@@ -76,14 +76,20 @@ jobs:
               working-directory: web
               run: vp run check:platform-api
 
+            - name: Build shared View runtime
+              working-directory: web
+              run: vp run build:views
+
             - name: Build API web bundle
               working-directory: web
-              run: vp run build:api:bundle --logLevel warn
+              run: |
+                  vp run check:docs
+                  vp exec react-router build --mode api --logLevel warn
 
             # API MCP tests start a real Solution runtime with its embedded frontend.
             - name: Build SDK web bundle
               working-directory: web
-              run: vp run build:sdk:bundle --logLevel warn
+              run: vp exec react-router build --mode sdk --logLevel warn
 
             - name: Run tests
               working-directory: api
