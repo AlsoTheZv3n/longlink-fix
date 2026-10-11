@@ -9,7 +9,7 @@ from src.errors import ForbiddenError
 from dataclasses import dataclass
 from src.kubernetes import databases as database_resources
 from src.kubernetes import namespace
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from src.models.types import DatabaseSSLMode
 from src.models.statuses import Status
 from src.database.session import session_scope
@@ -84,7 +84,7 @@ class Lease:
                 raise RuntimeError("Organization transition lease was lost")
 
     @contextlib.asynccontextmanager
-    async def maintain(self) -> AsyncIterator[None]:
+    async def maintain(self) -> AsyncGenerator[None]:
         """Renew a lease and interrupt its work if persistence or ownership is lost."""
 
         # Associate lease loss with the operation task that owns this maintenance scope.
@@ -157,7 +157,7 @@ async def _claim(session: AsyncSession, organization_id: UUID) -> Lease | None:
 
 
 @contextlib.asynccontextmanager
-async def deleting(organization_id: UUID) -> AsyncIterator[None]:
+async def deleting(organization_id: UUID) -> AsyncGenerator[None]:
     """Drain admitted work and fence database transitions during destructive cleanup."""
 
     # Serialize deletion eligibility and lease admission under the same Organization lock.

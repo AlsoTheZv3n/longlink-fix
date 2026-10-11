@@ -209,6 +209,12 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
     assert calls[-1][1] == {
         "KEY": "old",
         **solution.secrets,
+        "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
+        "LONGLINK_DATABASE_NAME": organization.id.hex,
+        "LONGLINK_DATABASE_PORT": "5432",
+        "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+        "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+        "LONGLINK_STORAGE_REGION": "us-east-1",
         "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",
         "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
     }

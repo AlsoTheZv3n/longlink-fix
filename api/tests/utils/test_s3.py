@@ -2,7 +2,7 @@ import pytest
 from typing import cast
 from contextlib import asynccontextmanager
 from src.utils.s3 import S3, Credentials
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, AsyncGenerator
 from aiobotocore.stub import AioStubber
 from aiobotocore.session import get_session
 from botocore.exceptions import ClientError
@@ -30,7 +30,7 @@ async def s3(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[tuple[S3, AioStub
 
         # Replace only the transport lifetime; production operations and paginators remain real.
         @asynccontextmanager
-        async def stubbed_client(self: S3) -> AsyncIterator[S3Client]:
+        async def stubbed_client(self: S3) -> AsyncGenerator[S3Client]:
             """Yield the client owned by this test's fixture."""
 
             yield cast(S3Client, client)

@@ -8,7 +8,7 @@ from longlink import views
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from fsspec.spec import AbstractFileSystem
-from collections.abc import Mapping, Callable, Awaitable, AsyncIterator
+from collections.abc import Mapping, Callable, Awaitable, AsyncGenerator
 from fastapi.routing import APIRoute
 from longlink.errors import install_error_handlers
 from longlink.logger import ApiAccessFilter
@@ -162,7 +162,7 @@ class LongLink(FastAPI):
         runtime_lifespan = self.router.lifespan_context
 
         @asynccontextmanager
-        async def lifespan(app: FastAPI) -> AsyncIterator[Mapping[str, Any]]:
+        async def lifespan(app: FastAPI) -> AsyncGenerator[Mapping[str, Any]]:
             """Build the completed Solution catalog and close MCP sessions before runtime services."""
 
             async with runtime_lifespan(app) as state:

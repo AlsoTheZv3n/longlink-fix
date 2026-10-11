@@ -91,24 +91,21 @@ export function Menu({
             }),
         }));
 
-    // Resolve selection once from stable item identifiers.
-    const items = sections.flatMap(({ entries }) =>
-        entries.flatMap((entry) => (entry.kind === 'subsection' ? entry.items : [entry.item]))
+    // Carry inherited visibility with each selectable item instead of rediscovering its ancestry.
+    const items = sections.flatMap(({ section, entries }) =>
+        entries.flatMap((entry) =>
+            entry.kind === 'subsection'
+                ? entry.items.map((item) => ({
+                      item,
+                      hidden: item.props.hidden || section.props.hidden || entry.group.props.hidden,
+                  }))
+                : [{ item: entry.item, hidden: entry.item.props.hidden || section.props.hidden }]
+        )
     );
 
-    const activeItem = items.find((item) => `#${menuItemId(item)}` === hash) ?? items[0];
-
-    // Apply section and group visibility to the selected content without replacing the selection.
-    const activeContentHidden =
-        activeItem?.props.hidden ||
-        sections.some(({ section, entries }) =>
-            entries.some((entry) =>
-                entry.kind === 'subsection'
-                    ? entry.items.some((item) => item === activeItem) &&
-                      (section.props.hidden || entry.group.props.hidden)
-                    : entry.item === activeItem && section.props.hidden
-            )
-        );
+    // Keep first-item fallback and hide selected content if any occurrence inherits hidden ancestry.
+    const activeItem = (items.find(({ item }) => `#${menuItemId(item)}` === hash) ?? items[0])?.item;
+    const activeContentHidden = items.some(({ item, hidden }) => item === activeItem && hidden);
 
     /** Renders direct and nested items with the same navigation and selection behavior. */
     function renderItem(item: ReactElement<MenuItemProps>) {
