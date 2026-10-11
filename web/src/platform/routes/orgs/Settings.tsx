@@ -351,9 +351,7 @@ export default function OrganizationSettings() {
             >
                 <Stack gap={3}>
                     {section === 'usage' ? (
-                        <ApiBoundary key="storage">
-                            <StorageSection base={base} />
-                        </ApiBoundary>
+                        <UsageSection base={base} />
                     ) : section === 'private-registries' ? (
                         <ApiBoundary key="registries">
                             <Registries base={base} canMaintain={canMaintain} />
@@ -731,11 +729,44 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
     );
 }
 
-/** Loads storage usage only while the organization section is active. */
-function StorageSection({ base }: { base: string }) {
-    const [storage] = useApi(`${base}/storage`, schemas.zOrganizationStorageUsageResponse);
+/** Keeps file-storage and database reads independent for the lifetime of the Usage section. */
+function UsageSection({ base }: { base: string }) {
+    return (
+        <Stack gap={4}>
+            <Stack justify="end" minHeight="var(--size-element-md)">
+                <Heading level={2} hasCapsize>
+                    Usage
+                </Heading>
+            </Stack>
+            <Divider />
+            {(['storage', 'database'] as const).map((resource) => (
+                <ApiBoundary
+                    key={resource}
+                    fallback={<Text color="secondary">Loading {resource} usage…</Text>}
+                    fallbackRender={({ resetErrorBoundary }) => (
+                        <Stack direction="horizontal" align="center" justify="between" gap={4}>
+                            <Text color="secondary">
+                                {resource === 'storage' ? 'Storage' : 'Database'} usage unavailable.
+                            </Text>
+                            <Button label="Retry" onClick={resetErrorBoundary} />
+                        </Stack>
+                    )}
+                >
+                    <UsageMeter base={base} resource={resource} />
+                </ApiBoundary>
+            ))}
+        </Stack>
+    );
+}
 
-    /** Formats byte counts with binary units matching the storage quota. */
+/** Shows measured bytes against configured capacity without hiding other resource meters. */
+function UsageMeter({ base, resource }: { base: string; resource: 'storage' | 'database' }) {
+    const [usage] = useApi(
+        `${base}/${resource}`,
+        resource === 'storage' ? schemas.zOrganizationStorageUsageResponse : schemas.zOrganizationDatabaseUsageResponse
+    );
+
+    /** Formats byte counts with binary units matching the resource capacity. */
     function formatStorage(bytes: number) {
         // Keep zero explicit and preserve readable precision for small usage amounts.
         const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
@@ -745,21 +776,13 @@ function StorageSection({ base }: { base: string }) {
     }
 
     return (
-        <Stack gap={4}>
-            <Stack justify="end" minHeight="var(--size-element-md)">
-                <Heading level={2} hasCapsize>
-                    Usage
-                </Heading>
-            </Stack>
-            <Divider />
-            <ProgressBar
-                label="Storage"
-                value={storage.space_used}
-                max={storage.quota_bytes}
-                hasValueLabel
-                formatValueLabel={() => `${formatStorage(storage.space_used)} / ${formatStorage(storage.quota_bytes)}`}
-            />
-        </Stack>
+        <ProgressBar
+            label={resource === 'storage' ? 'Storage' : 'Database'}
+            value={usage.space_used}
+            max={usage.quota_bytes}
+            hasValueLabel
+            formatValueLabel={() => `${formatStorage(usage.space_used)} / ${formatStorage(usage.quota_bytes)}`}
+        />
     );
 }
 

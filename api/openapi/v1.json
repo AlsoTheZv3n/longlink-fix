@@ -2019,6 +2019,73 @@
         }
       }
     },
+    "/api/v1/organizations/{organization_id}/database": {
+      "get": {
+        "summary": "Get Organization Database Usage",
+        "description": "Return live PostgreSQL usage against provisioned capacity for an authorized Organization.",
+        "operationId": "get_organization_database_usage_api_v1_organizations__organization_id__database_get",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationDatabaseUsageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organization_id}/invitations": {
       "post": {
         "summary": "Create Organization Invitation",
@@ -4080,6 +4147,27 @@
         ],
         "title": "OrganizationCreate",
         "description": "Validate organization creation payloads."
+      },
+      "OrganizationDatabaseUsageResponse": {
+        "properties": {
+          "space_used": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Space Used"
+          },
+          "quota_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quota Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "space_used",
+          "quota_bytes"
+        ],
+        "title": "OrganizationDatabaseUsageResponse",
+        "description": "Report PostgreSQL database bytes against the Organization's provisioned capacity.\n\nDatabase bytes include every schema and index, but not WAL, backups, or replicas."
       },
       "OrganizationDetails": {
         "properties": {

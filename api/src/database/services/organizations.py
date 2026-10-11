@@ -165,6 +165,27 @@ async def storage_infrastructure(session: AsyncSession, organization_id: UUID) -
     )
 
 
+async def database_infrastructure(session: AsyncSession, organization_id: UUID) -> tuple[Organization, ComputeRegistry] | None:
+    """Return only the credentials and capacity needed to inspect one Organization database."""
+
+    # Keep storage and gateway secrets outside the database usage read.
+    result = await session.execute(
+        select(Organization, ComputeRegistry)
+        .options(
+            load_only(
+                attr(Organization.id),
+                attr(Organization.database_state),
+                attr(Organization.database_password),
+                attr(Organization.database_size_mib),
+            ),
+            load_only(attr(ComputeRegistry.kubeconfig)),
+        )
+        .join(ComputeRegistry, col(ComputeRegistry.id) == col(Organization.compute_id))
+        .where(col(Organization.id) == organization_id, col(Organization.deleted_at).is_(None))
+    )
+    return result.tuples().one_or_none()
+
+
 def _infrastructure_query() -> Select[tuple[Organization, ComputeRegistry]]:
     """Select one Organization's provider connections for lifecycle work."""
 
