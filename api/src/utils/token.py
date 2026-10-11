@@ -29,6 +29,16 @@ def password_fingerprint(password: str) -> str:
     return hmac.digest(env.SESSION_KEY.encode("utf-8"), f"password-reset:{password}".encode(), "sha256").hex()
 
 
+async def credential_user(session: AsyncSession, user_id: UUID, fingerprint: str) -> User | None:
+    """Resolve an active user only while the credential matches their current password."""
+
+    # Invalidate password-bound credentials when the account is deleted or its password changes.
+    user = await users.active(session, user_id)
+    if user is None or not hmac.compare_digest(fingerprint, password_fingerprint(user.password)):
+        return None
+    return user
+
+
 def create_registration_token(email: Email) -> str:
     """Create one signed, expiring proof of email ownership."""
 
@@ -123,8 +133,8 @@ async def password_reset_user(session: AsyncSession, token: str) -> User:
         raise jwt.InvalidTokenError("Invalid password reset user") from exc
 
     # Require an active account and the exact credential version that received the link.
-    user = await users.active(session, user_id)
-    if user is None or not hmac.compare_digest(fingerprint, password_fingerprint(user.password)):
+    user = await credential_user(session, user_id, fingerprint)
+    if user is None:
         raise jwt.InvalidTokenError("Invalid password reset token")
     return user
 

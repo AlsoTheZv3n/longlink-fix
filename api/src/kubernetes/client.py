@@ -31,7 +31,8 @@ class Kubernetes:
 
     Database resources have dedicated Organization namespaces; Solutions run in
     the Organization compute namespace. Resource operations borrow this client's
-    lazy kr8s connection and its port-forward lifetime.
+    lazy kr8s connection. Database tunnels last until this client closes; storage
+    workflows own their tunnel scopes.
     """
 
     def __init__(self, kubeconfig: dict[str, object]) -> None:
@@ -97,7 +98,7 @@ class Kubernetes:
         return await self._connections.enter_async_context(service.portforward(5432, local_port="auto"))
 
     @asynccontextmanager
-    async def forward_storage(self) -> AsyncGenerator[int]:
+    async def forward_storage(self) -> AsyncGenerator[int, None]:
         """Own the private RustFS administration tunnel for one storage workflow."""
 
         # Forward the cluster service directly so administrator requests never traverse the public storage proxy.

@@ -29,7 +29,7 @@ class Storage:
         self._cluster = cluster
 
     @asynccontextmanager
-    async def _admin(self) -> AsyncGenerator[rustfs.RustFS]:
+    async def _admin(self) -> AsyncGenerator[rustfs.RustFS, None]:
         """Own one administrative HTTP client inside the authenticated cluster tunnel's lifetime."""
 
         # Route administrator requests through the bound Kubernetes connection.

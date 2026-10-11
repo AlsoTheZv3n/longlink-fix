@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import * as dicebear from '@dicebear/core';
 import { Avatar as AstryxAvatar } from '@astryxdesign/core/Avatar';
 import waves from '@dicebear/styles/waves.json' with { type: 'json' };
@@ -39,10 +40,16 @@ export function Avatar({ kind, src, name, seed, ...props }: AvatarProps) {
     // Native pages identify the owner; existing Views may still supply Astryx's geometry prop.
     props.shape = kind === 'organization' ? 'rounded' : (props.shape ?? 'circle');
 
-    // Prefer stable identities and muted Glyphs colors while preserving organization artwork.
-    const avatar = new dicebear.Avatar(props.shape === 'rounded' ? wavesStyle : glyphsStyle, {
-        seed: seed?.trim() || name?.trim() || 'avatar',
-    });
+    // Prefer stable identities while preserving the artwork selected by the effective geometry.
+    const style = props.shape === 'rounded' ? wavesStyle : glyphsStyle;
+    const identity = seed?.trim() || name?.trim() || 'avatar';
+
+    // Reuse fallback artwork until its effective style or identity changes.
+    const fallbackSrc = useMemo(() => {
+        const avatar = new dicebear.Avatar(style, { seed: identity });
+
+        return avatar.toDataUri();
+    }, [style, identity]);
 
     return (
         <AstryxAvatar
@@ -52,7 +59,7 @@ export function Avatar({ kind, src, name, seed, ...props }: AvatarProps) {
             name={name}
             tooltip={false}
             src={src?.trim() || undefined}
-            fallbackSrc={avatar.toDataUri()}
+            fallbackSrc={fallbackSrc}
         />
     );
 }

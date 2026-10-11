@@ -5,7 +5,6 @@ import { legalPaths } from './src/platform/legal';
 // import { useCasePaths } from './src/platform/usecases';
 import type { Config } from '@react-router/dev/config';
 import { brandingPaths } from './src/platform/branding';
-import { documentationPaths } from './src/platform/docs';
 import { cp, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 
 const requestedMode = import.meta.env.MODE;
@@ -16,6 +15,9 @@ if (requestedMode === 'api' || requestedMode === 'sdk') {
 }
 
 const isSolution = process.env.LONGLINK_WEB_TARGET === 'sdk';
+
+// Only Platform builds need the documentation catalog for publication paths.
+const documentationPaths = isSolution ? [] : (await import('./src/platform/docs')).documentationPaths;
 
 const publicPagePaths = [
     '/',

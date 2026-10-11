@@ -29,7 +29,7 @@ def storage_cluster() -> object:
         """Expose the forwarded RustFS port without opening a cluster connection."""
 
         @asynccontextmanager
-        async def forward_storage(self) -> AsyncGenerator[int]:
+        async def forward_storage(self) -> AsyncGenerator[int, None]:
             """Scope the private administration port to one workflow."""
 
             yield 19000
@@ -93,7 +93,7 @@ async def test_storage_registration_checks_remote_tunnel(
         """Observe the real S3 client's public endpoint and transport lifetime."""
 
         @asynccontextmanager
-        async def create_client(self, service: str, **kwargs: object) -> AsyncGenerator[Buckets]:
+        async def create_client(self, service: str, **kwargs: object) -> AsyncGenerator[Buckets, None]:
             """Require TLS verification and release the S3 client before readiness."""
 
             # Preserve public endpoint, credential, and TLS checks at the external boundary.
