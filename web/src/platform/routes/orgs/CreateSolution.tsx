@@ -21,8 +21,8 @@ export default function CreateSolution({
     invalidate: () => Promise<void>;
     onClose: () => void;
 }) {
-    // Retain the inspected metadata and editable values; Form owns navigation and pending state.
-    const [metadata, setMetadata] = useState<z.output<typeof schemas.zLongLinkMetadata> | null>(null);
+    // Retain only environment definitions and editable values; Form owns navigation and pending state.
+    const [environments, setEnvironments] = useState<z.output<typeof schemas.zEnvironmentMetadata>[]>([]);
     const [image, setImage] = useState('');
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -42,7 +42,7 @@ export default function CreateSolution({
         setImage(image.trim());
         setDescription(inspected.description || '');
         setEnvs({});
-        setMetadata(inspected);
+        setEnvironments(inspected.environments ?? []);
     }
 
     /** Creates the configured Solution and refreshes its organization. */
@@ -174,7 +174,7 @@ export default function CreateSolution({
                             </Stack>
                         </Stack>
                         <Stack gap={3}>
-                            {(metadata?.environments ?? []).map((environment) => (
+                            {environments.map((environment) => (
                                 <TextInput
                                     key={environment.name}
                                     label={environment.name}

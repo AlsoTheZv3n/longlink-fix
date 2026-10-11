@@ -10,9 +10,9 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { useEffect, useId, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
+import { TextInput } from '@/components/ui/TextInput';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { FileInput } from '@astryxdesign/core/FileInput';
-import { TextInput } from '@astryxdesign/core/TextInput';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
@@ -149,12 +149,7 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
     const formId = useId();
 
     // Opening a new dialog starts with blank fields; dismissal discards this draft.
-    const [registration, setRegistration] = useState<z.input<typeof registrationSchema>>({
-        name: '',
-        kubeconfig: '',
-        gateway_url: '',
-        storage_endpoint: '',
-    });
+    const [kubeconfig, setKubeconfig] = useState('');
 
     const [file, setFile] = useState<File | null>(null);
 
@@ -182,7 +177,7 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
                     return;
                 }
 
-                setRegistration((draft) => ({ ...draft, kubeconfig }));
+                setKubeconfig(kubeconfig);
                 setFileRead({ kind: 'idle' });
             } catch {
                 if (!canceled) {
@@ -199,10 +194,17 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
     }, [file]);
 
     /** Registers the validated Compute draft and refreshes the list. */
-    async function registerCompute() {
-        // Validate the draft and refresh the list only after registration succeeds.
+    async function registerCompute(data: FormData) {
+        // Validate the original field values and refresh the list only after registration succeeds.
         try {
-            await api.post('/api/v1/computes', { json: registrationSchema.parse(registration) });
+            const json = registrationSchema.parse({
+                name: data.get('name'),
+                gateway_url: data.get('gateway_url'),
+                storage_endpoint: data.get('storage_endpoint'),
+                kubeconfig,
+            });
+
+            await api.post('/api/v1/computes', { json });
             await invalidate();
             onClose();
         } catch (cause) {
@@ -229,27 +231,20 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
                 <Form
                     id={formId}
                     action={registerCompute}
-                    submitDisabled={fileRead.kind === 'reading' || !registration.kubeconfig.trim()}
+                    submitDisabled={fileRead.kind === 'reading' || !kubeconfig.trim()}
                 >
-                    <TextInput
-                        label="Name"
-                        value={registration.name}
-                        isRequired
-                        onChange={(name) => setRegistration({ ...registration, name })}
-                    />
+                    <TextInput label="Name" name="name" required />
                     <TextInput
                         label="Gateway URL"
-                        value={registration.gateway_url}
+                        name="gateway_url"
                         placeholder="https://<nightly_gateway_floating_ip>"
-                        isRequired
-                        onChange={(gateway_url) => setRegistration({ ...registration, gateway_url })}
+                        required
                     />
                     <TextInput
                         label="Storage endpoint"
-                        value={registration.storage_endpoint}
+                        name="storage_endpoint"
                         placeholder="https://<nightly_storage_floating_ip>"
-                        isRequired
-                        onChange={(storage_endpoint) => setRegistration({ ...registration, storage_endpoint })}
+                        required
                     />
                     <FileInput
                         label="Kubeconfig file"
@@ -261,18 +256,18 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
                             const selected = Array.isArray(files) ? (files[0] ?? null) : files;
                             setFile(selected);
                             setFileRead({ kind: selected ? 'reading' : 'idle' });
-                            setRegistration((draft) => ({ ...draft, kubeconfig: '' }));
+                            setKubeconfig('');
                         }}
                     />
                     <TextArea
                         label="Kubeconfig"
-                        value={registration.kubeconfig}
+                        value={kubeconfig}
                         placeholder="Paste the Compute kubeconfig"
                         isRequired
                         isDisabled={fileRead.kind === 'reading'}
                         isLoading={fileRead.kind === 'reading'}
                         hasSpellCheck={false}
-                        onChange={(kubeconfig) => setRegistration((draft) => ({ ...draft, kubeconfig }))}
+                        onChange={setKubeconfig}
                     />
                 </Form>
                 {/* Keep Cancel usable while the shared form disables its fields during submission. */}
@@ -283,7 +278,7 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
                         variant="primary"
                         type="submit"
                         form={formId}
-                        isDisabled={fileRead.kind === 'reading' || !registration.kubeconfig.trim()}
+                        isDisabled={fileRead.kind === 'reading' || !kubeconfig.trim()}
                     />
                 </Stack>
             </Stack>
