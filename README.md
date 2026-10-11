@@ -71,12 +71,9 @@ Each View is defined in a single file that describes its layout, elements, and a
 
 LongLink is designed for business processes that need more than spreadsheets, manual work, or generic software. It lets you build applications tailored to how your organization actually operates:
 
-- 🛠️ **Internal tools**: Build dashboards, admin panels, employee portals, and custom applications for everyday operations.
-
-- 🔄 **Workflow automation**: Manage approvals, requests, task assignments, and multi-step business processes.
-
+- 🛠️ **Internal tools**: Build dashboards, admin / employee portals and custom applications for everyday operations.
+- 🔄 **Workflow automation**: Manage approvals, requests, task assignments, and multi-step processes.
 - 🗂️ **Data management**: Create applications to collect, validate, organize, and maintain business data.
-
 - 📋 **Operations management**: Track orders, inventory, projects, resources, and other operational activities.
 
 
