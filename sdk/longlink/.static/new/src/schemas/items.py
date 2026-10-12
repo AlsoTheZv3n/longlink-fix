@@ -33,14 +33,12 @@ class ItemRead(BaseModel):
     status: ItemStatus
 
     # Audit timestamps
-    created_at: datetime | None
-    updated_at: datetime | None
-    deleted_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
 
     # Audit user identifiers
-    created_id: UUID | None
-    updated_id: UUID | None
-    deleted_id: UUID | None
+    created_id: UUID
+    updated_id: UUID
 
     # Creator details
     created_by: User | None

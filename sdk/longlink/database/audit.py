@@ -67,5 +67,6 @@ def install_listener(session_type: type[SyncSession], audit_type: type[object]) 
             record.updated_at = now
             record.updated_id = user_id
 
-            if record.deleted_at is not None and record.deleted_id is None:
+            # Attribute explicit soft deletes only on models that support them.
+            if getattr(record, "deleted_at", None) is not None and record.deleted_id is None:
                 record.deleted_id = user_id
