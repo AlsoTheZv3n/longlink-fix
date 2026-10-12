@@ -4632,6 +4632,14 @@ declare function Grid(props: {
     children?: ViewNode;
     columns?: number;
     gap?: Spacing;
+    rowGap?: Spacing;
+    columnGap?: Spacing;
+    align?: 'start' | 'center' | 'end' | 'stretch';
+    justify?: 'start' | 'center' | 'end' | 'stretch';
+    width?: number | string;
+    height?: number | string;
+    maxWidth?: number | string;
+    minHeight?: number | string;
 }): React.JSX.Element;
 
 /** @category Layouts @group Grid */
@@ -4742,15 +4750,6 @@ declare function Token(props: {
     onClick?: () => void;
     /** Shows a remove button and runs when it is clicked. */
     onRemove?: () => void;
-}): React.JSX.Element;
-
-/** @category Display */
-declare function StatusDot(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
-    label: string;
-    variant: 'success' | 'warning' | 'error' | 'accent' | 'neutral';
-    tooltip?: string;
 }): React.JSX.Element;
 
 /** @category Layouts */
@@ -5048,6 +5047,9 @@ declare function MetadataList(props: {
     children?: ViewNode;
     columns?: 'multi' | 'single' | number;
     title?: ViewNode;
+    label?: { position: 'start' | 'top'; width?: number | string };
+    maxNumOfItems?: number;
+    orientation?: 'vertical' | 'horizontal';
 }): React.JSX.Element;
 
 /** @category Display @group MetadataList */
@@ -5116,6 +5118,13 @@ declare function CodeBlock(props: {
     language?: string;
     title?: string;
     isWrapped?: boolean;
+    hasLineNumbers?: boolean;
+    highlightLines?: number[];
+    hasCopyButton?: boolean;
+    maxHeight?: number | string;
+    size?: 'sm' | 'md';
+    isCollapsible?: boolean;
+    collapsibleThreshold?: number;
 }): React.JSX.Element;
 
 /** @category Display */
@@ -5127,6 +5136,10 @@ declare function ProgressBar(props: {
     max?: number;
     hasValueLabel?: boolean;
     variant?: 'accent' | 'success' | 'warning' | 'error' | 'neutral';
+    marks?: ReadonlyArray<{ value: number; label: string }>;
+    isDisabled?: boolean;
+    isLabelHidden?: boolean;
+    isIndeterminate?: boolean;
 }): React.JSX.Element;
 
 /** @category Layouts */

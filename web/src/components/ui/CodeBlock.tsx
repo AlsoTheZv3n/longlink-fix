@@ -8,6 +8,13 @@ export function CodeBlock(props: {
     language?: string;
     title?: string;
     isWrapped?: boolean;
+    hasLineNumbers?: boolean;
+    highlightLines?: number[];
+    hasCopyButton?: boolean;
+    maxHeight?: number | string;
+    size?: 'sm' | 'md';
+    isCollapsible?: boolean;
+    collapsibleThreshold?: number;
 }) {
     // Render plain, unwrapped text unless a language or wrapping is requested.
     return (
