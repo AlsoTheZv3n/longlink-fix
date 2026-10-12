@@ -29,7 +29,12 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
         select(Solution)
         .join(Organization, col(Organization.id) == col(Solution.organization_id))
         .options(
-            contains_eager(attr(Solution.organization)),
+            contains_eager(attr(Solution.organization)).load_only(
+                attr(Organization.id),
+                attr(Organization.name),
+                attr(Organization.slug),
+                attr(Organization.status),
+            ),
             defer(attr(Solution.secrets)),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.image), attr(Revision.failed), raiseload=True),
         )

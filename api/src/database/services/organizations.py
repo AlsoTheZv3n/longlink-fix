@@ -6,7 +6,7 @@ from sqlalchemy import Select, func, delete, select
 from sqlalchemy import update as sql_update
 from src.errors import ConflictError, NotFoundError, ForbiddenError, UnavailableError
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import defer, load_only, joinedload, selectinload, contains_eager
+from sqlalchemy.orm import load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
@@ -273,7 +273,15 @@ async def solutions(session: AsyncSession, organization_id: UUID) -> Sequence[So
     statement = (
         select(Solution)
         .options(
-            defer(attr(Solution.secrets)),
+            load_only(
+                attr(Solution.id),
+                attr(Solution.name),
+                attr(Solution.slug),
+                attr(Solution.description),
+                attr(Solution.status),
+                attr(Solution.desired_revision_id),
+                attr(Solution.deployed_revision_id),
+            ),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.failed), raiseload=True),
         )
         .where(
