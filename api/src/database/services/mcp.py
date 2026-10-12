@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
-from src.database.services import users, organizations
+from src.database.services import organizations
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.mcp import MCPCode, MCPToken, MCPClient
 from src.database.models.users import User
@@ -105,15 +105,6 @@ async def _permitted_solution(session: AsyncSession, user: User, solution_id: UU
     return solution
 
 
-async def _credential_user(session: AsyncSession, user_id: UUID, fingerprint: str) -> User | None:
-    """Invalidate granted access when the user is deleted or their password changes."""
-
-    user = await users.active(session, user_id)
-    if user is None or not hmac.compare_digest(fingerprint, token.password_fingerprint(user.password)):
-        return None
-    return user
-
-
 async def authenticate(session: AsyncSession, credential: str, solution_id: UUID) -> User | None:
     """Resolve only an unexpired token issued for this exact Solution resource."""
 
@@ -138,7 +129,7 @@ async def authenticate(session: AsyncSession, credential: str, solution_id: UUID
         or grant.expires_at <= datetime.now(UTC)
     ):
         return None
-    return await _credential_user(session, grant.user_id, grant.fingerprint)
+    return await token.credential_user(session, grant.user_id, grant.fingerprint)
 
 
 async def register(session: AsyncSession, payload: mcp.ClientRegistration) -> UUID:
@@ -213,7 +204,7 @@ async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[st
         raise OAuthError("invalid_grant", "Invalid or expired authorization code")
 
     # Previous approval cannot outlive the user's account, credential, or Organization permissions.
-    user = await _credential_user(session, proof.user_id, proof.fingerprint)
+    user = await token.credential_user(session, proof.user_id, proof.fingerprint)
     if user is None:
         raise OAuthError("invalid_grant", "Authorization is no longer valid")
     try:

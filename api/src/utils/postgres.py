@@ -120,7 +120,7 @@ class Postgres:
         # Ask PostgreSQL for the current database's on-disk size through the managed connection.
         async with self.connection(organization.hex) as conn:
             result = await conn.execute(text("SELECT pg_database_size(current_database())"))
-            return int(result.scalar_one())
+            return result.scalar_one()
 
     async def prepare_organization_database(self, organization: UUID) -> None:
         """Converge one organization database, run SDK-owned shared-schema migrations, and restore shared-schema restrictions.

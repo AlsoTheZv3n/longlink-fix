@@ -1,5 +1,4 @@
 import jwt
-import hmac
 from uuid import UUID
 from typing import Annotated
 from fastapi import Cookie, Depends, Request, HTTPException
@@ -9,7 +8,6 @@ from collections.abc import Callable, Awaitable, AsyncIterator
 from src.models.roles import OrganizationRoles
 from longlink.database import audit
 from src.utils.cookies import AUTH_COOKIE
-from src.database.services import users as user_service
 from src.database.services import organizations as organization_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
@@ -45,8 +43,8 @@ async def authuser(
         raise HTTPException(status_code=401, detail="Not authenticated") from None
 
     # Resolve only the active local identity; scoped dependencies load resource access on demand.
-    user = await user_service.active(session, user_id)
-    if user is None or not hmac.compare_digest(fingerprint, token.password_fingerprint(user.password)):
+    user = await token.credential_user(session, user_id, fingerprint)
+    if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     # Mark validated browser sessions so response middleware can prevent sensitive caching.

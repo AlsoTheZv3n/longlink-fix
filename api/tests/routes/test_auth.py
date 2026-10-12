@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.database.session import get_session, session_scope
+from src.database.services import users
 from src.database.models.users import User
 from src.database.models.association import UserOrganization
 from src.database.models.invitations import OrganizationInvitation
@@ -556,7 +557,7 @@ async def test_malformed_browser_session_is_rejected_before_database_lookup(
         raise AssertionError("malformed credentials must not query users")
 
     monkeypatch.setattr(app, "dependency_overrides", {auth.get_session: get_session})
-    monkeypatch.setattr(auth.user_service, "active", unexpected_active)
+    monkeypatch.setattr(users, "active", unexpected_active)
     client.cookies.set("longlink_auth", "invalid", domain="testserver.local", path="/")
 
     # Act
