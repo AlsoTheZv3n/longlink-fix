@@ -43,27 +43,18 @@ export default function Invoice({ params }) {
                 padding={8}
                 contentWidth={640}
             >
-                <Stack gap={8}>
-                    <Stack align="center" gap={0}>
-                        <Heading level={2}>Upload Invoice Document</Heading>
+                <Form action={`/api/items/${params.item}/attachments`} method="post" onSuccess={() => setOpen(false)}>
+                    <Stack gap={3}>
+                        <FileInput
+                            name="file"
+                            label="Invoice document"
+                            maxSize={1_900_000}
+                            description="Maximum 1.9 MB. Images can be previewed; other documents can be downloaded."
+                            required
+                        />
+                        <Button label="Upload document" variant="primary" type="submit" />
                     </Stack>
-                    <Form
-                        action={`/api/items/${params.item}/attachments`}
-                        method="post"
-                        onSuccess={() => setOpen(false)}
-                    >
-                        <Stack gap={3}>
-                            <FileInput
-                                name="file"
-                                label="Invoice document"
-                                maxSize={1_900_000}
-                                description="Maximum 1.9 MB. Images can be previewed; other documents can be downloaded."
-                                required
-                            />
-                            <Button label="Upload document" variant="primary" type="submit" />
-                        </Stack>
-                    </Form>
-                </Stack>
+                </Form>
             </Dialog>
             <Divider />
             <Grid columns={3} gap={8}>

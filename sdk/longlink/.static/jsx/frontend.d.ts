@@ -4814,6 +4814,8 @@ declare function Dialog(props: {
     hidden?: boolean;
     children?: ViewNode;
     'aria-label': string;
+    /** Shows the accessible dialog name as a visible header title; defaults to true. */
+    showTitle?: boolean;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     purpose?: 'form' | 'info' | 'required';
