@@ -2,7 +2,7 @@ import asyncio
 from alembic import context
 from sqlmodel import SQLModel
 from sqlalchemy.engine import Connection
-from longlink.database.base import database_url, create_engine
+from longlink.database.base import Database, database_url
 from longlink.utils.settings import Envs
 from longlink.database.migrations import include_object
 
@@ -36,15 +36,17 @@ def _run_migrations(connection: Connection | None = None, *, url: str | None = N
 async def run_migrations_online() -> None:
     """Run Alembic migrations in online mode."""
 
-    # Own the engine only while running online migrations.
-    engine = create_engine(settings)
+    # Initialize SDK-owned local audit data before Solution migrations reference it.
+    database = Database(settings)
 
     # Release migration-engine resources even when the migration fails.
     try:
-        async with engine.connect() as connection:
+        async with database.session() as session:
+            connection = await session.connection()
             await connection.run_sync(_run_migrations)
+            await session.commit()
     finally:
-        await engine.dispose()
+        await database.dispose()
 
 
 # Use Alembic's offline path when the migration context requests it.
