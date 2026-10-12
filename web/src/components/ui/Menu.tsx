@@ -1,4 +1,5 @@
 import { Stack } from '@astryxdesign/core/Stack';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
 import { Icon, type StoneIconName } from '@/components/ui/Icon';
 import { Layout, LayoutPanel } from '@astryxdesign/core/Layout';
 import { Children, createContext, isValidElement, useContext, type ReactElement, type ReactNode } from 'react';
@@ -51,7 +52,7 @@ function isMenuItem(child: ReactNode): child is ReactElement<MenuItemProps> {
     return isValidElement(child) && child.type === MenuItem;
 }
 
-/** Renders section navigation beside the selected item's content. */
+/** Renders section navigation beside content, or above it at View widths of 768px and below. */
 export function Menu({
     children,
     gap = 3,
@@ -64,6 +65,7 @@ export function Menu({
     gap?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
 }) {
     const navigation = useContext(MenuNavigationContext);
+    const narrow = useMediaQuery('(max-width: 768px)');
 
     // Require the runtime-owned navigation API, not a React Router provider.
     if (navigation === null) throw new Error('Menu requires MenuNavigationContext');
@@ -138,48 +140,61 @@ export function Menu({
         );
     }
 
+    // Move navigation above content on narrow View viewports instead of squeezing both into a fixed rail.
+    const navigationPanel = (
+        <LayoutPanel
+            isScrollable={false}
+            label="Settings navigation"
+            padding={0}
+            role="navigation"
+            width={narrow ? '100%' : 260}
+        >
+            <AstryxSideNav
+                className={`h-auto w-full ${narrow ? '' : 'pr-4'} [&>div:first-child]:pt-0 [&_.astryx-side-nav-section>div:first-child]:pt-0 [&_.astryx-side-nav-section>div:first-child]:pl-0`}
+            >
+                {sections.map(({ entries, section }) => (
+                    <AstryxSideNavSection
+                        title={section.props.title}
+                        isHeaderHidden={section.props.isHeaderHidden}
+                        hidden={section.props.hidden}
+                        className={section.props.hidden ? 'pt-0 hidden!' : 'pt-0'}
+                        key={section.props.title}
+                    >
+                        {entries.map((entry) => {
+                            if (entry.kind === 'subsection') {
+                                const { icon, label } = entry.group.props;
+
+                                return (
+                                    <AstryxSideNavItem
+                                        hidden={entry.group.props.hidden}
+                                        className={entry.group.props.hidden ? 'hidden!' : undefined}
+                                        collapsible={{ defaultIsCollapsed: true }}
+                                        icon={icon ? <Icon icon={icon} size="sm" /> : undefined}
+                                        key={label}
+                                        label={label}
+                                    >
+                                        {entry.items.map(renderItem)}
+                                    </AstryxSideNavItem>
+                                );
+                            }
+
+                            return renderItem(entry.item);
+                        })}
+                    </AstryxSideNavSection>
+                ))}
+            </AstryxSideNav>
+        </LayoutPanel>
+    );
+
+    // Keep the content in the same slot so resizing does not reset its local draft state.
     return (
         <Layout
             hidden={hidden}
             className={hidden ? 'hidden!' : undefined}
             height="auto"
             padding={0}
-            start={
-                <LayoutPanel isScrollable={false} label="Settings navigation" padding={0} role="navigation" width={260}>
-                    <AstryxSideNav className="h-auto w-full pr-4 [&>div:first-child]:pt-0 [&_.astryx-side-nav-section>div:first-child]:pt-0 [&_.astryx-side-nav-section>div:first-child]:pl-0">
-                        {sections.map(({ entries, section }) => (
-                            <AstryxSideNavSection
-                                title={section.props.title}
-                                isHeaderHidden={section.props.isHeaderHidden}
-                                hidden={section.props.hidden}
-                                className={section.props.hidden ? 'pt-0 hidden!' : 'pt-0'}
-                                key={section.props.title}
-                            >
-                                {entries.map((entry) => {
-                                    if (entry.kind === 'subsection') {
-                                        const { icon, label } = entry.group.props;
-
-                                        return (
-                                            <AstryxSideNavItem
-                                                hidden={entry.group.props.hidden}
-                                                className={entry.group.props.hidden ? 'hidden!' : undefined}
-                                                collapsible={{ defaultIsCollapsed: true }}
-                                                icon={icon ? <Icon icon={icon} size="sm" /> : undefined}
-                                                key={label}
-                                                label={label}
-                                            >
-                                                {entry.items.map(renderItem)}
-                                            </AstryxSideNavItem>
-                                        );
-                                    }
-
-                                    return renderItem(entry.item);
-                                })}
-                            </AstryxSideNavSection>
-                        ))}
-                    </AstryxSideNav>
-                </LayoutPanel>
-            }
+            header={narrow ? navigationPanel : undefined}
+            start={narrow ? undefined : navigationPanel}
         >
             <Stack gap={gap} hidden={activeContentHidden} className={activeContentHidden ? 'hidden!' : undefined}>
                 {activeItem?.props.children}
