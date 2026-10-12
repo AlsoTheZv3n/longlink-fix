@@ -105,7 +105,7 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
                 title="Unable to load this solution"
             />
         );
-    } else if (activeViewSource !== undefined && activeView && match) {
+    } else if (activeViewSource !== undefined && activeView && match && manifest) {
         content = (
             <JsxView
                 source={activeViewSource}
@@ -114,7 +114,7 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
                     navigationBaseUrl,
                     activeView.route,
                     activeView.path,
-                    manifest?.runtime,
+                    manifest.runtime,
                     routePath,
                 ])}
                 navigationBaseUrl={navigationBaseUrl}
@@ -122,7 +122,7 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
                     Object.entries(match.params).filter((entry): entry is [string, string] => entry[1] != null)
                 )}
                 requestBaseUrl={requestBaseUrl}
-                runtime={manifest?.runtime}
+                runtime={manifest.runtime}
             />
         );
     } else if (manifest && !activeView) {

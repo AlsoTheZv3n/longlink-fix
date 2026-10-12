@@ -105,9 +105,10 @@ export function Menu({
         )
     );
 
-    // Keep first-item fallback and hide selected content if any occurrence inherits hidden ancestry.
-    const activeItem = (items.find(({ item }) => `#${menuItemId(item)}` === hash) ?? items[0])?.item;
-    const activeContentHidden = items.some(({ item, hidden }) => item === activeItem && hidden);
+    // Resolve the selected item together with its inherited visibility, preserving first-item fallback.
+    const active = items.find(({ item }) => `#${menuItemId(item)}` === hash) ?? items[0];
+    const activeItem = active?.item;
+    const activeContentHidden = Boolean(active?.hidden);
 
     /** Renders direct and nested items with the same navigation and selection behavior. */
     function renderItem(item: ReactElement<MenuItemProps>) {

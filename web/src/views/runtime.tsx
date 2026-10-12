@@ -281,7 +281,9 @@ function initialize(event: MessageEvent<unknown>): void {
             useApi,
         };
 
-        type ViewModule = { exports: { default?: React.ComponentType<{ params: Readonly<Record<string, string>> }> } };
+        type ViewComponent = React.ComponentType<{ params: Readonly<Record<string, string>> }>;
+
+        type ViewModule = { exports: { default?: ViewComponent } };
 
         const module: ViewModule = { exports: {} };
 
@@ -295,9 +297,7 @@ function initialize(event: MessageEvent<unknown>): void {
 
         // A callable export is the admission contract; React's error boundary handles invalid component rendering.
         const component = z
-            .custom<React.ComponentType<{ params: Readonly<Record<string, string>> }>>(
-                (value) => value instanceof Function
-            )
+            .custom<ViewComponent>((value) => value instanceof Function)
             .safeParse(evaluate(module, module.exports, ...Object.values(bindings)));
 
         if (!component.success) throw new Error('A View must export a component as default');

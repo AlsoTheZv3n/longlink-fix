@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { act, Suspense } from 'react';
+import { createHash } from 'node:crypto';
 import { createRoot } from 'react-dom/client';
 import { MessagePort } from 'node:worker_threads';
 import { SolutionRuntime } from '@/components/Solution';
@@ -42,7 +43,7 @@ describe('SolutionRuntime', () => {
         },
         {
             name: 'an empty manifest response',
-            response: () => Response.json([]),
+            response: () => manifestResponse([]),
             initialPath: '/',
             title: 'Unexpected solution response',
             description: 'The solution did not expose any views to render.',
@@ -50,7 +51,7 @@ describe('SolutionRuntime', () => {
         {
             name: 'a view failure after loading the manifest',
             response: (url: string) => {
-                if (url.endsWith('/views.json')) return Response.json([{ path: 'home.jsx', route: '/home' }]);
+                if (url.endsWith('/views.json')) return manifestResponse([{ path: 'home.jsx', route: '/home' }]);
 
                 return Response.json({ detail: 'View unavailable' }, { status: 503 });
             },
@@ -74,7 +75,7 @@ describe('SolutionRuntime', () => {
         // Arrange
         stubFetch((url) =>
             url.endsWith('/views.json')
-                ? Response.json([
+                ? manifestResponse([
                       { path: 'index.jsx', route: '/' },
                       { path: 'home.jsx', route: '/home' },
                   ])
@@ -95,7 +96,7 @@ describe('SolutionRuntime', () => {
         // Arrange
         const fetchRequest = vi.fn((url: string) => {
             if (url.endsWith('/views.json'))
-                return Response.json([{ path: 'https://example.com/view.jsx', route: '/home' }]);
+                return manifestResponse([{ path: 'https://example.com/view.jsx', route: '/home' }]);
             throw new Error('View fetch must not occur');
         });
 
@@ -109,12 +110,12 @@ describe('SolutionRuntime', () => {
         expect(fetchRequest).toHaveBeenCalledOnce();
     });
 
-    it('renders dynamic route parameters', async () => {
+    it('transfers dynamic route parameters', async () => {
         // Arrange
         vi.useFakeTimers();
         stubFetch((url) => {
             if (url.endsWith('/views.json'))
-                return Response.json([{ path: 'views/issues/[item]', route: '/issues/:issueId' }]);
+                return manifestResponse([{ path: 'views/issues/[item]', route: '/issues/:issueId' }]);
 
             return sourceResponse(
                 'export default function Issue({ params }) { return <Text>{params.issueId}</Text>; }'
@@ -156,7 +157,9 @@ describe('SolutionRuntime', () => {
         vi.useFakeTimers();
         const source = 'export default function Home() { return <Text>Home</Text>; }';
         stubFetch((url) =>
-            url.endsWith('/views.json') ? Response.json([{ path: 'home.jsx', route: '/home' }]) : sourceResponse(source)
+            url.endsWith('/views.json')
+                ? manifestResponse([{ path: 'home.jsx', route: '/home' }])
+                : sourceResponse(source)
         );
         const output = await renderRuntime('/home');
         await vi.waitFor(async () => {
@@ -193,7 +196,7 @@ describe('SolutionRuntime', () => {
         // Arrange
         const requests: string[] = [];
         stubFetch((url) => {
-            if (url.endsWith('/views.json')) return Response.json([{ path: 'home.jsx', route: '/home' }]);
+            if (url.endsWith('/views.json')) return manifestResponse([{ path: 'home.jsx', route: '/home' }]);
 
             if (url.endsWith('/home.jsx')) return sourceResponse('export default function Home() { return null; }');
             requests.push(new URL(url).pathname);
@@ -228,7 +231,7 @@ describe('SolutionRuntime', () => {
 
         let request: Request | undefined;
         stubFetch((url, incoming) => {
-            if (url.endsWith('/views.json')) return Response.json([{ path: 'home.jsx', route: '/home' }]);
+            if (url.endsWith('/views.json')) return manifestResponse([{ path: 'home.jsx', route: '/home' }]);
 
             if (url.endsWith('/home.jsx')) return sourceResponse('export default function Home() { return null; }');
             request = incoming;
@@ -277,7 +280,7 @@ describe('SolutionRuntime', () => {
             requests.push(request);
 
             if (url.endsWith('/proxy/views.json?version=1#manifest'))
-                return Response.json([{ path: 'home.jsx', route: '/home' }]);
+                return manifestResponse([{ path: 'home.jsx', route: '/home' }]);
 
             if (url.endsWith('/proxy/home.jsx'))
                 return sourceResponse('export default function Welcome() { return <Text>Welcome</Text>; }');
@@ -311,7 +314,7 @@ describe('SolutionRuntime', () => {
         vi.useFakeTimers();
         stubFetch((url) =>
             url.endsWith('/views.json')
-                ? Response.json([{ path: 'home.jsx', route: '/home' }])
+                ? manifestResponse([{ path: 'home.jsx', route: '/home' }])
                 : sourceResponse('export default function Home() { return <Text>Home</Text>; }')
         );
 
@@ -328,7 +331,8 @@ describe('SolutionRuntime', () => {
     it('rejects unmatched routes', async () => {
         // Arrange
         const response = vi.fn((url: string) => {
-            if (url.endsWith('/views.json')) return Response.json([{ path: 'issue.jsx', route: '/issues/:issueId' }]);
+            if (url.endsWith('/views.json'))
+                return manifestResponse([{ path: 'issue.jsx', route: '/issues/:issueId' }]);
             throw new Error('View fetch must not occur for an unmatched route');
         });
 
@@ -432,10 +436,18 @@ function stubFetch(response: (url: string, request: Request) => Response | Promi
         const request = input instanceof Request ? input : new Request(input, init);
         const url = request.url;
 
-        if (url.endsWith('/views/runtime.js') || url.endsWith('/views/runtime.css')) return sourceResponse('');
+        const pathname = new URL(url).pathname;
+
+        if (pathname.endsWith('/views/runtime.js') || pathname.endsWith('/views/runtime.css'))
+            return sourceResponse('');
 
         return response(url, request);
     });
+}
+
+/** Creates a catalog pinned to the empty runtime assets supplied by the transport fixture. */
+function manifestResponse(views: readonly { path: string; route: string }[]): Response {
+    return Response.json({ views, runtime: { version: createHash('sha256').update('\n').digest('hex') } });
 }
 
 /** Creates a source fetch response. */

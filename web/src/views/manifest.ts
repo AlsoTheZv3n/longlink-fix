@@ -60,8 +60,5 @@ export const viewsSchema = z.array(viewSchema).superRefine((views, context) => {
     }
 });
 
-// Normalize legacy catalogs at the boundary while new manifests own one Solution-wide runtime.
-export const manifestSchema = z.union([
-    z.object({ views: viewsSchema, runtime: runtimeSchema }),
-    viewsSchema.transform((views) => ({ views, runtime: undefined })),
-]);
+// Require one pinned Solution-wide runtime for the complete catalog.
+export const manifestSchema = z.object({ views: viewsSchema, runtime: runtimeSchema });
