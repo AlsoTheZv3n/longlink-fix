@@ -81,7 +81,7 @@ You are working on a LongLink Solution project.
 - DON'T use inline `style`, custom `className` values, imported CSS, or hardcoded colors and pixel values to bypass the View component API.
 - DON'T wrap individual table rows in `Card`.
 - DO use `Card` only for dashboard widgets, galleries, or settings groups.
-- DO use `StatusDot` for status and `Badge` for counts or enumerated states, not decoration.
+- DO use labeled `Badge` components for counts or enumerated states, not decoration. `StatusDot` is not exposed by the View runtime; DON'T invent or import it.
 - DO use the LongLink `Icon` component for icons.
 
 ### Final review

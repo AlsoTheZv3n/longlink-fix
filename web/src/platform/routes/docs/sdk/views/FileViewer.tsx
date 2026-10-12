@@ -8,7 +8,9 @@ export default function FileViewerPage() {
     return (
         <ViewLayout
             name="FileViewer"
-            introduction="FileViewer previews images and downloads attachments through the scoped Solution API. Other documents, including PDFs, are downloaded rather than executed inside the View."
+            introduction={
+                'FileViewer previews images and downloads attachments through the scoped Solution API. Other documents, including PDFs, are downloaded rather than executed inside the View. Set size="sm" for compact table actions; omit size to retain inherited sizing.'
+            }
             examples={[
                 {
                     title: 'FileViewer',

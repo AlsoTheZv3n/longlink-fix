@@ -4638,7 +4638,10 @@ declare function Grid(props: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;
     children?: ViewNode;
-    columns?: number;
+    /** Fixed columns or responsive tracks with a minimum width in pixels and optional column cap. Use one-column or full spans with responsive tracks. */
+    columns?: number | { minWidth: number; max?: number; repeat?: 'fill' | 'fit' };
+    /** Collapse to one column at or below this View viewport width in pixels, including all GridSpan children. */
+    collapseBelow?: number;
     gap?: Spacing;
     rowGap?: Spacing;
     columnGap?: Spacing;
@@ -4872,7 +4875,7 @@ declare function Form(props: {
 declare function FormStep(props: {
     /** Visible label identifying this step in the progress indicator. */
     label: string;
-    /** Fields and layout displayed when this step is active. */
+    /** Fields arranged vertically with spacing step 3. Use an explicit layout child for custom grouping. */
     children?: ViewNode;
 }): React.JSX.Element;
 
@@ -5102,6 +5105,20 @@ declare function Table<T extends Record<string, unknown>>(props: {
     }[];
 }): React.JSX.Element;
 
+/** @category Action */
+declare function Pagination(props: {
+    /** Hides the component without unmounting it. */
+    hidden?: boolean;
+    /** Current page number, starting at 1. */
+    page: number;
+    /** Receives the selected page number. */
+    onPageChange: (page: number) => void;
+    totalItems: number;
+    pageSize: number;
+    /** Accessible navigation label; defaults to Astryx's localized Pagination label. */
+    label?: string;
+}): React.JSX.Element;
+
 /** @category Display @group Table */
 declare function proportional(
     value?: number,
@@ -5316,6 +5333,8 @@ declare function FileViewer(props: {
     src: string;
     /** Attachment name used for accessible action labels and the downloaded filename. */
     title: string;
+    /** Size of preview and download actions; use sm in compact tables. Omitted values retain inherited sizing. */
+    size?: 'sm' | 'md' | 'lg';
 }): React.JSX.Element;
 
 // END GENERATED COMPONENTS

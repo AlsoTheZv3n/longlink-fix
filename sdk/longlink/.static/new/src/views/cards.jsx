@@ -14,7 +14,7 @@ export default function InvoiceCards() {
                 <Heading level={1}>Example Cards View</Heading>
                 <Text color="secondary">This can be used for comparing invoices in a gallery.</Text>
             </Stack>
-            <Grid columns={3} gap={2} align="stretch">
+            <Grid columns={{ minWidth: 240, max: 3 }} gap={2} align="stretch">
                 {invoices.items.map((invoice) => (
                     <Card
                         key={invoice.id}
@@ -65,10 +65,7 @@ export default function InvoiceCards() {
                 ))}
             </Grid>
             {invoices.total === 0 && <Text color="secondary">No invoices yet.</Text>}
-            <Stack direction="horizontal" justify="between" gap={2}>
-                <Button label="Previous" disabled={page === 1} onClick={() => setPage(page - 1)} />
-                <Button label="Next" disabled={invoices.total <= page * 8} onClick={() => setPage(page + 1)} />
-            </Stack>
+            <Pagination page={page} onPageChange={setPage} totalItems={invoices.total} pageSize={8} />
         </Stack>
     );
 }

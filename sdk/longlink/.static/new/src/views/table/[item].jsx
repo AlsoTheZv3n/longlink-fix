@@ -37,27 +37,22 @@ export default function Invoice({ params }) {
                 isOpen={open}
                 onOpenChange={setOpen}
                 purpose="form"
-                width={960}
-                height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
-                maxHeight="calc(100dvh - var(--spacing-10) * 4)"
                 padding={8}
                 contentWidth={640}
             >
                 <Form action={`/api/items/${params.item}/attachments`} method="post" onSuccess={() => setOpen(false)}>
-                    <Stack gap={3}>
-                        <FileInput
-                            name="file"
-                            label="Invoice document"
-                            maxSize={1_900_000}
-                            description="Maximum 1.9 MB. Images can be previewed; other documents can be downloaded."
-                            required
-                        />
-                        <Button label="Upload document" variant="primary" type="submit" />
-                    </Stack>
+                    <FileInput
+                        name="file"
+                        label="Invoice document"
+                        maxSize={1_900_000}
+                        description="Maximum 1.9 MB. Images can be previewed; other documents can be downloaded."
+                        required
+                    />
+                    <Button label="Upload document" variant="primary" type="submit" />
                 </Form>
             </Dialog>
             <Divider />
-            <Grid columns={3} gap={8}>
+            <Grid columns={3} collapseBelow={768} gap={8}>
                 <GridSpan columns={2}>
                     <Table
                         data={attachments}
@@ -71,6 +66,7 @@ export default function Invoice({ params }) {
                                     <FileViewer
                                         src={`/api/items/${params.item}/attachments/${row.id}`}
                                         title={row.name}
+                                        size="sm"
                                     />
                                 ),
                             },

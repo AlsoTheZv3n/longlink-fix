@@ -166,7 +166,8 @@ export function Form(props: {
                               className="m-0 min-w-0 border-0 p-0"
                               aria-label={child.props.label}
                           >
-                              {child.props.children}
+                              {/* Own the default field rhythm while preserving explicit layouts within a step. */}
+                              <Stack gap={3}>{child.props.children}</Stack>
                           </fieldset>
                       );
                   })}
