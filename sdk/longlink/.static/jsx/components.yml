@@ -774,6 +774,11 @@
       description: Attachment name used for accessible action labels and the
         downloaded filename.
 
+    - name: size
+      type: '"sm" | "lg" | "md"'
+      description: Size of preview and download actions; use sm in compact tables.
+        Omitted values retain inherited sizing.
+
 
 - name: Form
   category: Form
@@ -830,7 +835,8 @@
 
     - name: children
       type: ReactNode
-      description: Fields and layout displayed when this step is active.
+      description: Fields arranged vertically with spacing step 3. Use an explicit
+        layout child for custom grouping.
 
 
 - name: Functions
@@ -854,7 +860,7 @@
 
 - name: Grid
   category: Layouts
-  introduction: Arranges View content into a fixed number of columns.
+  introduction: Arranges View content into fixed or width-responsive columns.
   properties:
     - name: hidden
       type: boolean
@@ -865,14 +871,15 @@
       description: Grid content.
 
     - name: columns
+      type: 'number | { minWidth: number; max?: number; repeat?: "fill" | "fit"; }'
+      description: Fixed columns or responsive tracks with a minimum width in pixels
+        and optional column cap. Use one-column or full spans with responsive
+        tracks.
+
+    - name: collapseBelow
       type: number
-      description: 'Column configuration. Use a number for fixed columns (e.g.
-        `columns={3}`). Use an object for responsive columns: `minWidth` sets
-        the minimum column width in px, `repeat` controls track behavior
-        (`"fill"` preserves empty tracks for consistent widths, `"fit"`
-        collapses empty tracks so items stretch; defaults to `"fill"`), and
-        `max` caps the maximum number of columns.'
-      default: 1
+      description: Collapse to one column at or below this View viewport width in
+        pixels, including all GridSpan children.
 
     - name: gap
       type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
@@ -926,7 +933,6 @@
     - name: GridSpan.columns
       type: number | "full"
       description: Number of columns to occupy, or full to span the entire grid.
-      default: 1
 
 
 - name: Heading
@@ -1576,6 +1582,40 @@
       type: "((value: number) => void) | ((value: number | null) => void)"
       description: Callback fired when a valid text edit commits on blur or Enter, or
         when a step or clear control changes the value.
+
+
+- name: Pagination
+  category: Action
+  introduction: Navigates pages of table or gallery items without owning their
+    data or selection.
+  properties:
+    - name: hidden
+      type: boolean
+      description: Hides the component without unmounting it.
+
+    - name: page
+      type: number
+      description: Current page number, starting at 1.
+
+    - name: onPageChange
+      type: "(page: number) => void"
+      description: Receives the selected page number.
+
+    - name: totalItems
+      type: number
+      description: Total number of items. Used to calculate page count. Takes
+        precedence over totalPages if both provided.
+
+    - name: pageSize
+      type: number
+      description: Number of items per page. Coerced to a positive integer; non-finite
+        values fall back to the default.
+
+    - name: label
+      type: string
+      description: Accessible navigation label; defaults to Astryx's localized
+        Pagination label.
+      default: Pagination
 
 
 - name: ProgressBar

@@ -112,6 +112,9 @@ export { MetadataListItem } from '@/components/ui/MetadataList';
 /** @category Display */
 export { Table } from '@/components/ui/Table';
 
+/** @category Action */
+export { Pagination } from '@/components/ui/Pagination';
+
 /** @category Display @group Table */
 export { proportional, pixel } from '@/components/ui/Table';
 

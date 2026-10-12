@@ -19,28 +19,23 @@ export default function InvoiceTable() {
                 isOpen={open}
                 onOpenChange={setOpen}
                 purpose="form"
-                width={960}
-                height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
-                maxHeight="calc(100dvh - var(--spacing-10) * 4)"
                 padding={8}
                 contentWidth={640}
             >
                 <Form action="/api/items" method="post" onSuccess={() => setOpen(false)}>
-                    <Stack gap={3}>
-                        <TextInput label="Invoice number" name="name" required />
-                        <NumberInput label="Amount (CHF)" name="price" defaultValue={0} min={0} required />
-                        <Selector
-                            label="Status"
-                            name="status"
-                            defaultValue="draft"
-                            options={[
-                                { value: 'draft', label: 'Draft' },
-                                { value: 'pending', label: 'Pending' },
-                                { value: 'approved', label: 'Approved' },
-                            ]}
-                        />
-                        <Button label="Create Invoice" variant="primary" type="submit" />
-                    </Stack>
+                    <TextInput label="Invoice number" name="name" required />
+                    <NumberInput label="Amount (CHF)" name="price" defaultValue={0} min={0} required />
+                    <Selector
+                        label="Status"
+                        name="status"
+                        defaultValue="draft"
+                        options={[
+                            { value: 'draft', label: 'Draft' },
+                            { value: 'pending', label: 'Pending' },
+                            { value: 'approved', label: 'Approved' },
+                        ]}
+                    />
+                    <Button label="Create Invoice" variant="primary" type="submit" />
                 </Form>
             </Dialog>
             <Table
@@ -116,10 +111,7 @@ export default function InvoiceTable() {
                     },
                 ]}
             />
-            <Stack direction="horizontal" gap={2} justify="between">
-                <Button label="Previous" disabled={page === 1} onClick={() => setPage(page - 1)} />
-                <Button label="Next" disabled={invoices.total <= page * 8} onClick={() => setPage(page + 1)} />
-            </Stack>
+            <Pagination page={page} onPageChange={setPage} totalItems={invoices.total} pageSize={8} />
         </Stack>
     );
 }

@@ -15,6 +15,7 @@ export function FileViewer({
     src,
     title,
     hidden,
+    size,
 }: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;
@@ -22,6 +23,8 @@ export function FileViewer({
     src: string;
     /** Attachment name used for accessible action labels and the downloaded filename. */
     title: string;
+    /** Size of preview and download actions; use sm in compact tables. Omitted values retain inherited sizing. */
+    size?: 'sm' | 'md' | 'lg';
 }) {
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<string>();
@@ -31,9 +34,10 @@ export function FileViewer({
     return (
         <Stack gap={2} hidden={hidden}>
             <Stack direction="horizontal" gap={2} wrap="wrap">
-                <Button variant="ghost" label={title} onClick={() => setOpen(!open)} />
+                <Button variant="ghost" size={size} label={title} onClick={() => setOpen(!open)} />
                 <Button
                     variant="ghost"
+                    size={size}
                     label={`Download ${title}`}
                     onClick={async () => {
                         // Normalize an attachment label into a bounded filename, never a filesystem path.
