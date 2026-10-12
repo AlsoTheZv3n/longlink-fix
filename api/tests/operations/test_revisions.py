@@ -213,6 +213,7 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
         "LONGLINK_DATABASE_NAME": organization.id.hex,
         "LONGLINK_DATABASE_PORT": "5432",
         "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+        "LONGLINK_STORAGE_BUCKET": f"longlink-{organization.id.hex}",
         "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
         "LONGLINK_STORAGE_REGION": "us-east-1",
         "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",

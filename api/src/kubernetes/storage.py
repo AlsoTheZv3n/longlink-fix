@@ -34,7 +34,6 @@ class Storage:
 
         # Route administrator requests through the bound Kubernetes connection.
         async with self._cluster.forward_storage() as port:
-
             # Close the workflow's HTTP transport before the Kubernetes tunnel is released.
             client = httpx2.AsyncClient(
                 trust_env=False,
@@ -79,7 +78,6 @@ class Storage:
 
         # kr8s starts the remote port-forward only when a request enters its local listener.
         async with self._cluster.forward_storage() as port:
-
             # Release the readiness HTTP client before closing its tunnel.
             client = httpx2.AsyncClient(
                 trust_env=False,
@@ -103,17 +101,15 @@ class Storage:
         async with self._admin() as admin:
             return await admin.service_account(self.bucket_name(organization), solution)
 
-    async def revoke(self, solution: UUID) -> None:
-        """Revoke one Solution service account."""
+    async def delete_solution(self, organization: UUID, solution: UUID) -> None:
+        """Revoke one Solution service account before removing its private objects."""
 
         # Release the transport after the account revocation attempt.
         async with self._admin() as admin:
             await admin.revoke(solution)
 
-    async def delete_prefix(self, organization: UUID, prefix: str) -> None:
-        """Remove one Solution prefix from the Organization bucket."""
-
-        await self._storage.delete_prefix(self.bucket_name(organization), prefix)
+        # Remove data only after revocation succeeds and its transport closes.
+        await self._storage.delete_prefix(self.bucket_name(organization), f"solutions/{solution.hex}/")
 
     async def apply(self, organization: UUID, *, quota_bytes: int) -> None:
         """Create an Organization bucket and apply its RustFS hard byte quota."""

@@ -1,6 +1,7 @@
 import pytest
 from uuid import UUID
 from httpx2 import AsyncClient
+from conftest import RegistryKubernetes
 from pydantic import SecretStr
 from factories import (
     add_member,
@@ -142,6 +143,44 @@ async def test_compute_registry_creation_redacts_credentials_and_rejects_duplica
 
     # Reject a duplicate after checking the successful registration's persisted outcome.
     duplicate_response = await clients[0].post("/api/v1/computes", json=payload)
+    assert duplicate_response.status_code == 409
+    assert duplicate_response.json() == {"detail": "Compute registry already exists"}
+
+
+async def test_create_rejects_duplicate_compute_clusters(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    monkeypatch: pytest.MonkeyPatch,
+    compute_runtime: None,
+) -> None:
+    """Translate duplicate physical clusters into the stable HTTP conflict."""
+
+    # Arrange a single physical cluster behind differently named registrations.
+    class FixedClusterKubernetes(RegistryKubernetes):
+        """Reuse one physical cluster identity without external Kubernetes I/O."""
+
+        async def cluster_uid(self) -> str:
+            """Return the same physical cluster identity for each registration."""
+
+            return "cluster-uid"
+
+    monkeypatch.setattr("src.routes.v1.computes.Kubernetes", FixedClusterKubernetes)
+    payload = {
+        "name": "Duplicate Compute",
+        "kubeconfig": {
+            "apiVersion": "v1",
+            "clusters": [{"name": "cluster", "cluster": {"server": "https://kubernetes.example"}}],
+            "contexts": [{"name": "context", "context": {"cluster": "cluster", "user": "user"}}],
+            "current-context": "context",
+            "users": [{"name": "user", "user": {"token": "secret"}}],
+        },
+        "gateway_url": "https://gateway.example:443",
+        "storage_endpoint": "https://storage.example:443",
+    }
+    create_response = await clients[0].post("/api/v1/computes", json=payload)
+    assert create_response.status_code == 201
+
+    # Act and assert the physical identity conflicts even when the name differs.
+    duplicate_response = await clients[0].post("/api/v1/computes", json=payload | {"name": "Cluster Alias"})
     assert duplicate_response.status_code == 409
     assert duplicate_response.json() == {"detail": "Compute registry already exists"}
 
