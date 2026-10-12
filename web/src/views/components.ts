@@ -37,9 +37,6 @@ export { Badge } from '@/components/ui/Badge';
 /** @category Display */
 export { Token } from '@/components/ui/Token';
 
-/** @category Display */
-export { StatusDot } from '@/components/ui/StatusDot';
-
 /** @category Layouts */
 export { Card } from '@/components/ui/Card';
 

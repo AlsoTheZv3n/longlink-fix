@@ -76,8 +76,10 @@ build:
 
 # Build required bundles and run all test suites.
 test:
-	cd web && vp run build:api:bundle --logLevel warn
-	cd web && vp run build:sdk:bundle --logLevel warn
+	cd web && vp run build:views
+	cd web && vp run check:docs
+	cd web && vp exec react-router build --mode api --logLevel warn
+	cd web && vp exec react-router build --mode sdk --logLevel warn
 	cd api && uv run --locked --extra dev pytest --cov=main --cov=src --cov-report=term-missing
 	cd sdk && uv run --locked --group dev pytest --cov --cov-report=term-missing
 	cd web && vp test run

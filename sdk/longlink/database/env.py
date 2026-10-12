@@ -13,8 +13,8 @@ settings = Envs()
 version_table_schema = settings.DATABASE_SCHEMA if settings.ENV == "production" else None
 
 
-def _configure_migrations(*, connection: Connection | None = None, url: str | None = None, literal_binds: bool = False) -> None:
-    """Configure shared Solution migration behavior for one Alembic execution mode."""
+def _run_migrations(connection: Connection | None = None, *, url: str | None = None, literal_binds: bool = False) -> None:
+    """Configure and run Solution migrations in either Alembic execution mode."""
 
     # Keep online and offline schema comparison behavior aligned.
     context.configure(
@@ -28,25 +28,7 @@ def _configure_migrations(*, connection: Connection | None = None, url: str | No
         version_table_schema=version_table_schema,
     )
 
-
-def run_migrations_offline() -> None:
-    """Run Alembic migrations in offline mode."""
-
-    # Configure Alembic to emit migration SQL without a live connection.
-    _configure_migrations(url=str(database_url(settings)), literal_binds=True)
-
-    # Wrap offline migration output in Alembic's transaction context.
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-def do_run_migrations(connection: Connection) -> None:
-    """Run Alembic migrations using a synchronous migration connection."""
-
-    # Configure Alembic with the synchronous connection exposed by SQLAlchemy.
-    _configure_migrations(connection=connection)
-
-    # Wrap online migration work in Alembic's transaction context.
+    # Wrap migration execution or SQL output in the same transaction context.
     with context.begin_transaction():
         context.run_migrations()
 
@@ -60,14 +42,14 @@ async def run_migrations_online() -> None:
     # Release migration-engine resources even when the migration fails.
     try:
         async with engine.connect() as connection:
-            await connection.run_sync(do_run_migrations)
+            await connection.run_sync(_run_migrations)
     finally:
         await engine.dispose()
 
 
 # Use Alembic's offline path when the migration context requests it.
 if context.is_offline_mode():
-    run_migrations_offline()
+    _run_migrations(url=str(database_url(settings)), literal_binds=True)
 
 # Otherwise run migrations through the configured async engine.
 else:
