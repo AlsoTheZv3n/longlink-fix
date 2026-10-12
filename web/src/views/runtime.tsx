@@ -14,7 +14,7 @@ import { FormRequestContext } from '@/components/ui/Form';
 import { IconRequestContext } from '@/components/ui/Icon';
 import { LinkNavigationContext } from '@/components/ui/Link';
 import { MenuNavigationContext } from '@/components/ui/Menu';
-import { FileRequestContext } from '@/components/ui/FileViewer';
+import { FileRequestContext } from '@/components/ui/preview';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import { QueryClient, QueryClientProvider, QueryErrorResetBoundary, useSuspenseQuery } from '@tanstack/react-query';
 import {
@@ -35,7 +35,7 @@ import {
     iconSchema,
     iconDataSchema,
 } from './protocol';
-import './theme.css';
+import '../theme.css';
 
 declare global {
     interface Window {
@@ -88,7 +88,7 @@ const lifetime = new AbortController();
 const pending = new Map<
     number,
     {
-        type: 'icon' | 'request' | 'download';
+        budget: 'icon' | 'operation';
         resolve: (value: ViewData) => void;
         reject: (error: Error) => void;
         timer: ReturnType<typeof setTimeout>;
@@ -134,10 +134,11 @@ async function request(
 async function exchange(command: RequestCommand | DownloadCommand | IconCommand): Promise<ViewData> {
     // Keep icon admission separate from the existing Solution operation budget.
     lifetime.signal.throwIfAborted();
-    const iconRequest = command.type === 'icon';
-    const count = [...pending.values()].filter((entry) => (entry.type === 'icon') === iconRequest).length;
+    const budget = command.type === 'icon' ? 'icon' : 'operation';
+    const count = [...pending.values()].filter((entry) => entry.budget === budget).length;
 
-    if (count >= (iconRequest ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS)) throw new Error('Too many pending requests');
+    if (count >= (budget === 'icon' ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS))
+        throw new Error('Too many pending requests');
     const { id } = command;
 
     return new Promise<ViewData>((resolve, reject) => {
@@ -146,7 +147,7 @@ async function exchange(command: RequestCommand | DownloadCommand | IconCommand)
             reject(new Error('Solution request timed out'));
         }, REQUEST_TIMEOUT);
 
-        pending.set(id, { type: command.type, resolve, reject, timer });
+        pending.set(id, { budget, resolve, reject, timer });
 
         // A failed transfer must release its slot and timer immediately, not at timeout.
         try {
