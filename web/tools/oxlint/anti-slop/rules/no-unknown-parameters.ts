@@ -1,19 +1,11 @@
 import { defineRule } from "@oxlint/plugins";
-import type { ESTree } from "@oxlint/plugins";
 
 import {
   containsUnknownType,
   functionParameterBindingName,
   functionParameterTypeAnnotation,
+  type ParameterOwner,
 } from "../shared/function-parameters.ts";
-type ParameterOwner =
-  | ESTree.ArrowFunctionExpression
-  | ESTree.Function
-  | ESTree.TSCallSignatureDeclaration
-  | ESTree.TSConstructSignatureDeclaration
-  | ESTree.TSConstructorType
-  | ESTree.TSFunctionType
-  | ESTree.TSMethodSignature;
 
 function isTypePredicateSubject(owner: ParameterOwner, parameterName: string): boolean {
   const predicate = owner.returnType?.typeAnnotation;

@@ -221,7 +221,7 @@ async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> t
     # Load infrastructure and the failure state needed to select the effective release, not its environments.
     statement = (
         _infrastructure_query()
-        .add_columns(Solution)
+        .with_only_columns(Solution, Organization, ComputeRegistry)
         .join_from(Organization, Solution, col(Solution.organization_id) == col(Organization.id))
         .options(
             load_only(
@@ -237,11 +237,7 @@ async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> t
         .where(col(Solution.id) == solution_id)
     )
     result = await session.execute(statement)
-    row = result.tuples().one_or_none()
-    if row is None:
-        return None
-    organization, compute, solution = row
-    return solution, organization, compute
+    return result.tuples().one_or_none()
 
 
 async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[Organization], int]:

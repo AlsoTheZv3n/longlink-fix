@@ -95,17 +95,15 @@ async def identity(provider: OAuthProvider, code: str, verifier: str) -> OAuthId
                 "code": code,
                 "code_verifier": verifier,
                 "redirect_uri": redirect_uri(provider),
+                "client_id": env.GOOGLE_OAUTH_CLIENT_ID if provider == "google" else env.GITHUB_OAUTH_CLIENT_ID,
+                "client_secret": env.GOOGLE_OAUTH_CLIENT_SECRET if provider == "google" else env.GITHUB_OAUTH_CLIENT_SECRET,
             }
             headers: dict[str, str] = {}
             if provider == "google":
                 token_url = GOOGLE_TOKEN_URL
-                data["client_id"] = env.GOOGLE_OAUTH_CLIENT_ID
-                data["client_secret"] = env.GOOGLE_OAUTH_CLIENT_SECRET
                 data["grant_type"] = "authorization_code"
             else:
                 token_url = GITHUB_TOKEN_URL
-                data["client_id"] = env.GITHUB_OAUTH_CLIENT_ID
-                data["client_secret"] = env.GITHUB_OAUTH_CLIENT_SECRET
                 headers["Accept"] = "application/json"
 
             # Exchange the code and validate the provider response.
