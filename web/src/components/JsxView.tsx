@@ -95,7 +95,7 @@ export function JsxView({
         const controller = new AbortController();
         const channel = new MessageChannel();
         const session = crypto.randomUUID();
-        const pending = new Map<number, 'icon' | 'request' | 'download'>();
+        const pending = new Map<number, 'icon' | 'operation'>();
         let handshakeTimer: ReturnType<typeof setTimeout> | undefined;
 
         /** Revokes the attempt's capabilities and startup deadline on failure or unmount. */
@@ -179,10 +179,10 @@ export function JsxView({
             if (pending.has(command.id)) return;
 
             // Bound icons independently so on-demand glyphs cannot starve Solution operations.
-            const iconRequest = command.type === 'icon';
-            const count = [...pending.values()].filter((type) => (type === 'icon') === iconRequest).length;
+            const budget = command.type === 'icon' ? 'icon' : 'operation';
+            const count = [...pending.values()].filter((entry) => entry === budget).length;
 
-            if (count >= (iconRequest ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS)) {
+            if (count >= (budget === 'icon' ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS)) {
                 channel.port1.postMessage({
                     id: command.id,
                     ok: false,
@@ -193,7 +193,7 @@ export function JsxView({
                 return;
             }
 
-            pending.set(command.id, command.type);
+            pending.set(command.id, budget);
 
             // The frame chooses a catalog icon or Solution-relative operation, never URLs or fetch options.
             try {

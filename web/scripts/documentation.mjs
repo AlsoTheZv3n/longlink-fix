@@ -45,8 +45,6 @@ if (!bindings) throw new Error('Missing runtime component bindings: src/views/co
 
 const editor = ts.createSourceFile(input, source, ts.ScriptTarget.Latest, true);
 const replacements = [];
-const introductions = new Map();
-const propertyDefaults = new Map();
 const componentMetadata = new Map();
 const componentDeclarations = [];
 const runtimeChecker = runtimeProgram.getTypeChecker();
@@ -114,12 +112,10 @@ for (const binding of bindings.statements) {
         const aliases = new Map(
             wrapper.statements.filter(ts.isTypeAliasDeclaration).map((alias) => [alias.name.text, alias.type]),
         );
-        componentMetadata.set(name, { category, group: group?.trim() });
         const description = implementation.jsDoc
             ?.map((comment) => comment.comment)
             .filter((comment) => typeof comment === 'string')
             .join(' ');
-        if (description) introductions.set(name, description);
         const parameter = implementation.parameters[0];
 
         // Read defaults from the wrapper rather than maintaining a separate documentation configuration.
@@ -159,7 +155,9 @@ for (const binding of bindings.statements) {
             ts.forEachChild(node, readDefaults);
         }
         readDefaults(implementation);
-        propertyDefaults.set(name, defaults);
+
+        // Keep each export's documentation metadata and defaults in one registry.
+        componentMetadata.set(name, { category, group: group?.trim(), introduction: description || undefined, defaults });
 
         let props = parameter?.type;
         if (props && ts.isTypeReferenceNode(props) && aliases.has(props.typeName.getText(wrapper)))
@@ -347,7 +345,7 @@ for (const statement of document.statements) {
             name,
             type: [...property.types].map((type) => (property.types.size > 1 ? `(${type})` : type)).join(' | '),
             required: property.required && property.variants === variants.length,
-            default: propertyDefaults.get(declaration.name.getText(document))?.get(name),
+            default: componentMetadata.get(declaration.name.getText(document))?.defaults.get(name),
             description: property.description || undefined,
         })),
     );
@@ -479,7 +477,11 @@ for (const entry of components) {
     }
 
     entry.introduction =
-        introductions.get(entry.name) ?? detail.usage?.description ?? detail.description ?? usage?.description ?? '';
+        componentMetadata.get(entry.name)?.introduction ??
+        detail.usage?.description ??
+        detail.description ??
+        usage?.description ??
+        '';
 }
 
 // Keep inline default labels out of descriptions when a separate default is documented.

@@ -1,6 +1,7 @@
 import * as host from '@/views/host';
 import ViewLayout from './ViewLayout';
-import { FileViewer, FileRequestContext } from '@/components/ui/FileViewer';
+import { FileViewer } from '@/components/ui/FileViewer';
+import { FileRequestContext } from '@/components/ui/preview';
 
 /** Documents image previews and attachment downloads through the scoped Solution API. */
 export default function FileViewerPage() {
