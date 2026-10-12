@@ -3,7 +3,6 @@ import pytest
 import sqlite3
 from pathlib import Path
 from contextlib import chdir, closing
-from typer.testing import CliRunner
 from longlink.cli.main import main
 from longlink.database import migrations as database_migrations
 
@@ -11,16 +10,12 @@ from longlink.database import migrations as database_migrations
 def test_init_copies_github_project_scaffold_with_custom_name(tmp_path: Path) -> None:
     """Copy the project scaffold with requested GitHub workflows and package name."""
 
-    # Arrange
-    runner = CliRunner()
-
     with chdir(tmp_path):
         # Act
-        result = runner.invoke(main, ["init", "--folder", "sample-solution", "--ci", "github", "--name", "sample"])
+        main(["init", "--folder", "sample-solution", "--ci", "github", "--name", "sample"])
 
         # Assert
         target = Path.cwd() / "sample-solution"
-        assert result.exit_code == 0
         for path in [
             "src/models",
             "src/views",
@@ -42,40 +37,38 @@ def test_init_copies_github_project_scaffold_with_custom_name(tmp_path: Path) ->
         assert "*.db\n" in (target / ".gitignore").read_text(encoding="utf-8")
 
 
-def test_init_refuses_conflicting_folder(tmp_path: Path) -> None:
+def test_init_refuses_conflicting_folder(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Avoid replacing existing scaffold files in a project folder."""
 
     # Arrange
-    runner = CliRunner()
-
     target = tmp_path / "sample-solution"
     target.mkdir()
     (target / "pyproject.toml").write_text("existing project", encoding="utf-8")
 
     # Act
-    result = runner.invoke(main, ["init", "--folder", str(target)])
+    with pytest.raises(SystemExit) as failure:
+        main(["init", "--folder", str(target)])
 
     # Assert
-    assert result.exit_code == 1
-    assert "Target already exists" in result.output
+    assert failure.value.code == 1
+    assert "Target already exists" in capsys.readouterr().err
     assert (target / "pyproject.toml").read_text(encoding="utf-8") == "existing project"
     assert not (target / "main.py").exists()
 
 
-def test_init_rejects_invalid_project_name_without_creating_folder(tmp_path: Path) -> None:
+def test_init_rejects_invalid_project_name_without_creating_folder(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Reject invalid project metadata before creating the requested scaffold."""
 
     # Arrange
-    runner = CliRunner()
-
     target = tmp_path / "sample-solution"
 
     # Act
-    result = runner.invoke(main, ["init", "--folder", str(target), "--name", "../invalid"])
+    with pytest.raises(SystemExit) as failure:
+        main(["init", "--folder", str(target), "--name", "../invalid"])
 
     # Assert
-    assert result.exit_code == 1
-    assert "Invalid project name: ../invalid" in result.output
+    assert failure.value.code == 1
+    assert "Invalid project name: ../invalid" in capsys.readouterr().err
     assert not target.exists()
 
 
@@ -85,12 +78,10 @@ def test_initialized_project_applies_bundled_migration_through_deployment_entryp
     """Apply a generated project's initial migration through the deployment entrypoint."""
 
     # Arrange
-    runner = CliRunner()
     monkeypatch.setenv("LONGLINK_ENV", "development")
 
     with chdir(tmp_path):
-        result = runner.invoke(main, ["init", "--folder", "sample-solution"])
-        assert result.exit_code == 0
+        main(["init", "--folder", "sample-solution"])
         target = Path.cwd() / "sample-solution"
 
         # Default initialization uses the folder name and omits provider-specific automation.

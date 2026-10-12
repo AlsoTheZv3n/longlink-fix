@@ -5,7 +5,6 @@ import sqlite3
 from pathlib import Path
 from contextlib import closing
 from longlink.cli import dev
-from typer.testing import CliRunner
 from longlink.cli.main import main
 
 
@@ -52,12 +51,11 @@ def test_dev_command_warns_only_for_public_hosts(
     # Act
     dev.logger.addHandler(caplog.handler)
     try:
-        result = CliRunner().invoke(main, ["dev", "--host", host])
+        main(["dev", "--host", host])
     finally:
         dev.logger.removeHandler(caplog.handler)
 
     # Assert
-    assert result.exit_code == 0
     assert (tmp_path / "frontend.d.ts").read_bytes() == (dev.ROOT / ".static" / "jsx" / "frontend.d.ts").read_bytes()
     assert [(record.msg, record.args) for record in caplog.records if record.levelno == logging.WARNING] == expected_warnings
     assert calls == [
@@ -102,8 +100,7 @@ def test_dev_command_applies_migrations_and_refreshes_declarations_before_servin
     monkeypatch.setattr(dev.uvicorn, "run", run)
 
     # Act
-    result = CliRunner().invoke(main, ["dev", "--host", "0.0.0.0"])
+    main(["dev", "--host", "0.0.0.0"])
 
     # Assert
-    assert result.exit_code == 0
     assert applications == ["main:app"]

@@ -1,53 +1,52 @@
-from typer.testing import CliRunner
+import pytest
 from longlink.cli.main import main
 
 
-def test_docs_command_lists_documented_component_categories() -> None:
+def test_docs_command_lists_documented_component_categories(capsys: pytest.CaptureFixture[str]) -> None:
     """Expose JSX components and scoped runtime capabilities through the public CLI."""
 
     # Act
-    result = CliRunner().invoke(main, ["docs"])
+    main(["docs"])
 
     # Assert
-    assert result.exit_code == 0
-    assert "LongLink JSX View components" in result.output
-    assert "\nRuntime\n" in result.output
-    assert "\nAction\n" in result.output
-    assert "\nDisplay\n" in result.output
-    assert "\nForm\n" in result.output
-    assert "\nLayouts\n" in result.output
-    assert "React state and controlled callbacks" in result.output
-    assert "- Hooks" in result.output
-    assert "- useState" not in result.output
-    assert "- Functions" in result.output
-    assert "- navigate" not in result.output
-    assert "- request" not in result.output
-    assert "- useApi" not in result.output
-    assert "- Button" in result.output
+    output = capsys.readouterr().out
+    assert "LongLink JSX View components" in output
+    assert "longlink docs group Runtime" in output
+    assert "longlink docs group Action" in output
+    assert "longlink docs group Display" in output
+    assert "longlink docs group Form" in output
+    assert "longlink docs group Layouts" in output
+    assert "React state and controlled callbacks" in output
+    assert "longlink docs search" in output
+    assert "longlink docs build" in output
+    assert "longlink docs component" in output
 
 
-def test_docs_command_resolves_a_component_name_case_insensitively() -> None:
+def test_docs_command_resolves_a_component_name_case_insensitively(capsys: pytest.CaptureFixture[str]) -> None:
     """Show component documentation from a lower-case component name."""
 
     # Act
-    result = CliRunner().invoke(main, ["docs", "--component", "button"])
+    main(["docs", "component", "button"])
 
     # Assert
-    assert result.exit_code == 0
-    assert "Button [Action]" in result.output
-    assert "- label (string):\n  Visible button text and accessible label." in result.output
-    assert '- variant ("primary" | "secondary" | "ghost" | "destructive"):\n  Visual style variant.' in result.output
-    assert "undefined" not in result.output
-    assert "onClick" in result.output
-    assert "Example" not in result.output
+    output = capsys.readouterr().out
+    assert "Button [Action]" in output
+    assert "- label (string):\n  Visible button text and accessible label." in output
+    assert '- variant ("primary" | "secondary" | "ghost" | "destructive"):\n  Visual style variant.' in output
+    assert "undefined" not in output
+    assert "onClick" in output
+    assert "Example" not in output
 
 
-def test_docs_command_reports_an_unknown_component_without_a_traceback() -> None:
+def test_docs_command_reports_an_unknown_component_without_a_traceback(capsys: pytest.CaptureFixture[str]) -> None:
     """Return the CLI error contract for unknown component names."""
 
     # Act
-    result = CliRunner().invoke(main, ["docs", "--component", "unknown-component"])
+    with pytest.raises(SystemExit) as failure:
+        main(["docs", "component", "unknown-component"])
 
     # Assert
-    assert result.exit_code == 1
-    assert result.output == "Error: Unknown component: unknown-component. Run `longlink docs` to list available components.\n"
+    assert failure.value.code == 1
+    assert capsys.readouterr().err == (
+        'Error: Unknown component: unknown-component. Run `longlink docs search "unknown-component"` to find available APIs.\n'
+    )

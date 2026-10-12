@@ -9,6 +9,8 @@ const schema = z.array(
         name: z.string(),
         category: z.string(),
         introduction: z.string(),
+        keywords: z.array(z.string()).optional(),
+        guidance: z.string().optional(),
         properties: z
             .array(
                 z.object({

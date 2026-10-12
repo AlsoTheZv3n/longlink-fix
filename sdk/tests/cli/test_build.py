@@ -2,13 +2,11 @@ import os
 import sys
 import json
 import shlex
-import typer
 import pytest
 import subprocess
 from pathlib import Path
 from contextlib import chdir
-from longlink.cli import build
-from typer.testing import CliRunner
+from longlink.cli import build, errors
 from collections.abc import Callable
 from longlink.cli.main import main
 
@@ -80,37 +78,36 @@ def docker_commands(monkeypatch: pytest.MonkeyPatch) -> Callable[[tuple[str, int
     return configure
 
 
-def test_build_reports_missing_project_file_before_docker(tmp_path: Path) -> None:
+def test_build_reports_missing_project_file_before_docker(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Report a missing project file instead of blaming the Docker CLI."""
-
-    # Arrange
-    runner = CliRunner()
 
     with chdir(tmp_path):
         # Act
-        result = runner.invoke(main, ["build"])
+        with pytest.raises(SystemExit) as failure:
+            main(["build"])
 
         # Assert
-        assert result.exit_code == 1
-        assert f"Project file not found: {Path.cwd() / 'pyproject.toml'}" in result.output
-        assert "Docker is required" not in result.output
+        assert failure.value.code == 1
+        output = capsys.readouterr().err
+        assert f"Project file not found: {Path.cwd() / 'pyproject.toml'}" in output
+        assert "Docker is required" not in output
 
 
 @pytest.mark.usefixtures("chdir_project")
-def test_build_reports_missing_docker_after_validating_project(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_reports_missing_docker_after_validating_project(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """Require Docker after validating project metadata but before preparing the context."""
 
     # Arrange
-    runner = CliRunner()
     monkeypatch.setattr(build.shutil, "which", lambda _command: None)
     monkeypatch.setattr(build.subprocess, "run", lambda *_args, **_kwargs: pytest.fail("Docker must not run when unavailable"))
 
     # Act
-    result = runner.invoke(main, ["build"])
+    with pytest.raises(SystemExit) as failure:
+        main(["build"])
 
     # Assert
-    assert result.exit_code == 1
-    assert "Docker is required to build images" in result.output
+    assert failure.value.code == 1
+    assert "Docker is required to build images" in capsys.readouterr().err
 
 
 def test_read_pyproject_rejects_invalid_toml(tmp_path: Path) -> None:
@@ -120,7 +117,7 @@ def test_read_pyproject_rejects_invalid_toml(tmp_path: Path) -> None:
     tmp_path.joinpath("pyproject.toml").write_text("[project\nname = 'demo'", encoding="utf-8")
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match="Invalid project file"):
+    with pytest.raises(errors.Error, match="Invalid project file"):
         build.read_pyproject(tmp_path)
 
 
@@ -221,7 +218,7 @@ def test_read_env_spec_rejects_invalid_environment_model_configuration(
         path.write_text(module_source, encoding="utf-8")
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.read_env_spec(tmp_path, build.read_pyproject(tmp_path))
 
 
@@ -255,7 +252,7 @@ def test_read_env_spec_isolates_solution_state_and_preserves_output(
 
     # Act
     if fails:
-        with pytest.raises(typer.TyperException, match="Unable to import environment model longlink.envs:Env: import failed"):
+        with pytest.raises(errors.Error, match="Unable to import environment model longlink.envs:Env: import failed"):
             build.read_env_spec(tmp_path, config)
     else:
         metadata = build.read_env_spec(tmp_path, config)
@@ -306,7 +303,7 @@ def test_read_env_spec_rejects_malformed_child_response(build_project: Path, mon
     config = build.read_pyproject(build_project)
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match="invalid child response"):
+    with pytest.raises(errors.Error, match="invalid child response"):
         build.read_env_spec(build_project, config)
 
 
@@ -378,6 +375,7 @@ def test_build_solution_generates_docker_artifacts_from_project_metadata(
 def test_build_rejects_invalid_project_metadata_before_generating_artifacts(
     chdir_project: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     project_data: str,
     message: str,
 ) -> None:
@@ -385,18 +383,18 @@ def test_build_rejects_invalid_project_metadata_before_generating_artifacts(
 
     # Arrange
     chdir_project.joinpath("pyproject.toml").write_text(project_data, encoding="utf-8")
-    runner = CliRunner()
     monkeypatch.setattr(build.shutil, "which", lambda _command: pytest.fail("Project validation must precede Docker discovery"))
     monkeypatch.setattr(
         build.tempfile, "TemporaryDirectory", lambda **_kwargs: pytest.fail("Invalid project metadata must not create build artifacts")
     )
 
     # Act
-    result = runner.invoke(main, ["build"])
+    with pytest.raises(SystemExit) as failure:
+        main(["build"])
 
     # Assert
-    assert result.exit_code == 1
-    assert message in result.output
+    assert failure.value.code == 1
+    assert message in capsys.readouterr().err
 
 
 def test_build_solution_filters_symlinks_by_resolved_target(chdir_project: Path) -> None:
@@ -536,7 +534,7 @@ def test_resolve_docker_paths_rejects_local_dependencies_outside_workspace(
     )
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=error):
+    with pytest.raises(errors.Error, match=error):
         build.resolve_docker_paths(build_project, build.read_pyproject(build_project))
 
 
@@ -677,7 +675,7 @@ def test_build_solution_requires_workspace_lockfile(build_project: Path) -> None
     context = workspace / "context"
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match="Lockfile not found"):
+    with pytest.raises(errors.Error, match="Lockfile not found"):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.exists()
 
@@ -702,7 +700,7 @@ def test_build_solution_rechecks_lockfile_after_model_import(build_project: Path
     message = "inside the UV workspace" if target_kind == "outside" else "must not reference an ignored path"
 
     # Reject the changed lockfile after inspection and before the explicit metadata copy.
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.joinpath("uv.lock").exists()
 
@@ -732,7 +730,7 @@ def test_build_solution_rejects_unsafe_workspace_paths(build_project: Path, dire
     context = workspace / "context"
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=f"must not contain {message}"):
+    with pytest.raises(errors.Error, match=f"must not contain {message}"):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.exists()
 
@@ -755,7 +753,7 @@ def test_build_solution_rejects_unsafe_metadata_symlinks(build_project: Path, fi
     message = "inside the UV workspace" if target_kind == "outside" else "must not reference an ignored path"
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.joinpath(filename).exists()
 
@@ -822,7 +820,7 @@ def test_resolve_image_tag_rejects_invalid_image_references(
 ) -> None:
     """Reject image reference values outside the supported Docker boundary."""
 
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.resolve_image_tag(solution_name, version, registry)
 
 
@@ -840,6 +838,7 @@ def test_resolve_image_tag_rejects_invalid_image_references(
 @pytest.mark.usefixtures("chdir_project")
 def test_build_command_reports_built_image(
     docker_commands: Callable[[tuple[str, int] | None], list[list[str]]],
+    capsys: pytest.CaptureFixture[str],
     arguments: list[str],
     expected_commands: list[list[str]],
 ) -> None:
@@ -847,13 +846,11 @@ def test_build_command_reports_built_image(
 
     # Arrange
     commands = docker_commands(None)
-    runner = CliRunner()
 
     # Act
-    result = runner.invoke(main, ["build", "--tag", "dev", "--registry", "localhost:15000", *arguments])
+    main(["build", "--tag", "dev", "--registry", "localhost:15000", *arguments])
 
     # Assert
-    assert result.exit_code == 0
     temporary_context = Path(commands[0][-1])
     assert commands == [
         [
@@ -869,8 +866,9 @@ def test_build_command_reports_built_image(
         ],
         *expected_commands,
     ]
-    assert "- Built image: localhost:15000/demo:dev" in result.output
-    assert ("- Pushed image: localhost:15000/demo:dev" in result.output) is bool(expected_commands)
+    output = capsys.readouterr().out
+    assert "- Built image: localhost:15000/demo:dev" in output
+    assert ("- Pushed image: localhost:15000/demo:dev" in output) is bool(expected_commands)
     assert not temporary_context.exists()
 
 
@@ -884,6 +882,7 @@ def test_build_command_reports_built_image(
 @pytest.mark.usefixtures("chdir_project")
 def test_build_command_reports_docker_failure(
     docker_commands: Callable[[tuple[str, int] | None], list[list[str]]],
+    capsys: pytest.CaptureFixture[str],
     failed_command: str,
     exit_code: int,
     expected_commands: list[str],
@@ -892,13 +891,13 @@ def test_build_command_reports_docker_failure(
 
     # Arrange
     commands = docker_commands((failed_command, exit_code))
-    runner = CliRunner()
 
     # Act
-    result = runner.invoke(main, ["build", "--push"])
+    with pytest.raises(SystemExit) as failure:
+        main(["build", "--push"])
 
     # Assert
-    assert result.exit_code == 1
-    assert f"Docker command failed with exit code {exit_code}" in result.output
+    assert failure.value.code == 1
+    assert f"Docker command failed with exit code {exit_code}" in capsys.readouterr().err
     assert [command[1] for command in commands] == expected_commands
     assert not Path(commands[0][-1]).exists()

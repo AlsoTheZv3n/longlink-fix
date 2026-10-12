@@ -102,7 +102,7 @@ export default function ViewLayout({
                     <Text as="p">This is a LongLink-specific component.</Text>
                 )}
                 <CodeBlock
-                    code={`longlink docs --component "${name}"`}
+                    code={`longlink docs component "${name}"`}
                     language="bash"
                     hasLanguageLabel={false}
                     isWrapped

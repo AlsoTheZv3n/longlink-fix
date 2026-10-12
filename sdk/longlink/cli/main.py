@@ -1,34 +1,34 @@
-import typer
-from functools import wraps
-from collections.abc import Callable
-from longlink.cli.dev import dev_command
-from longlink.cli.docs import docs_command
-from longlink.cli.init import init_command
-from longlink.cli.build import build_command
-from longlink.cli.migrate import migrate_command
+import sys
+import cyclopts
+from longlink.cli import dev, docs, init, build, errors, migrate
+from collections.abc import Sequence
+
+# Register typed commands directly, keeping error ownership at the entrypoint.
+app = cyclopts.App(name="longlink", help="LongLink command line interface.", version_flags=())
+app.command(build.build_command, name="build")
+app.command(dev.dev_command, name="dev")
+app.command(init.init_command, name="init")
+app.command(migrate.migrate_command, name="migrate")
+
+# A default docs command displays the playbook without a framework context parameter.
+documentation = cyclopts.App(name="docs", help="Discover LongLink View APIs and implementation guidance.")
+documentation.default(docs.docs_command)
+documentation.command(docs.component_command, name="component")
+documentation.command(docs.group_command, name="group")
+documentation.command(docs.search_command, name="search")
+documentation.command(docs.build_command, name="build")
+app.command(documentation)
 
 
-def handle_errors[**Parameters](command: Callable[Parameters, None]) -> Callable[Parameters, None]:
-    """Render existing CLI validation errors through the Typer entrypoint."""
+def main(tokens: Sequence[str] | None = None) -> None:
+    """Run the CLI and render expected command failures at a single boundary."""
 
-    @wraps(command)
-    def wrapped(*args: Parameters.args, **kwargs: Parameters.kwargs) -> None:
-        """Convert a domain CLI error into a clean process exit."""
-
-        # Preserve the established error text and exit code at the CLI boundary.
-        try:
-            command(*args, **kwargs)
-        except typer.TyperException as error:
-            typer.echo(f"Error: {error}", err=True)
-            raise typer.Exit(code=1) from error
-
-    return wrapped
-
-
-# Register each typed command on the public CLI application.
-main = typer.Typer(help="LongLink command line interface.")
-main.command(name="build")(handle_errors(build_command))
-main.command(name="dev")(handle_errors(dev_command))
-main.command(name="docs")(handle_errors(docs_command))
-main.command(name="init")(handle_errors(init_command))
-main.command(name="migrate")(handle_errors(migrate_command))
+    # Keep framework parsing errors separate from expected command and prompt failures.
+    try:
+        app(tokens, result_action="return_value")
+    except errors.Error as error:
+        print(f"Error: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+    except (EOFError, KeyboardInterrupt) as error:
+        print("Aborted!", file=sys.stderr)
+        raise SystemExit(1) from error

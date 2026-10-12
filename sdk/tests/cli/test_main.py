@@ -1,16 +1,16 @@
-from typer.testing import CliRunner
+import pytest
 from longlink.cli.main import main
 
 
-def test_cli_help_lists_all_supported_commands() -> None:
+def test_cli_help_lists_all_supported_commands(capsys: pytest.CaptureFixture[str]) -> None:
     """Expose every supported SDK command through the public entrypoint."""
 
     # Act
-    result = CliRunner().invoke(main, ["--help"])
+    main(["--help"])
 
     # Assert
-    assert result.exit_code == 0
-    assert "build" in result.output
-    assert "dev" in result.output
-    assert "init" in result.output
-    assert "migrate" in result.output
+    output = capsys.readouterr().out
+    assert "build" in output
+    assert "dev" in output
+    assert "init" in output
+    assert "migrate" in output

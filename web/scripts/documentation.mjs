@@ -1,5 +1,6 @@
 import path from 'node:path';
 import ts from 'typescript';
+import { z } from 'zod';
 import * as yaml from 'yaml';
 import * as prettier from 'prettier';
 import * as astryx from '@astryxdesign/cli/api';
@@ -9,6 +10,30 @@ import { documentationCategories } from '../src/lib/documentation.ts';
 const root = path.resolve(import.meta.dirname, '..');
 const input = path.resolve(root, '../sdk/longlink/.static/jsx/frontend.d.ts');
 let source = await readFile(input, 'utf8');
+
+// Keep authored discovery intent beside the packaged catalog, independent of upstream UI APIs.
+const discovery = z
+    .object({
+        groups: z.record(z.string(), z.string().trim().min(1)),
+        components: z.record(
+            z.string(),
+            z.object({
+                keywords: z.array(z.string().trim().min(1)),
+                guidance: z.string().trim().min(1).optional(),
+                introduction: z.string().trim().min(1).optional(),
+            })
+        ),
+        patterns: z.array(
+            z.object({
+                name: z.string().trim().min(1),
+                description: z.string().trim().min(1),
+                keywords: z.array(z.string().trim().min(1)).min(1),
+                components: z.array(z.string().trim().min(1)).min(1),
+                steps: z.array(z.string().trim().min(1)).min(1),
+            })
+        ),
+    })
+    .parse(yaml.parse(await readFile(path.resolve(root, '../sdk/longlink/.static/jsx/discovery.yml'), 'utf8')));
 
 // Resolve exported signatures, including re-exported helpers, from the runtime's TypeScript program.
 const runtimeConfig = ts.readConfigFile(path.join(root, 'tsconfig.app.json'), ts.sys.readFile);
@@ -506,10 +531,25 @@ function nativeDefault(value) {
     return readLiteral(statement.expression, value);
 }
 
-// Publish one YAML catalog for both the CLI and website.
+// Validate authored discovery references against the actual public runtime surface.
+const componentNames = new Set(components.map((component) => component.name));
+for (const name of Object.keys(discovery.components)) {
+    if (!componentNames.has(name)) throw new Error(`Unknown discovery component: ${name}`);
+}
+for (const category of documentationCategories) {
+    if (!discovery.groups[category]) throw new Error(`Missing discovery group: ${category}`);
+}
+for (const pattern of discovery.patterns) {
+    for (const name of pattern.components) {
+        if (!componentNames.has(name)) throw new Error(`Unknown component in discovery pattern ${pattern.name}: ${name}`);
+    }
+}
+
+// Publish one enriched YAML catalog for both the CLI and website.
 const catalog = components.map(({ properties, ...component }) => ({
     ...component,
     introduction: component.introduction ?? '',
+    ...discovery.components[component.name],
     ...(properties
         ? {
               properties: properties.map(({ name, type, description, default: defaultValue }) => ({

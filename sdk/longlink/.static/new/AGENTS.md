@@ -48,8 +48,9 @@ You are working on a LongLink Solution project.
 
 ### Component discovery
 
-- Before writing a View, DO discover available components with `uv run longlink docs` or `uv run longlink docs --category <name>`.
-- DO inspect each group's props or runtime members with `uv run longlink docs --component <name>`.
+- Before writing a View, DO discover available components with `uv run longlink docs`, `uv run longlink docs group <name>`, or `uv run longlink docs search "<query>"`.
+- DO use `uv run longlink docs build "<idea>"` for implementation guidance and relevant APIs; it does not generate code or templates.
+- DO inspect each component's props or runtime members with `uv run longlink docs component <name>`.
 - DO use only LongLink-defined components exposed by the View runtime. DON'T import Astryx or other UI libraries directly into Views.
 - DON'T invent components or props. Consult the View documentation when an API is uncertain.
 
@@ -87,7 +88,7 @@ You are working on a LongLink Solution project.
 ### Final review
 
 - Before completing a View, DO reread each changed View file and replace raw HTML, custom styling, and undocumented props with supported LongLink components and props.
-- When a component or prop is uncertain, DO consult `uv run longlink docs --component <name>`. DON'T bypass discovery with custom HTML or CSS.
+- When a component or prop is uncertain, DO consult `uv run longlink docs component <name>`. DON'T bypass discovery with custom HTML or CSS.
 - DO remove unnecessary containers, repeated explanatory text, and abstractions that do not make the View clearer.
 
 ## Python Guidelines
