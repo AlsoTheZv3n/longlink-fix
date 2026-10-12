@@ -1,4 +1,4 @@
-.PHONY: install apt check format build test up image down api tunnel web sdk seed main
+.PHONY: install apt check format build test up image down clear api tunnel web sdk seed main
 
 # Keep user-installed development tools available across separate make invocations.
 export PATH := $(HOME)/.vite-plus/bin:$(HOME)/.local/bin:$(PATH)
@@ -133,6 +133,15 @@ down:
 	# Reap volumes orphaned by removed containers and superseded image layers.
 	@docker volume ls -qf dangling=true | xargs -r docker volume rm
 	docker image prune -f
+
+
+# Reset local development state without changing tracked files or unrelated Docker resources.
+clear:
+	@if k3d cluster list compute >/dev/null 2>&1; then k3d cluster delete compute; fi
+	@if k3d registry list longlink-registry >/dev/null 2>&1; then k3d registry delete longlink-registry; fi
+	docker compose -f dev/compose.yml down --volumes --remove-orphans
+	# Delete all ignored files, including environments, databases, dependencies, and local secrets.
+	git clean -fdX
 
 
 # Prepare and run the local LongLink Platform API server.
