@@ -9,6 +9,7 @@ import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Seo } from '@/platform/components/Seo';
+import { Wordmark } from '@/components/Wordmark';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { useForm, useWatch } from 'react-hook-form';
@@ -83,12 +84,20 @@ export default function Login() {
     }
 
     return (
-        <AuthLayout title="Sign in to LongLink" description="Access your organizations and manage your Solutions.">
+        <AuthLayout
+            title={
+                <Text display="block" justify="center" size="2xl" textWrap="nowrap" type="inherit">
+                    Welcome to <Wordmark size="inherit" />
+                </Text>
+            }
+            description={null}
+        >
             <Seo
                 title="Sign In | LongLink"
                 description="Sign in to LongLink to access your organizations and build, deploy, and manage your business process Solutions."
             />
             <Stack gap={4}>
+                <Divider />
                 <Stack gap={2}>
                     {availableOAuthProviders.length > 0 ? (
                         <Stack gap={2}>
