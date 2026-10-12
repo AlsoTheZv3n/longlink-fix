@@ -344,6 +344,44 @@
       description: Wrap long lines instead of enabling horizontal scroll.
       default: false
 
+    - name: hasLineNumbers
+      type: boolean
+      description: Show a line number gutter.
+      default: false
+
+    - name: highlightLines
+      type: number[]
+      description: 1-indexed line numbers to highlight.
+
+    - name: hasCopyButton
+      type: boolean
+      description: Show a copy-to-clipboard button.
+      default: true
+
+    - name: maxHeight
+      type: string | number
+      description: Max height before the block scrolls vertically.
+
+    - name: size
+      type: '"sm" | "md"'
+      description: Text size variant.
+      default: md
+
+    - name: isCollapsible
+      type: boolean
+      description: Allow collapsing the code body into just the header bar. Starts
+        expanded; a visible header becomes clickable when the code exceeds
+        collapsibleThreshold lines. Headerless blocks never collapse, and
+        removing the header expands a previously collapsed block.
+      default: false
+
+    - name: collapsibleThreshold
+      type: number
+      description: Minimum number of lines before the collapse toggle appears. Below
+        this threshold the code block renders normally even when isCollapsible
+        is true.
+      default: 10
+
 
 - name: Collapsible
   category: Layouts
@@ -836,6 +874,42 @@
       description: Spacing between all items.
       default: 3
 
+    - name: rowGap
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+      description: Row spacing; overrides `gap` for the row axis.
+
+    - name: columnGap
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+      description: Column spacing; overrides `gap` for the column axis.
+
+    - name: align
+      type: '"start" | "center" | "end" | "stretch"'
+      description: Vertical alignment of items.
+      default: stretch
+
+    - name: justify
+      type: '"start" | "center" | "end" | "stretch"'
+      description: Horizontal alignment of items.
+      default: stretch
+
+    - name: width
+      type: string | number
+      description: Container width. Numbers are treated as pixels, strings are used as-is.
+
+    - name: height
+      type: string | number
+      description: Container height. Numbers are treated as pixels, strings are used as-is.
+
+    - name: maxWidth
+      type: string | number
+      description: Maximum container width. Numbers are treated as pixels, strings are
+        used as-is.
+
+    - name: minHeight
+      type: string | number
+      description: Minimum container height. Numbers are treated as pixels, strings
+        are used as-is.
+
     - name: GridSpan.hidden
       type: boolean
       description: Hides the component without unmounting it.
@@ -1211,7 +1285,7 @@
 
 - name: MetadataList
   category: Display
-  introduction: Lists labeled values without configurable truncation or label geometry.
+  introduction: Lists labeled values with optional truncation and label placement.
   properties:
     - name: hidden
       type: boolean
@@ -1229,6 +1303,23 @@
     - name: title
       type: ReactNode
       description: Optional title or heading above the list.
+
+    - name: label
+      type: '{ position: "start" | "top"; width?: string | number; }'
+      description: "Label display configuration. position controls label placement,
+        width sets a custom label column width. Defaults to { position: 'top' }
+        for multi-column layouts."
+      default: "{ position: 'start' } (single-column) / { position: 'top' }
+        (multi-column)"
+
+    - name: maxNumOfItems
+      type: number
+      description: Maximum items to show before collapsing with a show more/less toggle.
+
+    - name: orientation
+      type: '"horizontal" | "vertical"'
+      description: Layout orientation. Horizontal mode flows items in a row with flex-wrap.
+      default: vertical
 
     - name: MetadataListItem.hidden
       type: boolean
@@ -1467,7 +1558,7 @@
 
 - name: ProgressBar
   category: Display
-  introduction: Displays determinate progress with a semantic state.
+  introduction: Displays determinate or indeterminate progress with a semantic state.
   properties:
     - name: hidden
       type: boolean
@@ -1496,6 +1587,34 @@
       type: '"accent" | "success" | "error" | "warning" | "neutral"'
       description: Semantic color variant.
       default: accent
+
+    - name: marks
+      type: "readonly { value: number; label: string; }[]"
+      description: "Fixed target marks drawn on the track at values in the same 0..max
+        scale as value (e.g. a goal line). They stay visible whether progress is
+        below or past them, and take their color from what they sit on: a mark
+        inside the filled area uses the fill variant's on-color (on-accent,
+        on-warning, on-error, and so on), a mark still out on the bare track
+        uses the primary text color (the secondary one on a disabled bar, which
+        dims everything it draws). Each mark requires a label: it is the mark's
+        accessible name and the text revealed via a tooltip on hover/focus.
+        Ignored when indeterminate."
+
+    - name: isDisabled
+      type: boolean
+      description: "Visually disabled state: grays out the fill and text. Use for
+        canceled or inactive operations."
+      default: false
+
+    - name: isLabelHidden
+      type: boolean
+      description: Visually hide the label (remains accessible).
+      default: false
+
+    - name: isIndeterminate
+      type: boolean
+      description: Animated loading indicator for unknown progress.
+      default: false
 
 
 - name: RadioList
@@ -1820,27 +1939,6 @@
       type: '"start" | "center" | "end" | "stretch"'
       description: Overrides this item's cross-axis alignment; omitted values inherit
         the parent alignment.
-
-
-- name: StatusDot
-  category: Display
-  introduction: Displays a labeled semantic status without custom indicator rendering.
-  properties:
-    - name: hidden
-      type: boolean
-      description: Hides the component without unmounting it.
-
-    - name: label
-      type: string
-      description: Accessible label surfaced via aria-label.
-
-    - name: variant
-      type: '"accent" | "success" | "error" | "warning" | "neutral"'
-      description: Semantic color variant.
-
-    - name: tooltip
-      type: string
-      description: Tooltip text shown on hover to explain the status meaning.
 
 
 - name: Stepper

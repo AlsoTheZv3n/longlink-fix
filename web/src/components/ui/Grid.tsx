@@ -9,6 +9,14 @@ export function Grid(props: {
     children?: ReactNode;
     columns?: number;
     gap?: Spacing;
+    rowGap?: Spacing;
+    columnGap?: Spacing;
+    align?: 'start' | 'center' | 'end' | 'stretch';
+    justify?: 'start' | 'center' | 'end' | 'stretch';
+    width?: number | string;
+    height?: number | string;
+    maxWidth?: number | string;
+    minHeight?: number | string;
 }) {
     // Start with one column and the standard content gap.
     return (
