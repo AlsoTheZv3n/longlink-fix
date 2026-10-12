@@ -111,23 +111,22 @@ class Database:
                                     await conn.run_sync(SQLModel.metadata.create_all)
                                 else:
                                     await conn.run_sync(SQLModel.metadata.tables["audit"].create, checkfirst=True)
-                        else:
-                            async with engine.connect():
-                                pass
 
-                        # Keep a local shared user available for development and test requests.
-                        if self._env.ENV != "production":
-                            async with AsyncSession(engine) as session:
-                                if await session.get(User, LOCAL_USER_ID) is None:
-                                    name = "Development user" if self._env.ENV == "development" else "Testing user"
-                                    session.add(
-                                        User(
+                                # Seed the local user within the schema bootstrap's connection and transaction.
+                                session = AsyncSession(conn)
+                                async with session:
+                                    if await session.get(User, LOCAL_USER_ID) is None:
+                                        name = "Development user" if self._env.ENV == "development" else "Testing user"
+                                        user = User(
                                             id=LOCAL_USER_ID,
                                             name=name,
                                             email="local@example.com",
                                         )
-                                    )
-                                    await session.commit()
+                                        session.add(user)
+                                        await session.flush()
+                        else:
+                            async with engine.connect():
+                                pass
                     except BaseException:
                         await engine.dispose()
                         raise

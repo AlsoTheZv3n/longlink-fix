@@ -54,14 +54,22 @@ def create_fs(settings: Envs) -> AbstractFileSystem:
         memory = fsspec.filesystem("memory")
         directory = f"/longlink-testing-{uuid4()}"
         memory.mkdir(directory)
+
+        # Combine the namespace and optional bucket scope without nesting filesystem wrappers.
+        storage_path = PurePosixPath(directory)
+        if bucket_path is not None:
+            storage_path /= bucket_path
+            if prefix_path is not None:
+                storage_path /= prefix_path
         filesystem = DirFileSystem(
-            path=directory,
+            path=storage_path.as_posix(),
             fs=memory,
             skip_instance_cache=True,
         )
 
         # Release only this namespace when its owning runtime filesystem is collected.
         weakref.finalize(filesystem, _remove_memory_directory, memory, directory)
+        return filesystem
     else:
         # Development keeps generated files locally inspectable.
         filesystem = fsspec.filesystem("file")

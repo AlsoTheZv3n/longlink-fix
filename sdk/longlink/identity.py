@@ -32,16 +32,13 @@ def identity_token_user(token: str, secret: str) -> UUID:
         raise jwt.InvalidTokenError("Identity secret is required")
 
     # Restrict verification to LongLink's fixed algorithm and token purpose.
-    try:
-        data = jwt.decode(
-            token,
-            secret,
-            audience=IDENTITY_TOKEN_AUDIENCE,
-            algorithms=[IDENTITY_TOKEN_ALGORITHM],
-            options={"require": ["exp", "iat", "sub"]},
-        )
-    except jwt.MissingRequiredClaimError as exc:
-        raise jwt.InvalidTokenError("Invalid identity token claims") from exc
+    data = jwt.decode(
+        token,
+        secret,
+        audience=IDENTITY_TOKEN_AUDIENCE,
+        algorithms=[IDENTITY_TOKEN_ALGORITHM],
+        options={"require": ["exp", "iat", "sub"]},
+    )
     raw_user_id = data["sub"]
     try:
         return UUID(raw_user_id)

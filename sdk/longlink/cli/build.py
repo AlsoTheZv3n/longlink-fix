@@ -6,6 +6,7 @@ import shutil
 import tomllib
 import tempfile
 import subprocess  # noqa: S404
+from typing import TypedDict, NotRequired
 from pathlib import Path
 from pydantic import TypeAdapter, ValidationError
 from longlink.cli import errors
@@ -114,7 +115,16 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level"
 """
 
 
-def read_env_spec(root: Path, pyproject_data: Mapping[str, object]) -> list[dict[str, object]]:
+class EnvironmentEntry(TypedDict):
+    """Validate the environment requirements returned by the isolated inspector."""
+
+    # Runtime environment metadata, without defaults or secret values.
+    name: str
+    required: bool
+    description: NotRequired[str]
+
+
+def read_env_spec(root: Path, pyproject_data: Mapping[str, object]) -> list[EnvironmentEntry]:
     """Parse the configured Solution environment model."""
 
     # Require the project configuration that selects the environment model.
@@ -163,9 +173,9 @@ def read_env_spec(root: Path, pyproject_data: Mapping[str, object]) -> list[dict
             )
 
         # Validate the child response before using it as image metadata or a CLI error.
-        adapter = TypeAdapter(list[dict[str, object]] | str)
+        adapter = TypeAdapter(list[EnvironmentEntry] | str)
         try:
-            environments = adapter.validate_json(result_path.read_bytes())
+            environments = adapter.validate_json(result_path.read_bytes(), strict=True)
         except (OSError, ValidationError) as error:
             raise errors.Error(f"Unable to inspect environment model {environment_import}: invalid child response") from error
         if isinstance(environments, str):
