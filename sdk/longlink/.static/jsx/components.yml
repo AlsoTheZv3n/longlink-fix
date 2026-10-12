@@ -198,9 +198,14 @@
       description: Inner spacing using the theme spacing scale.
       default: 4
 
+    - name: isClipped
+      type: boolean
+      description: Clips full-bleed content to the card's rounded edges.
+      default: false
+
     - name: variant
-      type: '"blue" | "cyan" | "green" | "orange" | "pink" | "purple" | "red" | "teal"
-        | "yellow" | "default" | "gray" | "transparent" | "muted"'
+      type: '"muted" | "blue" | "cyan" | "green" | "orange" | "pink" | "purple" |
+        "red" | "teal" | "yellow" | "default" | "gray" | "transparent"'
       description: Background color variant, independent of the interaction mode.
       default: default
 
@@ -955,6 +960,23 @@
       description: Standard click handler.
 
 
+- name: Image
+  category: Display
+  introduction: ""
+  properties:
+    - name: hidden
+      type: boolean
+      description: Hides the image without unmounting it.
+
+    - name: src
+      type: string
+      description: Scoped Solution image path, or an image data/blob URL.
+
+    - name: alt
+      type: string
+      description: Accessible description of the photo.
+
+
 - name: Layout
   category: Layouts
   introduction: Arranges header, footer, side panels, and main content within a
@@ -1487,6 +1509,10 @@
       description: Show formatted value text (ignored when indeterminate).
       default: false
 
+    - name: formatValueLabel
+      type: "(value: number, max: number) => string"
+      description: Formats usage counts or units instead of the default percentage.
+
     - name: variant
       type: '"accent" | "success" | "error" | "warning" | "neutral"'
       description: Semantic color variant.
@@ -1771,6 +1797,18 @@
       description: Inner padding on all sides, using the spacing scale. Pass as a JSX
         number expression e.g. padding={3}.
       default: 0
+
+    - name: paddingInline
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+      description: Horizontal padding, overriding padding on the inline axis.
+
+    - name: paddingBlock
+      type: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10
+      description: Vertical padding, overriding padding on the block axis.
+
+    - name: background
+      type: '"muted"'
+      description: Optional muted surface background; omitted stacks remain transparent.
 
     - name: direction
       type: '"horizontal" | "vertical"'

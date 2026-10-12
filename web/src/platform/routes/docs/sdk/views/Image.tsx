@@ -1,0 +1,28 @@
+import ViewLayout from './ViewLayout';
+import { Image } from '@/components/ui/Image';
+import photo from '../../../../../../../sdk/longlink/.static/new/src/assets/office.jpg?inline';
+
+/** Documents landscape photos in LongLink Views. */
+export default function ImagePage() {
+    // Show a bundled photo alongside the scoped image API used by Solutions.
+    return (
+        <ViewLayout
+            name="Image"
+            examples={[
+                {
+                    title: 'Card photo',
+                    preview: <ImageExample />,
+                    code: `function Example() {
+  return <Image src="/api/demo/photos/office" alt="Laptop on an office desk" />;
+}`,
+                },
+            ]}
+        />
+    );
+}
+
+/** Renders a bundled photo without an external image request. */
+export function ImageExample() {
+    // Inline the documentation photo while Solutions use scoped server paths.
+    return <Image src={photo} alt="Laptop on an office desk" />;
+}
