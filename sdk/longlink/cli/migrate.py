@@ -1,4 +1,3 @@
-import typer
 from longlink.database.migrations import make_migrations, apply_migrations
 
 
@@ -11,7 +10,7 @@ def migrate_command() -> None:
     # Apply the generated migration only when Alembic detected schema changes.
     if make_migrations():
         apply_migrations()
-        typer.echo("Migrations generated and applied successfully.")
+        print("Migrations generated and applied successfully.")
         return
 
-    typer.echo("No migrations were created because no schema changes were detected.")
+    print("No migrations were created because no schema changes were detected.")

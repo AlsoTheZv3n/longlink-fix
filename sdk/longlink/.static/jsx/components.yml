@@ -49,6 +49,11 @@
 - name: Badge
   category: Display
   introduction: Displays a count or enumerated state.
+  keywords:
+    - status
+    - count
+    - state
+  guidance: Use for counts or enumerated states, not decoration.
   properties:
     - name: hidden
       type: boolean
@@ -77,6 +82,14 @@
 - name: Button
   category: Action
   introduction: Gives onClick automatic asynchronous loading and duplicate-click prevention.
+  keywords:
+    - action
+    - approve
+    - reject
+    - save
+    - submit
+  guidance: Return the asynchronous operation from onClick so automatic loading
+    and duplicate-click prevention cover the request.
   properties:
     - name: hidden
       type: boolean
@@ -183,7 +196,12 @@
 
 - name: Card
   category: Layouts
-  introduction: ""
+  introduction: Groups dashboard widgets, gallery items, or settings sections.
+  keywords:
+    - widget
+    - gallery
+    - settings
+  guidance: Do not wrap dense lists or individual table rows in cards.
   properties:
     - name: hidden
       type: boolean
@@ -535,6 +553,10 @@
   category: Layouts
   introduction: Displays an accessible modal with an explicit purpose and
     controlled visibility.
+  keywords:
+    - modal
+    - confirmation
+    - confirm
   properties:
     - name: hidden
       type: boolean
@@ -667,6 +689,10 @@
 - name: EmptyState
   category: Display
   introduction: Describes an empty View region without custom decorative slots.
+  keywords:
+    - empty list
+    - no results
+    - missing data
   properties:
     - name: hidden
       type: boolean
@@ -777,7 +803,16 @@
 
 - name: Form
   category: Form
-  introduction: ""
+  introduction: Collects and submits named fields through the Solution runtime.
+  keywords:
+    - editing form
+    - edit
+    - create
+    - submit
+    - validation
+    - fields
+  guidance: Inspect the submission contract and field names before wiring a form.
+    Validate and authorize mutations on the server.
   properties:
     - name: hidden
       type: boolean
@@ -849,12 +884,26 @@
         and 8 pending operations. Successful writes automatically refresh cached
         View data. Failed HTTP requests reject with an Error containing an
         optional numeric status and a bounded client-facing message.
-  introduction: ""
+  introduction: Scoped Solution requests and navigation capabilities.
+  keywords:
+    - request
+    - api
+    - mutation
+    - navigation
+    - navigate
+    - server
+  guidance: Requests and scoped navigation target the current Solution. External
+    HTTP(S) navigation requires user activation. Server routes own authorization
+    and business rules.
 
 
 - name: Grid
   category: Layouts
   introduction: Arranges View content into a fixed number of columns.
+  keywords:
+    - columns
+    - layout
+    - dashboard
   properties:
     - name: hidden
       type: boolean
@@ -973,7 +1022,16 @@
       description: Returns Solution data and an awaitable invalidator scoped to the
         full request path. The renderer handles initial loading, errors, and
         retry.
-  introduction: ""
+  introduction: React hooks for local state, synchronization, and loading Solution data.
+  keywords:
+    - state
+    - loading
+    - query
+    - fetch
+    - data
+    - effect
+  guidance: Use controlled state for local interaction. Effects should synchronize
+    with external systems, not duplicate derived state.
 
 
 - name: Icon
@@ -1060,6 +1118,13 @@
   category: Layouts
   introduction: Arranges header, footer, side panels, and main content within a
     View or bounded container.
+  keywords:
+    - page
+    - shell
+    - panel
+    - sidebar
+    - header
+    - footer
   properties:
     - name: hidden
       type: boolean
@@ -1238,7 +1303,11 @@
 
 - name: Menu
   category: Layouts
-  introduction: ""
+  introduction: Groups side navigation and the selected section's content.
+  keywords:
+    - navigation
+    - sidebar
+    - sections
   properties:
     - name: hidden
       type: boolean
@@ -1308,6 +1377,10 @@
 - name: MetadataList
   category: Display
   introduction: Lists labeled values with optional truncation and label placement.
+  keywords:
+    - details
+    - record
+    - labeled values
   properties:
     - name: hidden
       type: boolean
@@ -1396,6 +1469,10 @@
 - name: MultiSelector
   category: Form
   introduction: Selects multiple values using standard option and selected-value rendering.
+  keywords:
+    - multiple selection
+    - choices
+    - filter
   properties:
     - name: hidden
       type: boolean
@@ -1728,6 +1805,11 @@
 - name: Selector
   category: Form
   introduction: Selects one value without custom option rendering or popup geometry.
+  keywords:
+    - select
+    - dropdown
+    - choice
+    - filter
   properties:
     - name: hidden
       type: boolean
@@ -1885,6 +1967,11 @@
 - name: Stack
   category: Layouts
   introduction: Arranges View content using the LongLink spacing scale.
+  keywords:
+    - spacing
+    - horizontal
+    - vertical
+    - layout
   properties:
     - name: children
       type: ReactNode
@@ -2082,6 +2169,16 @@
   category: Display
   introduction: Displays data-driven rows without plugins or a second
     children-based table contract.
+  keywords:
+    - records
+    - rows
+    - columns
+    - data table
+    - list
+    - queue
+    - sorting
+  guidance: Present dense records as rows. Keep selection and query state
+    explicit; do not wrap each row in a Card.
   properties:
     - name: hidden
       type: boolean
@@ -2130,7 +2227,11 @@
 
 - name: Tabs
   category: Layouts
-  introduction: ""
+  introduction: Switches between related content panels.
+  keywords:
+    - tabs
+    - panels
+    - sections
   properties:
     - name: hidden
       type: boolean
@@ -2348,6 +2449,14 @@
   category: Form
   introduction: Edits themed text with optional local state and native form
     serialization. Required fields cannot be blank.
+  keywords:
+    - search
+    - filter
+    - text field
+    - string
+    - input
+  guidance: Use a controlled value and callback when input changes affect local
+    query state.
   properties:
     - name: hidden
       type: boolean
@@ -2565,6 +2674,11 @@
   category: Display
   introduction: Displays a tag, category, or selection with optional click and
     removal actions.
+  keywords:
+    - tag
+    - category
+    - status
+    - state
   properties:
     - name: hidden
       type: boolean
