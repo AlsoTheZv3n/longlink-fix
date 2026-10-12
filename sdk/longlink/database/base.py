@@ -106,12 +106,13 @@ class Database:
 
                     # Initialize the database without publishing partially initialized resources.
                     try:
-                        if self._env.ENV == "testing":
+                        if self._env.ENV != "production":
                             async with engine.begin() as conn:
-                                await conn.run_sync(SQLModel.metadata.create_all)
-                        elif self._env.ENV == "development":
-                            async with engine.begin() as conn:
-                                await conn.run_sync(SQLModel.metadata.tables["audit"].create, checkfirst=True)
+                                # Testing creates the full schema; development only bootstraps its audit table.
+                                if self._env.ENV == "testing":
+                                    await conn.run_sync(SQLModel.metadata.create_all)
+                                else:
+                                    await conn.run_sync(SQLModel.metadata.tables["audit"].create, checkfirst=True)
                         else:
                             async with engine.connect():
                                 pass

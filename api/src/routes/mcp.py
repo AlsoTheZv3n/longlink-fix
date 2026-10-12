@@ -42,15 +42,15 @@ class OAuthRoute(APIRoute):
                     )
                     logger.warning("MCP client registration rejected: %s", details or "request body")
                     description = f"Invalid client metadata: {details or 'request body'}"
-
-                # Construct the public validation failure once after selecting its description.
-                failure = mcp.OAuthError(code, description)
             except mcp.OAuthError as exc:
-                failure = exc
+                # Preserve the domain-authored OAuth error fields.
+                code = exc.error
+                description = exc.description
 
+            # Return the selected public fields without constructing another exception.
             return JSONResponse(
                 status_code=400,
-                content={"error": failure.error, "error_description": failure.description},
+                content={"error": code, "error_description": description},
                 headers={"Pragma": "no-cache"},
             )
 
