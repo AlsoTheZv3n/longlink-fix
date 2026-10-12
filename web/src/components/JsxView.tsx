@@ -34,7 +34,7 @@ export function JsxView({
     params: Record<string, string>;
     requestBaseUrl: string;
     navigationBaseUrl: string;
-    runtime?: ViewRuntime;
+    runtime: ViewRuntime;
 }) {
     const frame = useRef<HTMLIFrameElement>(null);
     const navigate = useNavigate();
@@ -46,20 +46,16 @@ export function JsxView({
     const parameters = JSON.stringify(params);
 
     const { data: kernel, error: runtimeError } = useQuery({
-        queryKey: ['view-runtime', runtime ? requestBaseUrl : null, runtime],
+        queryKey: ['view-runtime', requestBaseUrl, runtime],
         staleTime: Infinity,
         retry: false,
         queryFn: async ({ signal }) => {
-            // Legacy manifests keep using Platform assets; declared runtimes stay within their Solution proxy.
+            // Load the declared runtime only within its Solution proxy.
             const urls = ['views/runtime.js', 'views/runtime.css'].map((path) => {
-                if (runtime) {
-                    const url = new URL(host.requestUrl(requestBaseUrl, path), window.location.origin);
-                    url.searchParams.set('v', runtime.version);
+                const url = new URL(host.requestUrl(requestBaseUrl, path), window.location.origin);
+                url.searchParams.set('v', runtime.version);
 
-                    return url.href;
-                }
-
-                return `/${path}`;
+                return url.href;
             });
 
             const assets = await Promise.all(
@@ -71,19 +67,14 @@ export function JsxView({
             );
 
             // Reject stale or mixed runtime assets instead of silently rendering with the wrong components.
-            if (runtime) {
-                const digest = await crypto.subtle.digest(
-                    'SHA-256',
-                    new TextEncoder().encode(`${assets[0]}\n${assets[1]}`)
-                );
+            const digest = await crypto.subtle.digest(
+                'SHA-256',
+                new TextEncoder().encode(`${assets[0]}\n${assets[1]}`)
+            );
 
-                const version = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(
-                    ''
-                );
+            const version = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 
-                if (version !== runtime.version)
-                    throw new Error('The Solution View runtime does not match its manifest');
-            }
+            if (version !== runtime.version) throw new Error('The Solution View runtime does not match its manifest');
 
             return assets;
         },
