@@ -4464,6 +4464,8 @@ type CardProps = {
     children?: ViewNode;
     /** Inner spacing using the theme spacing scale. */
     padding?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    /** Clips full-bleed content to the card's rounded edges. */
+    isClipped?: boolean;
     /** Background color variant, independent of the interaction mode. */
     variant?:
         | 'default'
@@ -4607,6 +4609,12 @@ declare function Stack(props: {
     /** Spacing between items. */
     gap?: Spacing;
     padding?: Spacing;
+    /** Horizontal padding, overriding padding on the inline axis. */
+    paddingInline?: Spacing;
+    /** Vertical padding, overriding padding on the block axis. */
+    paddingBlock?: Spacing;
+    /** Optional muted surface background; omitted stacks remain transparent. */
+    background?: 'muted';
     direction?: 'horizontal' | 'vertical';
     justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly';
     align?: 'start' | 'center' | 'end' | 'stretch';
@@ -4710,6 +4718,16 @@ declare function Avatar(
         size?: 'sm' | 'md' | 'lg';
     },
 ): React.JSX.Element;
+
+/** @category Display */
+declare function Image(props: {
+    /** Hides the image without unmounting it. */
+    hidden?: boolean;
+    /** Scoped Solution image path, or an image data/blob URL. */
+    src: string;
+    /** Accessible description of the photo. */
+    alt: string;
+}): React.JSX.Element;
 
 /** @category Display */
 declare function Badge(props: {
@@ -5137,6 +5155,8 @@ declare function ProgressBar(props: {
     value?: number;
     max?: number;
     hasValueLabel?: boolean;
+    /** Formats usage counts or units instead of the default percentage. */
+    formatValueLabel?: (value: number, max: number) => string;
     variant?: 'accent' | 'success' | 'warning' | 'error' | 'neutral';
     marks?: ReadonlyArray<{ value: number; label: string }>;
     isDisabled?: boolean;

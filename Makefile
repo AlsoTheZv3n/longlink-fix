@@ -163,13 +163,13 @@ web:
 	cd web && vp run dev --port 5173
 
 
-# Run the local sample Solution, preserving an existing development project.
+# Recreate and run the local sample Solution from the current scaffold.
 sdk:
 	cd web && vp run build:sdk:bundle --logLevel warn
-	@if [ ! -d sdk/dev ]; then \
-		cd sdk && uv run --locked longlink init --folder dev --name sample && \
-		printf '\n\n[tool.uv.sources]\nlonglink = { path = "..", editable = true }\n' >> dev/pyproject.toml; \
-	fi
+	# Remove only the generated sample, including its database, storage, and local edits.
+	rm -rf -- sdk/dev
+	cd sdk && uv run --locked longlink init --folder dev --name sample
+	printf '\n\n[tool.uv.sources]\nlonglink = { path = "..", editable = true }\n' >> sdk/dev/pyproject.toml
 	cd sdk/dev && uv run longlink dev
 
 

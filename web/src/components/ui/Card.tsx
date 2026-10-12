@@ -12,6 +12,8 @@ type CardProps = {
     children?: ReactNode;
     /** Inner spacing using the theme spacing scale. */
     padding?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    /** Clips full-bleed content to the card's rounded edges. */
+    isClipped?: boolean;
     /** Background color variant, independent of the interaction mode. */
     variant?:
         | 'default'
@@ -59,6 +61,7 @@ type CardProps = {
 export function Card({
     label = 'Card',
     padding = 4,
+    isClipped = false,
     variant = 'default',
     onClick,
     href,
@@ -75,7 +78,7 @@ export function Card({
         return (
             <SelectableCard
                 {...props}
-                className={props.hidden ? 'hidden!' : undefined}
+                className={props.hidden ? 'hidden!' : isClipped ? 'overflow-hidden' : undefined}
                 padding={padding}
                 variant={variant}
                 label={label}
@@ -91,7 +94,7 @@ export function Card({
         return (
             <ClickableCard
                 {...props}
-                className={props.hidden ? 'hidden!' : undefined}
+                className={props.hidden ? 'hidden!' : isClipped ? 'overflow-hidden' : undefined}
                 padding={padding}
                 variant={variant}
                 label={label}
@@ -117,6 +120,11 @@ export function Card({
 
     // Keep content-only cards non-interactive.
     return (
-        <AstryxCard {...props} className={props.hidden ? 'hidden!' : undefined} padding={padding} variant={variant} />
+        <AstryxCard
+            {...props}
+            className={props.hidden ? 'hidden!' : isClipped ? 'overflow-hidden' : undefined}
+            padding={padding}
+            variant={variant}
+        />
     );
 }

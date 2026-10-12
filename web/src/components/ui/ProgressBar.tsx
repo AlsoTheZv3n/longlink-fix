@@ -8,6 +8,8 @@ export function ProgressBar(props: {
     value?: number;
     max?: number;
     hasValueLabel?: boolean;
+    /** Formats usage counts or units instead of the default percentage. */
+    formatValueLabel?: (value: number, max: number) => string;
     variant?: 'accent' | 'success' | 'warning' | 'error' | 'neutral';
     marks?: ReadonlyArray<{ value: number; label: string }>;
     isDisabled?: boolean;

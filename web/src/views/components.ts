@@ -29,6 +29,9 @@ export { Text } from '@/components/ui/Text';
 export { Avatar } from '@/components/ui/Avatar';
 
 /** @category Display */
+export { Image } from '@/components/ui/Image';
+
+/** @category Display */
 export { Badge } from '@/components/ui/Badge';
 
 /** @category Display */
