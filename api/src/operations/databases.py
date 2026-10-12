@@ -17,6 +17,7 @@ from src.kubernetes.client import Kubernetes
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.organizations import DatabaseState
 from src.database.models.users import User
+from src.database.models.computes import ComputeRegistry
 from src.database.models.association import UserOrganization
 from src.database.models.organizations import Organization, OrganizationActivity
 
@@ -235,12 +236,18 @@ async def ready(organization_id: UUID) -> bool:
 
         async with lease.maintain():
             try:
+                # Load only the database assignment without decrypting unrelated storage credentials.
                 async with session_scope() as session:
-                    target = await organizations.infrastructure(session, organization_id)
+                    result = await session.execute(
+                        select(Organization, col(ComputeRegistry.kubeconfig), col(ComputeRegistry.database_storage_class))
+                        .join(ComputeRegistry, col(ComputeRegistry.id) == col(Organization.compute_id))
+                        .where(col(Organization.id) == organization_id)
+                    )
+                    target = result.tuples().one_or_none()
                 if target is None:
                     raise RuntimeError("Organization is unavailable")
-                organization, compute = target
-                cluster = Kubernetes(compute.kubeconfig)
+                organization, kubeconfig, database_storage_class = target
+                cluster = Kubernetes(kubeconfig)
                 async with cluster:
                     await lease.check()
                     if organization.status != Status.running:
@@ -248,7 +255,7 @@ async def ready(organization_id: UUID) -> bool:
                             cluster,
                             organization_id,
                             organization.database_password,
-                            compute.database_storage_class,
+                            database_storage_class,
                             size_mib=organization.database_size_mib,
                             instances=organization.database_instances,
                         )
