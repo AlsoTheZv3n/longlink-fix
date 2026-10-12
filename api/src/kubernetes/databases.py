@@ -21,10 +21,12 @@ import base64
 import asyncio
 from uuid import UUID
 from typing import TYPE_CHECKING
-from src.utils import templates
-from src.kubernetes import utils, namespace
+from src.utils import postgres, templates
+from src.kubernetes import utils, databases, namespace
+from src.models.types import DatabaseSSLMode
 from importlib.resources import files
 from kr8s.asyncio.objects import Pod, Secret, new_class, object_from_spec
+from src.database.models.organizations import Organization
 
 if TYPE_CHECKING:
     from src.kubernetes.client import Kubernetes
@@ -128,6 +130,31 @@ async def resume(client: "Kubernetes", organization_id: UUID) -> None:
                     if ready_pods == cluster.spec["instances"]:
                         return
             await asyncio.sleep(1)
+
+
+async def connection(
+    organization: Organization,
+    cluster: "Kubernetes",
+    *,
+    certificate: str | None = None,
+) -> postgres.Postgres:
+    """Build a private PostgreSQL connection using the caller's CA snapshot or a fresh cluster lookup."""
+
+    # Platform workers can run outside the compute cluster and its private DNS/network.
+    port = await cluster.forward_database(organization.id)
+
+    # Preserve the cluster DNS hostname for certificate verification even through a local tunnel.
+    if certificate is None:
+        certificate = await databases.certificate(cluster, organization.id)
+    return postgres.Postgres(
+        host=namespace.database_hostname(organization.id),
+        port=port,
+        username="postgres",
+        password=organization.database_password,
+        sslmode=DatabaseSSLMode.require,
+        certificate=certificate,
+        hostaddr="127.0.0.1",
+    )
 
 
 async def certificate(client: "Kubernetes", organization_id: UUID) -> str:

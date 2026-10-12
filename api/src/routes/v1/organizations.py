@@ -7,7 +7,7 @@ from fastapi import Depends, APIRouter, HTTPException, BackgroundTasks
 from src.utils import s3, mail, roles
 from src.logger import logger
 from sqlalchemy.exc import SQLAlchemyError
-from src.operations import databases
+from src.kubernetes import databases
 from src.models.roles import OrganizationRoles
 from src.models.users import UserOrganizationMembership
 from botocore.exceptions import ClientError, BotoCoreError
