@@ -24,19 +24,17 @@ class Audit(Model):
     model_config["ignored_types"] = (declared_attr,)
 
     # Audit timestamps
-    created_at: datetime | None = Field(default=None)
-    updated_at: datetime | None = Field(default=None)
-    deleted_at: datetime | None = Field(default=None)
+    # The flush listener supplies required values before persistence.
+    created_at: datetime = Field(default=None, nullable=False)
+    updated_at: datetime = Field(default=None, nullable=False)
 
     # Audit user identifiers
-    created_id: UUID | None = Field(default=None, foreign_key="audit.id")
-    updated_id: UUID | None = Field(default=None, foreign_key="audit.id")
-    deleted_id: UUID | None = Field(default=None, foreign_key="audit.id")
+    created_id: UUID = Field(default=None, nullable=False, foreign_key="audit.id")
+    updated_id: UUID = Field(default=None, nullable=False, foreign_key="audit.id")
 
     # Audit user relationships
     created_by = declared_attr(lambda cls: relationship(User, foreign_keys=[cls.created_id], lazy="selectin"))
     updated_by = declared_attr(lambda cls: relationship(User, foreign_keys=[cls.updated_id], lazy="selectin"))
-    deleted_by = declared_attr(lambda cls: relationship(User, foreign_keys=[cls.deleted_id], lazy="selectin"))
 
 
 def database_url(env: Envs) -> URL:

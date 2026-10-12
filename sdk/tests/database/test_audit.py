@@ -41,7 +41,7 @@ def audit_model_cleanup() -> Iterator[None]:
 async def test_audit_hook_persists_fields_and_leaves_deletes_hard(
     audit_engine: database_base.Database,
 ) -> None:
-    """Persist audit fields while retaining explicit soft and ordinary hard deletes."""
+    """Persist creation and update audit fields while retaining ordinary hard deletes."""
 
     # Define one isolated mapped table for the real SQLite lifecycle.
     class AuditLifecycleItem(database_base.Audit, table=True):
@@ -54,23 +54,17 @@ async def test_audit_hook_persists_fields_and_leaves_deletes_hard(
         id: int | None = Field(default=None, primary_key=True)
         name: str
 
-    # Verify inherited audit columns, user foreign keys, and all three relationships.
+    # Verify inherited audit columns, user foreign keys, and both relationships.
     table = SQLModel.metadata.tables[AuditLifecycleItem.__tablename__]
-    assert {"created_at", "updated_at", "deleted_at"} <= set(table.c.keys())
+    assert {"created_at", "updated_at"} <= set(table.c.keys())
     assert {foreign_key.target_fullname for foreign_key in table.c.created_id.foreign_keys} == {"audit.id"}
     assert {foreign_key.target_fullname for foreign_key in table.c.updated_id.foreign_keys} == {"audit.id"}
-    assert {foreign_key.target_fullname for foreign_key in table.c.deleted_id.foreign_keys} == {"audit.id"}
     assert hasattr(AuditLifecycleItem, "created_by")
     assert hasattr(AuditLifecycleItem, "updated_by")
-    assert hasattr(AuditLifecycleItem, "deleted_by")
-
-    # Supply one explicit timestamp for the caller-requested soft delete.
-    soft_deleted_at = datetime(2026, 7, 14, 12, 0, tzinfo=UTC)
 
     # Bind this test's users and isolated engine.
     creator_id = UUID("00000000-0000-0000-0000-000000000002")
     updater_id = UUID("00000000-0000-0000-0000-000000000003")
-    soft_deleter_id = UUID("00000000-0000-0000-0000-000000000004")
     deleter_id = UUID("00000000-0000-0000-0000-000000000005")
     # Insert through AsyncSession so the registered sync before_flush listener runs.
     async with audit_engine.session() as session:
@@ -101,18 +95,6 @@ async def test_audit_hook_persists_fields_and_leaves_deletes_hard(
         assert item.created_at == created_at
         assert item.created_id == creator_id
         assert item.updated_id == updater_id
-        assert item.updated_at >= updated_at
-        updated_at = item.updated_at
-
-        # Persist a caller-requested soft delete with the acting identity.
-        with audit.actor(soft_deleter_id):
-            item.deleted_at = soft_deleted_at
-            await session.commit()
-
-        # Assert the explicit soft-delete audit fields.
-        assert item.deleted_at == soft_deleted_at
-        assert item.updated_id == soft_deleter_id
-        assert item.deleted_id == soft_deleter_id
         assert item.updated_at >= updated_at
 
     # Delete the reloaded row through the ordinary hard-delete lifecycle.
