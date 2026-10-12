@@ -256,7 +256,7 @@ async def test_mcp_exchange_is_single_use_and_stores_only_hashes(
     assert response.status_code == 200, response.text
     credential = response.json()["access_token"]
     access_hash = hashlib.sha256(credential.encode()).hexdigest()
-    assert response.json() == {"access_token": credential, "token_type": "Bearer", "expires_in": 3600, "scope": "mcp"}
+    assert response.json() == {"access_token": credential, "token_type": "Bearer", "expires_in": 2592000, "scope": "mcp"}
     assert response.headers["cache-control"] == "no-store"
     assert replay.status_code == 400
     assert replay.json()["error"] == "invalid_grant"
