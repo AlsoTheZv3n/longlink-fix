@@ -87,7 +87,7 @@ export default {
                 // React Router splats also match the Solution root without a trailing slash.
                 const paths = pagePath.endsWith('/*') ? [pagePath.slice(0, -2), pagePath] : [pagePath];
 
-                return paths.map((routePath) => routePath.replace(/:([^/]+)/g, '{$1}').replace('*', '{path:path}'));
+                return paths.map((routePath) => routePath.replace(/:([^/]+)/g, '{$1}').replace(/\*/g, '{path:path}'));
             });
 
             await writeFile(path.join(clientDirectory, 'spa.json'), JSON.stringify(spaPaths));
