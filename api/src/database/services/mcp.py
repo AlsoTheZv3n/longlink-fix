@@ -22,7 +22,7 @@ from src.database.models.mcp import MCPCode, MCPToken, MCPClient
 from src.database.models.users import User
 from src.database.models.solutions import Solution
 
-ACCESS_LIFETIME_SECONDS = 3600
+ACCESS_LIFETIME_SECONDS = 30 * 24 * 60 * 60
 CODE_LIFETIME_SECONDS = 300
 
 
