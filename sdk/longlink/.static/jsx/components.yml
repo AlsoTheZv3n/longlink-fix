@@ -506,6 +506,11 @@
       type: string
       description: The aria-label prop.
 
+    - name: showTitle
+      type: boolean
+      description: Shows the accessible dialog name as a visible header title;
+        defaults to true.
+
     - name: isOpen
       type: boolean
       description: Whether the dialog is open.

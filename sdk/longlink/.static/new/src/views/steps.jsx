@@ -39,6 +39,7 @@ export default function InvoiceSteps() {
             </Stepper>
             <Dialog
                 aria-label="New Invoice"
+                showTitle={false}
                 isOpen={open}
                 onOpenChange={setOpen}
                 purpose="form"
@@ -55,7 +56,6 @@ export default function InvoiceSteps() {
                             navigate(`/table/${invoice.id}`);
                         }}
                     >
-                        <Heading level={2}>New Invoice</Heading>
                         <FormStep label="Invoice">
                             <TextInput label="Invoice number" name="name" required />
                         </FormStep>

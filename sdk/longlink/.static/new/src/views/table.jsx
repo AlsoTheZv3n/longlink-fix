@@ -25,28 +25,23 @@ export default function InvoiceTable() {
                 padding={8}
                 contentWidth={640}
             >
-                <Stack gap={8}>
-                    <Stack align="center" gap={0}>
-                        <Heading level={2}>New Invoice</Heading>
+                <Form action="/api/items" method="post" onSuccess={() => setOpen(false)}>
+                    <Stack gap={3}>
+                        <TextInput label="Invoice number" name="name" required />
+                        <NumberInput label="Amount (CHF)" name="price" defaultValue={0} min={0} required />
+                        <Selector
+                            label="Status"
+                            name="status"
+                            defaultValue="draft"
+                            options={[
+                                { value: 'draft', label: 'Draft' },
+                                { value: 'pending', label: 'Pending' },
+                                { value: 'approved', label: 'Approved' },
+                            ]}
+                        />
+                        <Button label="Create Invoice" variant="primary" type="submit" />
                     </Stack>
-                    <Form action="/api/items" method="post" onSuccess={() => setOpen(false)}>
-                        <Stack gap={3}>
-                            <TextInput label="Invoice number" name="name" required />
-                            <NumberInput label="Amount (CHF)" name="price" defaultValue={0} min={0} required />
-                            <Selector
-                                label="Status"
-                                name="status"
-                                defaultValue="draft"
-                                options={[
-                                    { value: 'draft', label: 'Draft' },
-                                    { value: 'pending', label: 'Pending' },
-                                    { value: 'approved', label: 'Approved' },
-                                ]}
-                            />
-                            <Button label="Create Invoice" variant="primary" type="submit" />
-                        </Stack>
-                    </Form>
-                </Stack>
+                </Form>
             </Dialog>
             <Table
                 data={invoices.items}
