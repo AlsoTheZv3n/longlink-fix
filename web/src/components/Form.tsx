@@ -25,10 +25,8 @@ export function Form(props: {
     height?: number | string;
     /** Label for the automatic final submit button when using FormStep children; defaults to Save. */
     submitLabel?: string;
-    /** Runs before advancing a validated step; false keeps the current step open. */
-    onNext?: (step: number) => void | boolean | Promise<void | boolean>;
-    /** Overrides Next for steps with an intermediate action, such as image inspection. */
-    nextLabel?: (step: number) => string;
+    /** Selects an intermediate label and action; the action runs after validation, and false prevents advancement. */
+    next?: (step: number) => { label: string; action: () => void | boolean | Promise<void | boolean> } | undefined;
     /** Disables the final submission when domain requirements are not satisfied. */
     submitDisabled?: boolean;
     /** Shows a cancel action beside the automatic navigation controls. */
@@ -50,6 +48,9 @@ export function Form(props: {
     const [step, setStep] = useState(0);
     const activeStep = Math.min(step, Math.max(steps.length - 1, 0));
     const [failure, setFailure] = useState<{ control: HTMLElement } | null>(null);
+
+    // Resolve the intermediate descriptor once so its label and action stay paired.
+    const next = activeStep < steps.length - 1 ? props.next?.(activeStep) : undefined;
 
     // Reveal an invalid panel before focusing its control and presenting native validation feedback.
     useEffect(() => {
@@ -117,7 +118,7 @@ export function Form(props: {
 
             // Complete intermediate work before advancing; failed inspection retains the current panel and draft.
             if (!final) {
-                const advance = await props.onNext?.(activeStep);
+                const advance = await next?.action();
 
                 if (advance !== false) setStep(activeStep + 1);
             } else if (data) {
@@ -185,9 +186,7 @@ export function Form(props: {
                     </Stack>
                     <Button
                         label={
-                            activeStep === steps.length - 1
-                                ? (props.submitLabel ?? 'Save')
-                                : (props.nextLabel?.(activeStep) ?? 'Next')
+                            activeStep === steps.length - 1 ? (props.submitLabel ?? 'Save') : (next?.label ?? 'Next')
                         }
                         type="submit"
                         variant="primary"

@@ -116,7 +116,11 @@ export default function Organization() {
                 {creating && (
                     <CreateSolution
                         organizationId={organizationId}
-                        invalidate={invalidateSolutions}
+                        onSuccess={async () => {
+                            // Refresh the list before dismissing the successful creation attempt.
+                            await invalidateSolutions();
+                            setCreating(false);
+                        }}
                         onClose={() => setCreating(false)}
                     />
                 )}

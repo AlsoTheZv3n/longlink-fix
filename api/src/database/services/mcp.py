@@ -1,3 +1,5 @@
+"""MCP persistence operations; callers own transaction commits."""
+
 import hmac
 import base64
 import hashlib
@@ -141,7 +143,6 @@ async def register(session: AsyncSession, payload: mcp.ClientRegistration) -> UU
         redirects=payload.redirect_uris,
     )
     session.add(client)
-    await session.commit()
     return client.id
 
 
@@ -178,7 +179,6 @@ async def approve(session: AsyncSession, user: User, payload: mcp.Approval) -> s
         expires_at=datetime.now(UTC) + timedelta(seconds=CODE_LIFETIME_SECONDS),
     )
     session.add(proof)
-    await session.commit()
     return redirect(payload.redirect_uri, {"code": code, "state": payload.state})
 
 
@@ -227,7 +227,6 @@ async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[st
         expires_at=datetime.now(UTC) + timedelta(seconds=ACCESS_LIFETIME_SECONDS),
     )
     session.add(access)
-    await session.commit()
     return {"access_token": credential, "expires_in": ACCESS_LIFETIME_SECONDS}
 
 
@@ -235,7 +234,6 @@ async def revoke(session: AsyncSession, credential: str, client_id: UUID) -> Non
     """Revoke the presented client credential without revealing whether it exists."""
 
     await session.execute(delete(MCPToken).where(MCPToken.hash == digest(credential), MCPToken.client_id == client_id))
-    await session.commit()
 
 
 async def tokens(session: AsyncSession, user_id: UUID) -> Sequence[MCPToken]:
@@ -260,4 +258,3 @@ async def delete_token(session: AsyncSession, user_id: UUID, token_id: UUID) -> 
     """Revoke only a grant owned by the requesting browser user."""
 
     await session.execute(delete(MCPToken).where(MCPToken.id == token_id, MCPToken.user_id == user_id))
-    await session.commit()

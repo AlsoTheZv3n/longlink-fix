@@ -14,11 +14,11 @@ import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 /** Owns one creation attempt, shared by the organization list and settings pages. */
 export default function CreateSolution({
     organizationId,
-    invalidate,
+    onSuccess,
     onClose,
 }: {
     organizationId: string;
-    invalidate: () => Promise<void>;
+    onSuccess: () => void | Promise<void>;
     onClose: () => void;
 }) {
     // Retain only environment definitions and editable values; Form owns navigation and pending state.
@@ -44,12 +44,12 @@ export default function CreateSolution({
         setEnvironments(inspected.environments ?? []);
     }
 
-    /** Creates the configured Solution and refreshes its organization. */
+    /** Creates the configured Solution before completing the parent-owned success workflow. */
     async function createSolution(data: FormData) {
         // Parse the form-owned name before applying Solution request constraints.
         const name = z.string().trim().parse(data.get('name'));
 
-        // Omit blank optional environments and refresh only after creation succeeds.
+        // Omit blank optional environments and notify the parent only after creation succeeds.
         const json = schemas.zSolutionCreate.parse({
             description: description || null,
             envs: Object.fromEntries(Object.entries(envs).filter(([, value]) => value.length > 0)),
@@ -58,8 +58,7 @@ export default function CreateSolution({
         });
 
         await api.post(`/api/v1/organizations/${organizationId}/solutions`, { json });
-        await invalidate();
-        onClose();
+        await onSuccess();
     }
 
     // Keep the existing dialog frame and content width while sharing all wizard mechanics.
@@ -81,8 +80,7 @@ export default function CreateSolution({
                 action={createSolution}
                 submitLabel="Create"
                 onCancel={onClose}
-                nextLabel={(step) => (step === 0 ? 'Inspect' : 'Next')}
-                onNext={(step) => (step === 0 ? inspectImage() : undefined)}
+                next={(step) => (step === 0 ? { label: 'Inspect', action: inspectImage } : undefined)}
             >
                 <FormStep label="Image">
                     <Stack gap={8}>
