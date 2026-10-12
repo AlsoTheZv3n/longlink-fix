@@ -296,12 +296,12 @@ function initialize(event: MessageEvent<unknown>): void {
         );
 
         // A callable export is the admission contract; React's error boundary handles invalid component rendering.
-        const component = z
-            .custom<ViewComponent>((value) => value instanceof Function)
-            .safeParse(evaluate(module, module.exports, ...Object.values(bindings)));
+        const component: unknown = evaluate(module, module.exports, ...Object.values(bindings));
 
-        if (!component.success) throw new Error('A View must export a component as default');
-        const View = component.data;
+        if (!(component instanceof Function)) throw new Error('A View must export a component as default');
+
+        // SAFETY: Callable exports pass admission above; the error boundary handles invalid React rendering.
+        const View = component as ViewComponent;
 
         const params = Object.freeze(parsed.data.params);
         root.render(

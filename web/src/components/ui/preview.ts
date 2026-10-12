@@ -16,10 +16,8 @@ type PreviewState =
 export function usePreview(src: string, inline = false): PreviewState {
     const request = useContext(FileRequestContext)?.preview;
 
-    // Inline images are immediately ready; scoped images wait for their host response.
-    const [preview, setPreview] = useState<PreviewState>(
-        inline ? { status: 'ready', url: src } : { status: 'loading' }
-    );
+    // Store only scoped previews that wait for their host response.
+    const [preview, setPreview] = useState<PreviewState>({ status: 'loading' });
 
     // Keep each scoped request and its object URL within this mounted preview's lifetime.
     useEffect(() => {
@@ -59,5 +57,6 @@ export function usePreview(src: string, inline = false): PreviewState {
         };
     }, [inline, request, src]);
 
-    return preview;
+    // Inline images are immediately ready without duplicating their source in state.
+    return inline ? { status: 'ready', url: src } : preview;
 }

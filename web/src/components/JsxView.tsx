@@ -4,7 +4,6 @@ import * as host from '@/views/host';
 import { useNavigate } from 'react-router';
 import { PageError } from '@/components/Utils';
 import { resolveNavigationUrl } from '@/lib/url';
-import { Stack } from '@astryxdesign/core/Stack';
 import { useQuery } from '@tanstack/react-query';
 import type { ViewRuntime } from '@/views/manifest';
 import { useEffect, useRef, useState } from 'react';
@@ -249,16 +248,14 @@ export function JsxView({
 
     return (
         // Fill the host shell's allocated region; scrolling and overlays stay inside the isolated View.
-        <Stack height="100%" minHeight={0} gap={0}>
-            <iframe
-                ref={frame}
-                title="Solution View"
-                // Allow native validation and submit events; CSP form-action blocks direct form navigation.
-                sandbox="allow-scripts allow-forms"
-                referrerPolicy="no-referrer"
-                srcDoc={bootstrapState.status === 'prepared' ? bootstrapState.document : undefined}
-                className="block h-full min-h-0 w-full flex-1 border-0 bg-transparent"
-            />
-        </Stack>
+        <iframe
+            ref={frame}
+            title="Solution View"
+            // Allow native validation and submit events; CSP form-action blocks direct form navigation.
+            sandbox="allow-scripts allow-forms"
+            referrerPolicy="no-referrer"
+            srcDoc={bootstrapState.status === 'prepared' ? bootstrapState.document : undefined}
+            className="block h-full min-h-0 w-full flex-1 border-0 bg-transparent"
+        />
     );
 }
