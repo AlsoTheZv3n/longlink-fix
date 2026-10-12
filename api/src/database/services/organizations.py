@@ -1,14 +1,13 @@
 from uuid import UUID
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
-from src.utils import names, roles, postgres
+from src.utils import names, roles
 from sqlalchemy import Select, func, delete, select
 from sqlalchemy import update as sql_update
 from src.errors import ConflictError, NotFoundError, ForbiddenError, UnavailableError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer, load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
-from longlink.shared import audit as shared_audit
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
 from src.database.services import operations
@@ -330,27 +329,6 @@ async def members(session: AsyncSession, organization_id: UUID) -> Sequence[User
 
     result = await session.scalars(statement)
     return result.all()
-
-
-async def project_users(session: AsyncSession, organization_id: UUID, db: postgres.Postgres) -> None:
-    """Project a Platform snapshot while runtime coordination owns synchronization."""
-
-    # Load every authoritative membership for the Organization database snapshot.
-    statement = (
-        select(col(User.id), col(User.name), col(User.email), col(User.avatar))
-        .join(UserOrganization, col(UserOrganization.user_id) == col(User.id))
-        .where(col(UserOrganization.organization_id) == organization_id)
-    )
-    result = await session.execute(statement)
-    rows = result.mappings().all()
-
-    # Empty snapshots must not open an Organization database connection.
-    if not rows:
-        return
-
-    # The Platform owns the transaction for its authoritative Organization user projection.
-    async with db.connection(organization_id.hex, search_path="shared") as conn:
-        await shared_audit.sync(conn, rows)
 
 
 async def locked_membership(

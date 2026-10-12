@@ -109,6 +109,7 @@ up:
 
 
 # Build and push the local sample, preserving an existing development project.
+# Keep sample preparation explicit in image and sdk so each workflow remains standalone.
 image:
 	cd web && vp run build:sdk:bundle --logLevel warn
 	@if [ ! -d sdk/dev ]; then \

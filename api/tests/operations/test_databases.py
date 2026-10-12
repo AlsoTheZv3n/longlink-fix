@@ -6,6 +6,7 @@ from conftest import DatabasePostgres
 from datetime import UTC, datetime, timedelta
 from factories import create_organization
 from src.operations import databases
+from collections.abc import Mapping, Sequence
 from src.database.session import session_scope
 from src.models.organizations import DatabaseState
 from src.database.models.users import User
@@ -16,6 +17,38 @@ LEASE_OWNERSHIP_CASES = [
     pytest.param(300, -120, False, id="replacement-expiry"),
     pytest.param(-1, 0, False, id="expired-row"),
 ]
+
+
+async def test_sync_users_projects_active_organization_members(
+    users: tuple[User, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Publish the Platform-authoritative member snapshot for an Organization."""
+
+    # Arrange
+    organization = await create_organization(users[0])
+    synchronized: list[tuple[DatabasePostgres, Sequence[Mapping[str, object]]]] = []
+
+    async def capture_sync(conn: DatabasePostgres, rows: Sequence[Mapping[str, object]]) -> None:
+        """Capture the shared-database projection without opening a connection."""
+
+        synchronized.append((conn, rows))
+
+    monkeypatch.setattr(databases.shared_audit, "sync", capture_sync)
+
+    # Act
+    async with session_scope() as session:
+        await databases._project_users(session, organization.id, DatabasePostgres())
+
+    # Assert
+    conn, rows = synchronized[0]
+    assert conn.database == organization.id.hex
+    assert conn.search_path == "shared"
+    (row,) = rows
+    assert row["id"] == users[0].id
+    assert row["name"] == users[0].name
+    assert row["email"] == users[0].email
+    assert row["avatar"] == users[0].avatar
 
 
 @pytest.mark.parametrize(("expiry_seconds", "lease_offset_seconds", "expected"), LEASE_OWNERSHIP_CASES)
@@ -95,7 +128,7 @@ async def test_ready_interrupts_provisioning_without_releasing_replacement_lease
         await renew.wait()
 
     # Replace only external SQL and this module's timer; keep lease persistence real.
-    monkeypatch.setattr(databases.postgres, "Postgres", Database)
+    monkeypatch.setattr(databases.database_resources.postgres, "Postgres", Database)
     monkeypatch.setattr(databases, "asyncio", SimpleNamespace(**(vars(asyncio) | {"sleep": renewal_tick})))
 
     # Act
@@ -155,7 +188,7 @@ async def test_ready_cancellation_releases_owned_lease_and_allows_retry(
 
     # Act with a scoped external-I/O seam so the retry uses the normal local transport.
     with monkeypatch.context() as provider:
-        provider.setattr(databases.postgres, "Postgres", Database)
+        provider.setattr(databases.database_resources.postgres, "Postgres", Database)
         provisioning = asyncio.create_task(databases.ready(organization.id))
         try:
             await asyncio.wait_for(started.wait(), timeout=5)

@@ -160,7 +160,7 @@ async def test_patch_me_commits_before_shared_delivery_and_retries_unchanged_pro
         if len(delivered) == 1:
             raise RuntimeError("shared profile delivery failed")
 
-    monkeypatch.setattr("src.database.services.organizations.shared_audit.sync", deliver)
+    monkeypatch.setattr("src.operations.databases.shared_audit.sync", deliver)
 
     # Act
     async with AsyncClient(

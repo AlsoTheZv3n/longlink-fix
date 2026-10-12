@@ -191,7 +191,6 @@ def database_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace only external CNPG and SQL I/O for request and lifecycle tests."""
 
     from src.operations import databases
-    from src.database.services import organizations
 
     async def sync(*args: object, **kwargs: object) -> None:
         """Accept the real shared-user snapshot at its database transport boundary."""
@@ -213,8 +212,8 @@ def database_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(database_resources, "apply", apply)
     monkeypatch.setattr(database_resources, "resume", resume)
     monkeypatch.setattr(database_resources, "certificate", certificate)
-    monkeypatch.setattr(databases.postgres, "Postgres", DatabasePostgres)
-    monkeypatch.setattr(organizations.shared_audit, "sync", sync)
+    monkeypatch.setattr(database_resources.postgres, "Postgres", DatabasePostgres)
+    monkeypatch.setattr(databases.shared_audit, "sync", sync)
 
 
 @pytest.fixture
@@ -238,7 +237,7 @@ def seed_runtime(monkeypatch: pytest.MonkeyPatch, database_runtime: None, comput
     monkeypatch.setattr(solutions, "Kubernetes", SeedKubernetes)
     monkeypatch.setattr(solutions, "Storage", StorageKubernetes)
     monkeypatch.setattr(solution_resources, "apply", apply_solution)
-    monkeypatch.setattr(databases.postgres, "Postgres", SeedPostgres)
+    monkeypatch.setattr(database_resources.postgres, "Postgres", SeedPostgres)
 
 
 UNTRUSTED_ORIGINS: list[str | None] = [None, "", "https://attacker.example"]

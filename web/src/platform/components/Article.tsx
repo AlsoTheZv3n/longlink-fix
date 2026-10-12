@@ -2,15 +2,17 @@ import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
+import { Center } from '@astryxdesign/core/Center';
 import { documentationPaths } from '@/platform/docs';
-import { Article } from '@/platform/layouts/Article';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Outline } from '@astryxdesign/core/Outline';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
+import { PageContainer } from '@/components/PageContainer';
 import { PathBreadcrumb } from '@/components/breadcrumb/Path';
 import { BreadcrumbItem } from '@astryxdesign/core/Breadcrumbs';
 import { Seo, articleRouteLabels } from '@/platform/components/Seo';
+import { Layout, LayoutContent, LayoutHeader } from '@astryxdesign/core/Layout';
 import { useEffect, useEffectEvent, type ComponentProps, type ReactNode } from 'react';
 
 const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -84,14 +86,64 @@ function ArticleRenderer({
     return (
         <>
             <Seo description={article.description} hasBreadcrumbs title={article.title} />
-            <Article
-                className={className}
-                header={<PathBreadcrumb className="min-w-0 overflow-hidden" labels={articleRouteLabels} root={root} />}
-                footer={<ArticleFooter lastUpdated={article.lastUpdated} editUrl={article.editUrl} paths={paths} />}
-                sidebar={article.toc.length ? <ArticleOutline items={article.toc} /> : undefined}
-            >
-                {children}
-            </Article>
+            <Layout
+                height="auto"
+                header={
+                    <LayoutHeader className="sticky top-14 z-20 bg-card lg:top-2" padding={0}>
+                        <Stack>
+                            <Stack className="relative" height={64} width="100%">
+                                <PageContainer height="100%" justify="center" maxWidth={1064} paddingInline={6}>
+                                    <Stack direction="horizontal" gap={6} width="100%">
+                                        <PageContainer className="min-w-0" maxWidth={720}>
+                                            <PathBreadcrumb
+                                                className="min-w-0 overflow-hidden"
+                                                labels={articleRouteLabels}
+                                                root={root}
+                                            />
+                                        </PageContainer>
+                                        {article.toc.length ? (
+                                            <Stack className="hidden shrink-0 lg:flex" width={224} />
+                                        ) : null}
+                                    </Stack>
+                                </PageContainer>
+                                <Center className="absolute end-0 top-0" height={64} paddingInline={4}>
+                                    <Button href="/login/" label="Get Started" size="sm" variant="primary" />
+                                </Center>
+                            </Stack>
+                            <Stack paddingInline={5}>
+                                <Divider />
+                            </Stack>
+                        </Stack>
+                    </LayoutHeader>
+                }
+                content={
+                    <LayoutContent isScrollable={false} padding={6}>
+                        <Stack className="mx-auto" direction="horizontal" gap={6} maxWidth={1016} width="100%">
+                            <PageContainer className="min-w-0" maxWidth={720}>
+                                <article className={`article-content space-y-7${className ? ` ${className}` : ''}`}>
+                                    {children}
+                                    <Stack as="footer" gap={3} paddingBlockStart={8}>
+                                        <ArticleFooter
+                                            lastUpdated={article.lastUpdated}
+                                            editUrl={article.editUrl}
+                                            paths={paths}
+                                        />
+                                    </Stack>
+                                </article>
+                            </PageContainer>
+                            {article.toc.length ? (
+                                <Stack
+                                    className="sticky top-20 hidden shrink-0 self-start lg:flex"
+                                    padding={5}
+                                    width={224}
+                                >
+                                    <ArticleOutline items={article.toc} />
+                                </Stack>
+                            ) : null}
+                        </Stack>
+                    </LayoutContent>
+                }
+            />
         </>
     );
 }

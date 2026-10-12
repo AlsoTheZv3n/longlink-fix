@@ -8,7 +8,7 @@ from src.logger import logger
 from src.kubernetes import databases as database_resources
 from src.kubernetes import namespace
 from src.kubernetes import solutions as solution_resources
-from src.operations import databases, registries
+from src.operations import registries
 from src.models.statuses import Status
 from src.database.session import session_scope
 from src.database.services import organizations
@@ -70,7 +70,7 @@ async def deploy(revision_id: UUID) -> None:
             logger.info("Creating object storage credentials for Solution %s", solution.id)
             database_password = secrets.token_urlsafe(24)
             credentials = await storage.service_account(organization.id, solution.id)
-            database = await databases.connection(organization, cluster, certificate=database_certificate)
+            database = await database_resources.connection(organization, cluster, certificate=database_certificate)
             database_username = await database.solution_schema(organization.id, solution.id, database_password)
 
             # Build the durable runtime credentials before creating the workload.
@@ -172,7 +172,7 @@ async def delete(solution_id: UUID) -> None:
     )
     async with cluster:
         await solution_resources.delete(cluster, organization.id, solution.id)
-        db = await databases.connection(organization, cluster)
+        db = await database_resources.connection(organization, cluster)
         logger.info("Deleting PostgreSQL schema for Solution %s", solution.id)
         await db.delete_solution_schema(organization.id, solution.id)
 

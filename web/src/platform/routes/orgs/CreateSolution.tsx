@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import { z } from 'zod';
 import { api } from '@/lib/api';
 import { useState } from 'react';
 import { Link } from '@astryxdesign/core/Link';
@@ -24,7 +24,6 @@ export default function CreateSolution({
     // Retain only environment definitions and editable values; Form owns navigation and pending state.
     const [environments, setEnvironments] = useState<z.output<typeof schemas.zEnvironmentMetadata>[]>([]);
     const [image, setImage] = useState('');
-    const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [envs, setEnvs] = useState<Record<string, string>>({});
 
@@ -46,13 +45,16 @@ export default function CreateSolution({
     }
 
     /** Creates the configured Solution and refreshes its organization. */
-    async function createSolution() {
+    async function createSolution(data: FormData) {
+        // Parse the form-owned name before applying Solution request constraints.
+        const name = z.string().trim().parse(data.get('name'));
+
         // Omit blank optional environments and refresh only after creation succeeds.
         const json = schemas.zSolutionCreate.parse({
             description: description || null,
             envs: Object.fromEntries(Object.entries(envs).filter(([, value]) => value.length > 0)),
             image,
-            name: name.trim(),
+            name,
         });
 
         await api.post(`/api/v1/organizations/${organizationId}/solutions`, { json });
@@ -80,7 +82,7 @@ export default function CreateSolution({
                 submitLabel="Create"
                 onCancel={onClose}
                 nextLabel={(step) => (step === 0 ? 'Inspect' : 'Next')}
-                onNext={(step) => (step === 0 ? inspectImage() : Boolean(name.trim()))}
+                onNext={(step) => (step === 0 ? inspectImage() : undefined)}
             >
                 <FormStep label="Image">
                     <Stack gap={8}>
@@ -143,7 +145,7 @@ export default function CreateSolution({
                             </Stack>
                         </Stack>
                         <Stack gap={3}>
-                            <TextInput label="Name" value={name} required onChange={setName} />
+                            <TextInput label="Name" name="name" required />
                             <TextInput
                                 label="Description"
                                 value={description}

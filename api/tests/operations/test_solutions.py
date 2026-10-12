@@ -76,7 +76,7 @@ async def test_solution_delete_failure_stops_before_provider_credential_cleanup(
 
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "delete", delete)
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", unexpected_provider)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", unexpected_provider)
 
     # Act
     await execute(claimed)
@@ -132,7 +132,7 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "delete", delete)
     monkeypatch.setattr(solution_operations, "Storage", FakeStorage)
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", FakePostgres)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", FakePostgres)
 
     # Act
     await solution_operations.delete(solution.id)
@@ -214,7 +214,7 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
         captured["secrets"] = secrets
         calls.append("workload")
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", FakePostgres)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", FakePostgres)
     monkeypatch.setattr(solution_operations, "Kubernetes", FakeKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
     monkeypatch.setattr(solution_operations, "Storage", Storage)
@@ -299,7 +299,7 @@ async def test_solution_creation_preserves_schema_failure_before_storage_authori
 
             raise RuntimeError("database unavailable")
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", FailingPostgres)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", FailingPostgres)
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations, "Storage", StorageKubernetes)
 
@@ -395,7 +395,7 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
 
         captured.append(secrets)
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", unexpected_provider)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", unexpected_provider)
     monkeypatch.setattr(StorageKubernetes, "service_account", unexpected_provider)
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
@@ -444,7 +444,7 @@ async def test_solution_creation_skips_removed_solution_provider_construction(
     _, solution = await create_deleted_solution(users[0])
     reject_provider_construction(
         monkeypatch,
-        (solution_operations.databases.postgres, "Postgres"),
+        (solution_operations.database_resources.postgres, "Postgres"),
         (solution_operations, "Kubernetes"),
     )
 
@@ -467,7 +467,7 @@ async def test_solution_lifecycle_skips_missing_target_without_constructing_prov
     # Arrange
     reject_provider_construction(
         monkeypatch,
-        (solution_operations.databases.postgres, "Postgres"),
+        (solution_operations.database_resources.postgres, "Postgres"),
         (solution_operations, "Kubernetes"),
     )
 
@@ -498,7 +498,7 @@ async def test_solution_creation_skips_deployment_when_deleted_before_credential
                 await session.commit()
             return "solution"
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", Postgres)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", Postgres)
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations, "Storage", StorageKubernetes)
 
