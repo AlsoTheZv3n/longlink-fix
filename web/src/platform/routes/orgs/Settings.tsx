@@ -66,7 +66,7 @@ type SolutionAction =
 
 type DeploymentReviewProps = {
     update: Update;
-    invalidate: () => Promise<void>;
+    onSuccess: () => void | Promise<void>;
     onClose: () => void;
 };
 
@@ -77,7 +77,7 @@ function imageDigest(image: string) {
 }
 
 /** Owns fresh inspection, the deployment draft, and submission for one review attempt. */
-function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps) {
+function DeploymentReview({ update, onSuccess, onClose }: DeploymentReviewProps) {
     const [envs, setEnvs] = useState<Record<string, { value?: string; removed?: boolean }>>({});
 
     // Keep inspection attempt-local, cancel on unmount, and never refresh beneath an edited draft.
@@ -128,8 +128,7 @@ function DeploymentReview({ update, invalidate, onClose }: DeploymentReviewProps
                 expected_revision_id: candidate.revision_id,
             }),
         });
-        await invalidate();
-        onClose();
+        await onSuccess();
     }
 
     // Share wizard navigation while retaining revision fencing and configured-secret semantics.
@@ -922,6 +921,13 @@ function SolutionsSection({
         setSelected((current) => (current === selected ? null : current));
     }
 
+    /** Refreshes Solutions before closing only the attempt that completed successfully. */
+    async function onSuccess() {
+        // Keep refresh failures in Form and leave any replacement dialog untouched.
+        await invalidateSolutions();
+        closeSelected();
+    }
+
     return (
         <>
             <Stack gap={4}>
@@ -1038,19 +1044,10 @@ function SolutionsSection({
                 />
             </Stack>
             {selected?.kind === 'create' && (
-                <CreateSolution
-                    organizationId={organization.id}
-                    invalidate={invalidateSolutions}
-                    onClose={closeSelected}
-                />
+                <CreateSolution organizationId={organization.id} onSuccess={onSuccess} onClose={closeSelected} />
             )}
             {selected?.kind === 'update' && (
-                <DeploymentReview
-                    key={selected.key}
-                    update={selected}
-                    invalidate={invalidateSolutions}
-                    onClose={closeSelected}
-                />
+                <DeploymentReview key={selected.key} update={selected} onSuccess={onSuccess} onClose={closeSelected} />
             )}
             {selected?.kind === 'logs' && (
                 <Dialog

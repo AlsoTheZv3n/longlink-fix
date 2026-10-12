@@ -89,8 +89,9 @@ async def resource_metadata(solution_id: UUID) -> dict[str, str | list[str]]:
 async def register(payload: models.ClientRegistration, session: auth.Session) -> dict[str, object]:
     """Register immutable callbacks for a public client; registration grants no access."""
 
-    # Return the assigned identifier alongside the validated public client metadata.
+    # Persist registration before returning its identifier and validated public metadata.
     client_id = await mcp.register(session, payload)
+    await session.commit()
     return {**payload.model_dump(), "client_id": client_id}
 
 
@@ -117,7 +118,10 @@ async def consent(
 async def approve(payload: models.Approval, user: auth.CurrentUser, session: auth.Session) -> dict[str, str]:
     """Issue one short-lived PKCE code only after an explicit same-origin browser decision."""
 
+    # Persist approved proof before exposing the code; declined consent remains read-only.
     url = await mcp.approve(session, user, payload)
+    if payload.approve:
+        await session.commit()
     return {"url": url}
 
 
@@ -129,7 +133,9 @@ async def exchange(
 ) -> dict[str, str | int]:
     """Exchange a single-use code with exact client, resource, redirect, and PKCE binding."""
 
+    # Commit code consumption and token issuance together before returning credentials.
     result = await mcp.exchange(session, payload)
+    await session.commit()
     response.headers["Pragma"] = "no-cache"
     return result
 
@@ -142,7 +148,9 @@ async def revoke(
 ) -> Response:
     """Let a public client revoke its credential without exposing credential existence."""
 
+    # Persist client-bound revocation before acknowledging the request.
     await mcp.revoke(session, token, client_id)
+    await session.commit()
     return Response()
 
 
@@ -157,4 +165,6 @@ async def tokens(user: auth.CurrentUser, session: auth.Session):
 async def delete_token(token_id: UUID, user: auth.CurrentUser, session: auth.Session) -> None:
     """Revoke only grants owned by the authenticated browser user."""
 
+    # Persist owner-bound revocation before acknowledging the request.
     await mcp.delete_token(session, user.id, token_id)
+    await session.commit()

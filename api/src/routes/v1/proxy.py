@@ -82,11 +82,11 @@ async def proxy_solution_request(
     # Proxy authenticated API requests through the trusted HTTPS compute gateway boundary.
     try:
         async with asyncio.timeout(PROXY_REQUEST_TIMEOUT_SECONDS):
-            async with AsyncExitStack() as acquisition:
-                # Close partial acquisitions on failure; infrastructure owns endpoint connectivity.
+            try:
+                # Register resources directly with the request scope, in acquisition order.
                 tls = ssl.create_default_context(cadata=registry.gateway_certificate)
                 client = httpx2.AsyncClient(follow_redirects=False, trust_env=False, timeout=300.0, verify=tls)
-                acquisition.push_async_callback(client.aclose)
+                runtime.push_async_callback(client.aclose)
 
                 # Sign platform identity while keeping Knative's Host independent of the verified TLS hostname.
                 headers = {
@@ -112,10 +112,12 @@ async def proxy_solution_request(
                     headers=headers,
                 )
                 upstream = await client.send(upstream_request, stream=True)
-                acquisition.push_async_callback(upstream.aclose)
+                runtime.push_async_callback(upstream.aclose)
 
-                # Transfer ownership before streaming, including disconnects before iteration begins.
-                runtime.push_async_callback(acquisition.pop_all().aclose)
+            # Close partial acquisitions before translating failures or leaving the request timeout.
+            except BaseException:
+                await runtime.aclose()
+                raise
     except TimeoutError as exc:
         raise HTTPException(status_code=504, detail="Solution proxy request timed out") from exc
     except httpx2.HTTPError as exc:
