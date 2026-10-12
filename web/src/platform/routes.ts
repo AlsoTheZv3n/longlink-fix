@@ -61,6 +61,7 @@ export default [
         ]),
         route('login', './routes/auth/Login.tsx'),
         route('mcp/authorize', './routes/auth/Mcp.tsx'),
+        route('404', '../components/layouts/NotFound.tsx', { id: 'not-found' }),
         route('*', '../components/layouts/NotFound.tsx'),
     ]),
     layout('./layouts/Authenticated.tsx', [

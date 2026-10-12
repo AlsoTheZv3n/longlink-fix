@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, Response
 from pathlib import Path
 from src.mcp import MCPMiddleware
 from longlink import errors as solution_errors
+from pydantic import TypeAdapter
 from src.utils import jobs
 from src.routes import v1, mcp, branding
 from src.kubernetes import client
@@ -100,17 +101,21 @@ solution_errors.install_error_handlers(app)
 
 
 @app.middleware("http")
-async def prevent_authenticated_response_caching(
+async def apply_response_policies(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """Prevent browser and intermediary caching of authenticated API responses."""
+    """Prevent authenticated response caching and indexing of missing pages."""
 
     response = await call_next(request)
 
     # Authentication dependencies set this only after validating the browser credential.
     if getattr(request.state, "authenticated", False):
         response.headers.setdefault("Cache-Control", "no-store")
+
+    # Publish crawler instructions before JavaScript runs on missing frontend pages.
+    if response.status_code == 404 and response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["X-Robots-Tag"] = "noindex"
 
     return response
 
@@ -156,4 +161,26 @@ if static_dir.exists():
         query = f"?{request.url.query}" if request.url.query else ""
         return RedirectResponse(f"/{query}", status_code=308)
 
-    app.frontend("/", directory=static_dir)
+    # Only declared application routes may use the generic SPA document.
+    spa_paths_adapter = TypeAdapter(list[str])
+    spa_paths = spa_paths_adapter.validate_json((static_dir / "spa.json").read_bytes())
+
+    def frontend_spa() -> FileResponse:
+        """Return the client-rendered application for a known route."""
+
+        return FileResponse(static_dir / "index.html")
+
+    for spa_path in spa_paths:
+        app.add_api_route(spa_path, frontend_spa, methods=["GET", "HEAD"], include_in_schema=False)
+        app.add_api_route(f"{spa_path}/", frontend_spa, methods=["GET", "HEAD"], include_in_schema=False)
+
+    # Serve the dedicated error URL with the same status as unknown frontend paths.
+    @app.api_route("/404.html", methods=["GET", "HEAD"], include_in_schema=False)
+    @app.api_route("/404", methods=["GET", "HEAD"], include_in_schema=False)
+    @app.api_route("/404/", methods=["GET", "HEAD"], include_in_schema=False)
+    def frontend_not_found() -> FileResponse:
+        """Return the prerendered missing-page document without indexing it."""
+
+        return FileResponse(static_dir / "404.html", status_code=404)
+
+    app.frontend("/", directory=static_dir, fallback="404.html")
