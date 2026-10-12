@@ -7,10 +7,12 @@ from factories import (
     complete_operation,
     create_organization,
 )
+from contextlib import asynccontextmanager
 from src.utils.s3 import Credentials
+from src.kubernetes import storage
 from src.operations import solutions as solution_operations
 from src.utils.jobs import execute
-from collections.abc import Callable, Awaitable
+from collections.abc import Callable, Awaitable, AsyncGenerator
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
 from src.models.statuses import Status
@@ -100,7 +102,7 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
     """Remove the workload, provider state, and tombstone after successful cleanup."""
 
     # Arrange
-    _, solution = await create_deleted_solution(users[0])
+    organization, solution = await create_deleted_solution(users[0])
     calls: list[tuple[str, object]] = []
 
     async def delete(client: object, _organization_id: object, solution_id: object) -> None:
@@ -116,22 +118,34 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
 
             calls.append(("schema", solution_id))
 
-    class FakeStorage(StorageKubernetes):
-        """Record object-storage cleanup."""
+    class FakeKubernetes(DatabaseKubernetes):
+        """Provide the administration tunnel and observe its cleanup."""
 
-        async def revoke(self, solution: UUID) -> None:
-            """Record credential revocation."""
+        @asynccontextmanager
+        async def forward_storage(self) -> AsyncGenerator[int, None]:
+            """Release the administration tunnel before object removal."""
 
-            calls.append(("revoke", solution))
+            try:
+                yield 19000
+            finally:
+                calls.append(("admin_closed", solution.id))
 
-        async def delete_prefix(self, organization: UUID, prefix: str) -> None:
-            """Record solution file removal."""
+    async def revoke(self: storage.rustfs.RustFS, solution: UUID) -> None:
+        """Record credential revocation at the provider boundary."""
 
-            calls.append(("prefix", prefix))
+        calls.append(("revoke", solution))
 
-    monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
+    async def delete_prefix(self: storage.s3.S3, bucket: str, prefix: str) -> None:
+        """Record solution file removal from its canonical Organization bucket."""
+
+        assert bucket == f"longlink-{organization.id.hex}"
+        calls.append(("prefix", prefix))
+
+    monkeypatch.setattr(solution_operations, "Kubernetes", FakeKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "delete", delete)
-    monkeypatch.setattr(solution_operations, "Storage", FakeStorage)
+    monkeypatch.setattr(solution_operations, "Storage", storage.Storage)
+    monkeypatch.setattr(storage.rustfs.RustFS, "revoke", revoke)
+    monkeypatch.setattr(storage.s3.S3, "delete_prefix", delete_prefix)
     monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", FakePostgres)
 
     # Act
@@ -142,6 +156,7 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
         ("workload", solution.id),
         ("schema", solution.id),
         ("revoke", solution.id),
+        ("admin_closed", solution.id),
         ("prefix", f"solutions/{solution.id.hex}/"),
     ]
     async with session_scope() as session:
@@ -232,6 +247,7 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     assert captured["secrets"]["LONGLINK_DATABASE_PORT"] == "5432"
     assert captured["secrets"]["LONGLINK_DATABASE_USERNAME"] == "solution"
     assert captured["secrets"]["LONGLINK_DATABASE_CERTIFICATE"] == "test-database-ca"
+    assert captured["secrets"]["LONGLINK_STORAGE_BUCKET"] == f"longlink-{organization.id.hex}"
     async with session_scope() as session:
         persisted = await session.get(Solution, solution.id)
     assert persisted is not None
@@ -241,6 +257,7 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
         "LONGLINK_DATABASE_NAME",
         "LONGLINK_DATABASE_PORT",
         "LONGLINK_DATABASE_SCHEMA",
+        "LONGLINK_STORAGE_BUCKET",
         "LONGLINK_STORAGE_PREFIX",
         "LONGLINK_STORAGE_REGION",
         "LONGLINK_DATABASE_CERTIFICATE",
@@ -264,6 +281,7 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
         "LONGLINK_DATABASE_NAME": organization.id.hex,
         "LONGLINK_DATABASE_PORT": "5432",
         "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+        "LONGLINK_STORAGE_BUCKET": f"longlink-{organization.id.hex}",
         "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
         "LONGLINK_STORAGE_REGION": "us-east-1",
         "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",
@@ -346,7 +364,6 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
         "LONGLINK_ENV": "production",
         "LONGLINK_DATABASE_PASSWORD": "persisted-database-password",
         "LONGLINK_DATABASE_USERNAME": "persisted-database-user",
-        "LONGLINK_STORAGE_BUCKET": organization.id.hex,
         "LONGLINK_STORAGE_PASSWORD": "persisted-storage-password",
         "LONGLINK_STORAGE_USERNAME": "persisted-storage-user",
     }
@@ -354,6 +371,7 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
         credentials["LONGLINK_IDENTITY_SECRET"] = identity
     initial_secrets = {
         **credentials,
+        "LONGLINK_STORAGE_BUCKET": organization.id.hex,
         "LONGLINK_DATABASE_HOST": "old-database.example",
         "LONGLINK_DATABASE_NAME": "old-database",
         "LONGLINK_DATABASE_PORT": "5433",
@@ -426,6 +444,7 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
             "LONGLINK_DATABASE_NAME": organization.id.hex,
             "LONGLINK_DATABASE_PORT": "5432",
             "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+            "LONGLINK_STORAGE_BUCKET": f"longlink-{organization.id.hex}",
             "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
             "LONGLINK_STORAGE_REGION": "us-east-1",
             "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",

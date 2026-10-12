@@ -45,6 +45,7 @@ async def deploy(revision_id: UUID) -> None:
         "LONGLINK_DATABASE_NAME",
         "LONGLINK_DATABASE_PORT",
         "LONGLINK_DATABASE_SCHEMA",
+        "LONGLINK_STORAGE_BUCKET",
         "LONGLINK_STORAGE_PREFIX",
         "LONGLINK_STORAGE_REGION",
         "LONGLINK_STORAGE_ENDPOINT_URL",
@@ -59,7 +60,6 @@ async def deploy(revision_id: UUID) -> None:
     )
     async with cluster:
         storage = Storage(compute, cluster)
-        bucket_name = storage.bucket_name(organization.id)
 
         # Use one current CA snapshot for SQL provisioning and workload rendering in this attempt.
         database_certificate = await database_resources.certificate(cluster, organization.id)
@@ -79,7 +79,6 @@ async def deploy(revision_id: UUID) -> None:
                     "LONGLINK_ENV": "production",
                     "LONGLINK_DATABASE_PASSWORD": database_password,
                     "LONGLINK_DATABASE_USERNAME": database_username,
-                    "LONGLINK_STORAGE_BUCKET": bucket_name,
                     "LONGLINK_STORAGE_PASSWORD": credentials.secret_key,
                     "LONGLINK_STORAGE_USERNAME": credentials.access_key,
                 }
@@ -98,6 +97,7 @@ async def deploy(revision_id: UUID) -> None:
             "LONGLINK_DATABASE_NAME": organization.id.hex,
             "LONGLINK_DATABASE_PORT": "5432",
             "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+            "LONGLINK_STORAGE_BUCKET": storage.bucket_name(organization.id),
             "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
             "LONGLINK_STORAGE_REGION": "us-east-1",
             # Workloads always reach object storage through the cluster-local TLS proxy.
@@ -178,8 +178,7 @@ async def delete(solution_id: UUID) -> None:
 
         # Revoke the service account before owner credentials remove its private objects.
         storage = Storage(compute, cluster)
-        await storage.revoke(solution.id)
-        await storage.delete_prefix(organization.id, f"solutions/{solution.id.hex}/")
+        await storage.delete_solution(organization.id, solution.id)
 
     # Purge the tombstone only after all external resources are absent.
     logger.info("Purging Solution %s", solution.id)

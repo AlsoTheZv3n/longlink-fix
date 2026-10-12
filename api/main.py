@@ -77,24 +77,6 @@ AUTHENTICATION_COOKIES = frozenset(
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
-@app.middleware("http")
-async def prevent_cross_origin_authenticated_writes(
-    request: Request,
-    call_next: Callable[[Request], Awaitable[Response]],
-) -> Response:
-    """Reject unsafe requests that use browser-only authentication cookies from untrusted origins."""
-
-    # Cookie-authenticated browser writes must originate from a trusted frontend origin.
-    if (
-        request.method in UNSAFE_METHODS
-        and AUTHENTICATION_COOKIES.intersection(request.cookies)
-        and request.headers.get("origin") != env.PUBLIC_URL
-    ):
-        return JSONResponse(status_code=403, content={"detail": "Origin required"})
-
-    return await call_next(request)
-
-
 # Apply the same public contract to domain, HTTP, validation, and unexpected failures.
 app.exception_handler(errors.ServiceError)(errors.service_error_response)
 solution_errors.install_error_handlers(app)
@@ -105,8 +87,17 @@ async def apply_response_policies(
     request: Request,
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
-    """Prevent authenticated response caching and indexing of missing pages."""
+    """Enforce browser write origins and protect authenticated or missing-page responses."""
 
+    # Cookie-authenticated browser writes must originate from a trusted frontend origin.
+    if (
+        request.method in UNSAFE_METHODS
+        and AUTHENTICATION_COOKIES.intersection(request.cookies)
+        and request.headers.get("origin") != env.PUBLIC_URL
+    ):
+        return JSONResponse(status_code=403, content={"detail": "Origin required"})
+
+    # Apply response policies only after admitting the request and completing downstream handling.
     response = await call_next(request)
 
     # Authentication dependencies set this only after validating the browser credential.

@@ -2,7 +2,6 @@ from uuid import UUID
 from sqlmodel import col
 from sqlalchemy import func, select
 from src.errors import ConflictError, NotFoundError
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 from collections.abc import Sequence
 from src.database.types import attr
@@ -36,19 +35,6 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
     # Count every registered compute target.
     count_result = await session.execute(select(func.count()).select_from(ComputeRegistry))
     return result.all(), count_result.scalar_one()
-
-
-async def create(session: AsyncSession, registry: ComputeRegistry) -> None:
-    """Register one verified compute target as immediately assignable."""
-
-    # Persist the inline-verified target; duplicates translate to one stable API conflict.
-    session.add(registry)
-
-    # Translate duplicate names or physical clusters to one stable API conflict.
-    try:
-        await session.flush()
-    except IntegrityError as exc:
-        raise ConflictError("Compute registry already exists") from exc
 
 
 async def delete(session: AsyncSession, registry_id: UUID) -> None:
