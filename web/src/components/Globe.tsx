@@ -15,7 +15,7 @@ export function Globe() {
     return (
         <svg
             aria-hidden="true"
-            className="homepage-hero-globe pointer-events-none absolute left-1/2 max-w-none -translate-x-1/2 text-accent opacity-90"
+            className="pointer-events-none absolute left-1/2 bottom-(--hero-globe-bottom) w-(--hero-globe-width) max-w-none -translate-x-1/2 text-accent opacity-90 [@media(max-width:theme(--breakpoint-sm))]:bottom-(--hero-globe-mobile-bottom) [@media(max-width:theme(--breakpoint-sm))]:w-(--hero-globe-mobile-width)"
             focusable="false"
             viewBox="0 0 1400 1260"
         >

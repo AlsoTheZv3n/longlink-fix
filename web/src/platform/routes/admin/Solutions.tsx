@@ -6,7 +6,6 @@ import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@astryxdesign/core/Badge';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { Heading } from '@astryxdesign/core/Heading';
@@ -53,10 +52,16 @@ export default function Solutions() {
                                             {row.name}
                                         </Link>
                                         {row.status !== 'running' && (
-                                            <Badge
-                                                label={row.status === 'creating' ? 'Creating' : 'Failed'}
-                                                variant={row.status === 'creating' ? 'info' : 'error'}
-                                            />
+                                            <Text
+                                                className={
+                                                    row.status === 'creating'
+                                                        ? 'text-(--color-text-blue)'
+                                                        : 'text-error'
+                                                }
+                                                type="supporting"
+                                            >
+                                                {row.status === 'creating' ? 'Creating' : 'Failed'}
+                                            </Text>
                                         )}
                                     </Stack>
                                     {row.description && <Text type="supporting">{row.description}</Text>}

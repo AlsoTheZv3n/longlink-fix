@@ -10,7 +10,6 @@ import { Card } from '@astryxdesign/core/Card';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@astryxdesign/core/Badge';
 import { useQuery } from '@tanstack/react-query';
 import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
@@ -495,7 +494,7 @@ function MembersSection({ base, canAdminister }: { base: string; canAdminister: 
                                     <Stack align="start">
                                         <Stack direction="horizontal" gap={1} align="center">
                                             <Text>{row.user.name}</Text>
-                                            <Badge label={row.role} />
+                                            <Text type="supporting">{row.role}</Text>
                                         </Stack>
                                         <Text type="supporting">{row.user.email}</Text>
                                     </Stack>
@@ -623,7 +622,7 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
                             key: 'role',
                             header: 'Role',
                             width: proportional(1),
-                            renderCell: (row) => <Badge label={row.role} />,
+                            renderCell: (row) => <Text type="supporting">{row.role}</Text>,
                         },
                         ...(canMaintain
                             ? [

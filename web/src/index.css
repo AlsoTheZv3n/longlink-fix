@@ -49,38 +49,6 @@
             background-color: var(--color-text-secondary);
         }
     }
-    .article-content :is(h2, h3, h4, h5, h6) {
-        margin-block-start: var(--spacing-8);
-    }
-
-    .article-content p {
-        opacity: 0.9;
-    }
-
-    .documentation-content {
-        --text-body-size: var(--font-size-lg);
-    }
-
-    .documentation-content :is(h2, h3, h4, h5, h6) {
-        margin-block-start: calc(var(--spacing-9) * 2);
-    }
-
-    .handwritten-diagram {
-        --font-family-body: var(--font-family-handwritten);
-        --font-family-heading: var(--font-family-handwritten);
-    }
-}
-
-.homepage-hero-globe {
-    bottom: clamp(-94rem, -74vw, -58rem);
-    width: max(84rem, 112vw);
-}
-
-@media (max-width: 40rem) {
-    .homepage-hero-globe {
-        bottom: -42rem;
-        width: 68rem;
-    }
 }
 
 .homepage-hero-globe-surface {
@@ -105,14 +73,4 @@
 .homepage-hero-globe-horizon {
     stroke-opacity: 0.62;
     stroke-width: 1.4;
-}
-
-.homepage-integration-section::after {
-    position: absolute;
-    inset: auto 0 0;
-    z-index: 0;
-    height: calc(var(--spacing-10) * 5);
-    background: linear-gradient(to bottom, transparent, var(--color-background-body));
-    content: '';
-    pointer-events: none;
 }
