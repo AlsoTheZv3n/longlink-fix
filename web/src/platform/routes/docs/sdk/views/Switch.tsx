@@ -20,12 +20,10 @@ export default function SwitchPage() {
 export default function PreferenceForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <Switch name="enabled" label="Enabled" defaultChecked />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <Switch name="enabled" label="Enabled" defaultChecked />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

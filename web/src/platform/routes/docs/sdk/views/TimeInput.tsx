@@ -20,12 +20,10 @@ export default function TimeInputPage() {
 export default function StartTimeForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <TimeInput name="start_time" label="Start time" required />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <TimeInput name="start_time" label="Start time" required />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

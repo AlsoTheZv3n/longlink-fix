@@ -20,20 +20,18 @@ export default function FileInputPage() {
 export default function AttachmentsForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <FileInput
-          name="attachments"
-          label="Attachments"
-          accept=".pdf"
-          multiple
-          maxSize={512 * 1024}
-          maxFiles={3}
-          required
-        />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <FileInput
+        name="attachments"
+        label="Attachments"
+        accept=".pdf"
+        multiple
+        maxSize={512 * 1024}
+        maxFiles={3}
+        required
+      />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

@@ -20,12 +20,10 @@ export default function SliderPage() {
 export default function ProgressForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <Slider name="progress" label="Progress" defaultValue={60} min={0} max={100} step={1} />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <Slider name="progress" label="Progress" defaultValue={60} min={0} max={100} step={1} />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

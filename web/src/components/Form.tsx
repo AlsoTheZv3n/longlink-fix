@@ -276,11 +276,13 @@ export function Form(props: {
                                 </LayoutContent>
                             }
                         />
-                    ) : (
+                    ) : steps.length > 0 ? (
                         <Stack gap={4}>
-                            {steps.length > 0 && progress}
+                            {progress}
                             {content}
                         </Stack>
+                    ) : (
+                        content
                     )}
                 </fieldset>
             </form>
