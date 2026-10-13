@@ -32,13 +32,13 @@ export default function FormPreview({
                     {stepped ? (
                         children
                     ) : (
-                        <Stack gap={3}>
+                        <>
                             {children}
                             <Stack direction="horizontal" gap={2}>
                                 <Button type="submit" label="Submit" variant="primary" />
                                 <Button type="reset" label="Reset" />
                             </Stack>
-                        </Stack>
+                        </>
                     )}
                 </Form>
                 {submission !== null && (

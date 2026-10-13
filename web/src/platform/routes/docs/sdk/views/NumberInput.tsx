@@ -20,12 +20,10 @@ export default function NumberInputPage() {
 export default function QuantityForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <NumberInput name="quantity" label="Quantity" defaultValue={3} min={1} max={100} step={1} required />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <NumberInput name="quantity" label="Quantity" defaultValue={3} min={1} max={100} step={1} required />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

@@ -20,12 +20,10 @@ export default function TextAreaPage() {
 export default function NotesForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <TextArea name="notes" label="Notes" defaultValue="Review complete" rows={2} maxLength={500} required />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <TextArea name="notes" label="Notes" defaultValue="Review complete" rows={2} maxLength={500} required />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

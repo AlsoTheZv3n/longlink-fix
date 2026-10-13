@@ -21,13 +21,11 @@ export default function FormPage() {
 export default function CreateItem() {
   return (
     <Form action="/api/items" method="post">
-      <Stack gap={3}>
-        <TextInput name="name" label="Name" required />
-        <NumberInput name="price" label="Price" min={0} defaultValue={0} required />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <TextInput name="name" label="Name" required />
+      <NumberInput name="price" label="Price" min={0} defaultValue={0} required />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

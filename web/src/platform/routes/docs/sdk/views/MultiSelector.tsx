@@ -20,18 +20,16 @@ export default function MultiSelectorPage() {
 export default function TeamsForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <MultiSelector
-          name="teams"
-          label="Teams"
-          options={['design', 'engineering', 'support']}
-          defaultValue={['design', 'engineering']}
-          required
-        />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <MultiSelector
+        name="teams"
+        label="Teams"
+        options={['design', 'engineering', 'support']}
+        defaultValue={['design', 'engineering']}
+        required
+      />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );
