@@ -1,4 +1,4 @@
-const RELATIVE_URL_ORIGIN = 'http://longlink.local';
+export const RELATIVE_URL_ORIGIN = 'http://longlink.local';
 
 /** Resolves a solution-relative URL against a base URL string. */
 function resolveUrl(baseUrl: string, path: string): string {

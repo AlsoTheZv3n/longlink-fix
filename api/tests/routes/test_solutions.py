@@ -534,7 +534,7 @@ async def test_app_logs_return_unavailable_when_backend_fails(
         # Keep construction and retrieval failures as distinct provider scenarios.
         if failure_stage == "construction":
             raise RuntimeError("cluster credential unavailable")
-        return DatabaseKubernetes()
+        return DatabaseKubernetes({})
 
     async def unavailable_logs(client: object, organization_id: UUID, solution_id: UUID) -> list[str]:
         """Fail retrieval separately from client construction."""

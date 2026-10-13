@@ -58,21 +58,24 @@ export default function VerifyEmail() {
               }).json()
             : api('/api/v1/auth/register/setup', { signal }).json();
 
-        return request.then(
-            (value) => {
-                if (signal.aborted) return;
+        // Handle only transport failures as invalid credentials.
+        let value: unknown;
 
-                return { status: 'verified', data: zEmailPayload.parse(value) };
-            },
-            (cause: unknown) => {
-                if (signal.aborted) return;
+        try {
+            value = await request;
+        } catch (cause: unknown) {
+            if (signal.aborted) return;
 
-                if (!(cause instanceof ApiError) || cause.status !== 400) throw cause;
-                sessionStorage.removeItem(REGISTRATION_TOKEN_KEY);
+            if (!(cause instanceof ApiError) || cause.status !== 400) throw cause;
+            sessionStorage.removeItem(REGISTRATION_TOKEN_KEY);
 
-                return { status: 'error' };
-            }
-        );
+            return { status: 'error' };
+        }
+
+        // Validate the email claim only while verification is still active.
+        if (signal.aborted) return;
+
+        return { status: 'verified', data: zEmailPayload.parse(value) };
     }
 
     const { verification, startVerification } = useVerification(token, verify);
@@ -82,26 +85,28 @@ export default function VerifyEmail() {
     async function handleComplete(payload: RegistrationCompleteValues) {
         setAccountConflict(false);
 
+        // Recover only expected account-creation transport failures.
+        let value: unknown;
+
+        try {
+            value = await api('/api/v1/auth/register/complete', { json: payload, method: 'POST' }).json();
+        } catch (cause: unknown) {
+            if (!(cause instanceof ApiError) || ![400, 409].includes(cause.status)) throw cause;
+
+            if (cause.status === 409) setAccountConflict(true);
+
+            // Expired setup cookies require recovering or replacing the registration link.
+            if (cause.status === 400) void startVerification('');
+
+            return;
+        }
+
         // Publish the new authenticated identity only after account creation succeeds.
-        await api('/api/v1/auth/register/complete', { json: payload, method: 'POST' })
-            .json()
-            .then(
-                async (value) => {
-                    const user = zUserSummary.parse(value);
-                    await clearSessionQueries(queryClient);
-                    queryClient.setQueryData(['api', '/api/v1/me'], user);
-                    sessionStorage.removeItem(REGISTRATION_TOKEN_KEY);
-                    void navigate('/user/organizations', { replace: true });
-                },
-                (cause: unknown) => {
-                    if (!(cause instanceof ApiError) || ![400, 409].includes(cause.status)) throw cause;
-
-                    if (cause.status === 409) setAccountConflict(true);
-
-                    // Expired setup cookies require recovering or replacing the registration link.
-                    if (cause.status === 400) void startVerification('');
-                }
-            );
+        const user = zUserSummary.parse(value);
+        await clearSessionQueries(queryClient);
+        queryClient.setQueryData(['api', '/api/v1/me'], user);
+        sessionStorage.removeItem(REGISTRATION_TOKEN_KEY);
+        void navigate('/user/organizations', { replace: true });
     }
 
     const recoveryRegisterHref = verifiedEmail

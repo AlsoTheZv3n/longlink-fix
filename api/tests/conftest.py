@@ -5,10 +5,9 @@ import shutil
 import subprocess
 import pytest_asyncio
 from uuid import UUID, uuid4
-from types import TracebackType
 from httpx2 import Cookies, Response, AsyncClient, ASGITransport
 from pwdlib import PasswordHash
-from typing import TYPE_CHECKING, Self, cast
+from typing import cast
 from pathlib import Path
 from contextlib import AsyncExitStack, asynccontextmanager
 from sqlalchemy import create_engine
@@ -49,32 +48,8 @@ from src.kubernetes import databases as database_resources
 from src.kubernetes import solutions as solution_resources
 from src.environments import env
 from src.database.models import registry
+from src.kubernetes.client import Kubernetes
 from src.database.models.users import User
-
-if TYPE_CHECKING:
-    from src.kubernetes.client import Kubernetes
-
-
-class AsyncKubernetes:
-    """Provide Kubernetes resource-scope cleanup for test doubles."""
-
-    async def __aenter__(self) -> Self:
-        """Return this test double for an async resource scope."""
-
-        return self
-
-    async def __aexit__(
-        self,
-        _exc_type: type[BaseException] | None,
-        _exc_value: BaseException | None,
-        _traceback: TracebackType | None,
-    ) -> None:
-        """Close this test double when its async resource scope ends."""
-
-        await self.aclose()
-
-    async def aclose(self) -> None:
-        """Close this test double without external resources."""
 
 
 class StorageKubernetes:
@@ -104,13 +79,10 @@ class StorageKubernetes:
         return Credentials("solution", "generated-secret")
 
 
-class DatabaseKubernetes(AsyncKubernetes):
+class DatabaseKubernetes(Kubernetes):
     """Provide the CNPG provider boundary without opening Kubernetes connections."""
 
-    def __init__(self, *_args: object) -> None:
-        """Accept cluster configuration without opening connections."""
-
-    async def forward_database(self, organization: UUID) -> int:
+    async def forward_database(self, organization_id: UUID) -> int:
         """Supply a local transport port consumed only by the SQL fake."""
 
         return 15432
@@ -274,7 +246,7 @@ def reject_provider_construction(monkeypatch: pytest.MonkeyPatch, *targets: tupl
         monkeypatch.setattr(holder, name, unexpected_provider)
 
 
-class FakeKubernetes(AsyncKubernetes):
+class FakeKubernetes(Kubernetes):
     """Provide an opaque Kubernetes API client."""
 
     async def api(self) -> Api:
@@ -283,18 +255,15 @@ class FakeKubernetes(AsyncKubernetes):
         return cast(Api, object())
 
 
-def kubernetes_client() -> "Kubernetes":
-    """Return the Kubernetes test double typed as its production client."""
+def kubernetes_client() -> Kubernetes:
+    """Return a lazy Kubernetes client with an opaque external API boundary."""
 
-    # Centralize the intentional test-double substitution so call sites need no suppressions.
-    return cast("Kubernetes", FakeKubernetes())
+    # Initialize the real lifecycle without opening a cluster connection.
+    return FakeKubernetes({})
 
 
-class RegistryKubernetes(AsyncKubernetes):
+class RegistryKubernetes(Kubernetes):
     """Supply independent synthetic cluster identities without Kubernetes I/O."""
-
-    def __init__(self, kubeconfig: dict[str, object]) -> None:
-        """Accept cluster configuration without retaining unused state."""
 
     async def cluster_uid(self) -> str:
         """Return an independent identity for each registered test cluster."""

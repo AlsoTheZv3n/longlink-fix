@@ -10,7 +10,7 @@ import { Spinner } from '@astryxdesign/core/Spinner';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { matchRoutes, Navigate, useParams } from 'react-router';
 import type { NavigationTab } from '@/components/layouts/Platform';
-import { resolveNavigationUrl, resolveRequestUrl } from '@/lib/url';
+import { RELATIVE_URL_ORIGIN, resolveNavigationUrl, resolveRequestUrl } from '@/lib/url';
 
 type SolutionRuntimeProps = {
     children: (solution: { content: ReactNode; tabs: readonly NavigationTab[]; title?: string }) => ReactNode;
@@ -33,7 +33,7 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
     const { '*': routePath = '' } = useParams();
 
     // Resolve JSX requests beside the manifest without changing its URL form.
-    const viewsLocation = new URL(viewsUrl, 'http://longlink.local');
+    const viewsLocation = new URL(viewsUrl, RELATIVE_URL_ORIGIN);
     const requestBaseLocation = new URL('.', viewsLocation);
     const requestBaseUrl = viewsUrl.startsWith('/') ? requestBaseLocation.pathname : requestBaseLocation.toString();
 
