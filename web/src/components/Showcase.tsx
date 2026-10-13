@@ -17,6 +17,7 @@ import { Heading } from '@astryxdesign/core/Heading';
 import { Section } from '@astryxdesign/core/Section';
 import { TextInput } from '@/components/ui/TextInput';
 import { Timestamp } from '@/components/ui/Timestamp';
+import { Thumbnail } from '@astryxdesign/core/Thumbnail';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { Tab, TabList } from '@astryxdesign/core/TabList';
 import { PageContainer } from '@/components/PageContainer';
@@ -83,6 +84,9 @@ const sampleInvoices: Invoice[] = [
         createdBy: 'Marco Rossi',
     },
 ];
+
+// Reuse the SDK gallery's bundled photos without requesting Solution data.
+const photos = ['office', 'workspace', 'desk'];
 
 /** Shows the sample's invoice views in one local-only, tabbed homepage preview. */
 export function Showcase() {
@@ -266,41 +270,64 @@ export function Showcase() {
                                                     <Text color="secondary">{activeTab.description}</Text>
                                                 </Stack>
                                                 {activeTab.id === 'cards' && (
-                                                    <Grid columns={{ minWidth: 200, max: 3 }} gap={4}>
+                                                    <Grid columns={{ minWidth: 200, max: 3 }} gap={2} align="stretch">
                                                         {invoices.map((invoice) => (
                                                             <Card
                                                                 key={invoice.id}
                                                                 label={invoice.name}
                                                                 variant="muted"
-                                                                padding={4}
+                                                                padding={0}
+                                                                height="100%"
+                                                                isClipped
                                                                 onClick={() => setInvoiceId(invoice.id)}
                                                             >
-                                                                <Stack gap={3}>
-                                                                    <Stack
-                                                                        direction="horizontal"
-                                                                        justify="between"
-                                                                        align="center"
-                                                                        gap={2}
-                                                                        wrap="wrap"
-                                                                    >
-                                                                        <Heading level={3}>{invoice.name}</Heading>
-                                                                        <Badge
-                                                                            label={invoice.status}
-                                                                            variant={
-                                                                                invoice.status === 'approved'
-                                                                                    ? 'success'
-                                                                                    : invoice.status === 'pending'
-                                                                                      ? 'warning'
-                                                                                      : 'neutral'
-                                                                            }
-                                                                        />
-                                                                    </Stack>
-                                                                    <Currency
-                                                                        value={invoice.price}
-                                                                        currency="CHF"
-                                                                        locale="de-CH"
+                                                                <Stack gap={0}>
+                                                                    <Thumbnail
+                                                                        src={`/images/showcase/${photos[(invoice.id - 1) % photos.length]}.jpg`}
+                                                                        alt="Example laptop workspace photo"
+                                                                        className="w-full! [&>div]:aspect-video! [&>div]:rounded-none!"
                                                                     />
-                                                                    <Text color="secondary">{invoice.createdBy}</Text>
+                                                                    <Stack gap={2} padding={3}>
+                                                                        <Heading level={3} maxLines={1}>
+                                                                            {invoice.name}
+                                                                        </Heading>
+                                                                        <Stack
+                                                                            direction="horizontal"
+                                                                            justify="between"
+                                                                            align="center"
+                                                                            gap={2}
+                                                                        >
+                                                                            <Currency
+                                                                                value={invoice.price}
+                                                                                currency="CHF"
+                                                                                locale="de-CH"
+                                                                            />
+                                                                            <Badge
+                                                                                label={invoice.status}
+                                                                                variant={
+                                                                                    invoice.status === 'approved'
+                                                                                        ? 'success'
+                                                                                        : invoice.status === 'pending'
+                                                                                          ? 'warning'
+                                                                                          : 'neutral'
+                                                                                }
+                                                                            />
+                                                                        </Stack>
+                                                                        <Stack
+                                                                            gap={0}
+                                                                            minHeight="var(--size-element-md)"
+                                                                        >
+                                                                            <Text type="supporting" maxLines={1}>
+                                                                                <Timestamp
+                                                                                    value={invoice.createdAt}
+                                                                                    format="date"
+                                                                                />
+                                                                            </Text>
+                                                                            <Text type="supporting" maxLines={1}>
+                                                                                {invoice.createdBy}
+                                                                            </Text>
+                                                                        </Stack>
+                                                                    </Stack>
                                                                 </Stack>
                                                             </Card>
                                                         ))}
