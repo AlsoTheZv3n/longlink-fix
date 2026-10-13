@@ -53,21 +53,6 @@ function ApiProvider({ children }: { children: ReactNode }) {
         createQueryRuntime(
             (body) => {
                 toast({ body, type: 'error', isAutoHide: true });
-
-                // Re-promote the shared viewport after React renders the toast so it remains above an open dialog.
-                requestAnimationFrame(() => {
-                    for (const viewport of document.querySelectorAll<HTMLElement>('[popover="manual"]')) {
-                        if (!viewport.querySelector('[data-toast-id]')) continue;
-
-                        // Older browsers may not implement the native popover capability.
-                        if (!('hidePopover' in viewport) || !('showPopover' in viewport)) return;
-
-                        if (viewport.matches(':popover-open')) viewport.hidePopover();
-                        viewport.showPopover();
-
-                        return;
-                    }
-                });
             },
             import.meta.env.MODE !== 'sdk'
         )

@@ -10,6 +10,7 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAnnounce } from '@astryxdesign/core/hooks';
 import { useFragmentToken } from '@/lib/hooks/use-fragment-token';
 import { useVerification, type VerificationRequest } from '@/lib/hooks/use-verification';
 
@@ -29,6 +30,7 @@ function isBadTokenError(cause: unknown): boolean {
 /** Accepts a password reset token and saves a new password. */
 export default function ResetPassword() {
     const token = useFragmentToken(PASSWORD_RESET_TOKEN_KEY);
+    const announce = useAnnounce();
 
     const form = useForm<ResetPasswordValues>({
         defaultValues: { password: '' },
@@ -102,7 +104,11 @@ export default function ResetPassword() {
                         form.handleSubmit(async (payload) => {
                             // Publish the saved result only after the password change succeeds.
                             await api('/api/v1/auth/reset-password', { json: payload, method: 'POST' }).then(
-                                () => setReset({ status: 'saved' }),
+                                () => {
+                                    // Announce only the completed password change, not a banner render.
+                                    setReset({ status: 'saved' });
+                                    announce('Your password has been reset. You can now sign in.');
+                                },
                                 (cause: unknown) => {
                                     if (!isBadTokenError(cause)) throw cause;
                                     setReset({ status: 'error' });
