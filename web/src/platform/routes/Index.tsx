@@ -152,7 +152,7 @@ export default function Home() {
                 </main>
                 <Section
                     aria-hidden="true"
-                    className="homepage-integration-section relative z-10 min-h-48 sm:min-h-64"
+                    className="relative z-10 min-h-48 sm:min-h-64 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-0 after:h-[calc(var(--spacing-10)*5)] after:bg-[linear-gradient(to_bottom,transparent,var(--color-background-body))] after:content-['']"
                     padding={6}
                     paddingBlock={10}
                     variant="transparent"

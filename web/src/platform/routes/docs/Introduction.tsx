@@ -20,7 +20,7 @@ export default function Introduction() {
     return (
         <DocumentationArticle
             article={article}
-            className="documentation-content [--font-family-heading:var(--font-family-handwritten)] [&_.astryx-heading]:uppercase"
+            className="[--text-body-size:var(--font-size-lg)] [--article-heading-spacing:calc(var(--spacing-9)*2)] [--font-family-heading:var(--font-family-handwritten)] [&_.astryx-heading]:uppercase"
         >
             <Stack
                 className="[--text-body-leading:var(--leading-relaxed)] [--text-body-size:var(--font-size-lg)]"
@@ -63,7 +63,7 @@ export default function Introduction() {
                             LongLink provides everything else needed to build, run, and manage those Solutions.
                         </Text>
                         <Card
-                            className="handwritten-diagram relative overflow-hidden"
+                            className="relative overflow-hidden [--font-family-body:var(--font-family-handwritten)] [--font-family-heading:var(--font-family-handwritten)]"
                             padding={0}
                             variant="transparent"
                         >

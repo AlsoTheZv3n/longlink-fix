@@ -3,7 +3,6 @@ import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@astryxdesign/core/Badge';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Timestamp } from '@astryxdesign/core/Timestamp';
@@ -37,7 +36,9 @@ export default function Users() {
                                     <Stack align="start">
                                         <Stack direction="horizontal" gap={1} align="center">
                                             <Text>{row.name}</Text>
-                                            <Badge label={row.administrator ? 'Administrator' : 'User'} />
+                                            <Text type="supporting">
+                                                {row.administrator ? 'Administrator' : 'User'}
+                                            </Text>
                                         </Stack>
                                         <Text type="supporting">{row.email}</Text>
                                     </Stack>

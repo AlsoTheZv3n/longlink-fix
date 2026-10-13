@@ -40,7 +40,7 @@ type DocumentationArticleProps = {
 export function DocumentationArticle({
     article,
     children,
-    className = 'documentation-content [--font-family-heading:var(--font-family-handwritten)] [&_.astryx-heading]:uppercase [&_.astryx-heading]:tracking-wide',
+    className = '[--text-body-size:var(--font-size-lg)] [--article-heading-spacing:calc(var(--spacing-9)*2)] [--font-family-heading:var(--font-family-handwritten)] [&_.astryx-heading]:uppercase [&_.astryx-heading]:tracking-wide',
 }: DocumentationArticleProps) {
     // Keep documentation typography and reading order as wrapper-owned policy.
     return (
@@ -120,7 +120,9 @@ function ArticleRenderer({
                     <LayoutContent isScrollable={false} padding={6}>
                         <Stack className="mx-auto" direction="horizontal" gap={6} maxWidth={1016} width="100%">
                             <PageContainer className="min-w-0" maxWidth={720}>
-                                <article className={`article-content space-y-7${className ? ` ${className}` : ''}`}>
+                                <article
+                                    className={`space-y-7 [&_:is(h2,h3,h4,h5,h6)]:[margin-block-start:var(--article-heading-spacing,var(--spacing-8))] [&_p]:opacity-90${className ? ` ${className}` : ''}`}
+                                >
                                     {children}
                                     <Stack as="footer" gap={3} paddingBlockStart={8}>
                                         <ArticleFooter

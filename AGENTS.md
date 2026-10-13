@@ -70,56 +70,35 @@
 
 ## Astryx Guidelines
 
-DO run every Astryx command from `web/` as `vp exec astryx <cmd>`. The examples below abbreviate this prefix as `astryx`.
+<!-- ASTRYX:START -->
+Astryx v0.7.0 · 168 components
+CLI: run every command as `bunx astryx <cmd>` (shown below as `astryx ...`).
 
-### Discovery workflow
+SETUP (once, in app entry e.g. main.tsx) — without these, components render unstyled:
+  import "@astryxdesign/core/reset.css";
+  import "@astryxdesign/core/astryx.css";
 
-Before writing UI, DO complete these steps in order:
+WORKFLOW — start every page from a template, never from scratch:
+1. `astryx build "<idea>"` — names the template to scaffold from and the parts it lacks.
+2. `astryx template <name> <path>` — scaffold it; keep its frame, gap and padding; replace the content.
+3. `astryx template <Block>` for parts it lacks; `astryx component <Name>` to read props before using one.
+Changing an existing page? Keep it: skip step 2 and add blocks/components inside its sections.
 
-1. Run `astryx build "<idea>"` to find the closest page, blocks, and components. Without arguments, the command returns the full playbook.
-2. Run `astryx template <name> [--skeleton]` for the suggested page and blocks. DO use templates as reference code for scaffolding or layout study.
-3. Run `astryx component <Name>` to inspect the props and examples for each component used.
+RULES:
+- No <div> — components handle all layout and spacing.
+- Read `astryx docs layout` before changing a template's frame.
+- Dense data = rows (Table, List/Item), not Card-wrapped lists. Badge = counts only.
+- Style with component props first, then Tailwind utilities backed by tokens. No raw hex/px.
+- Palettes and custom colors go through the theme, never :root overrides. Run `astryx theme add <slug>` to import; `theme eject <slug>` only forks source. See `astryx docs theme`.
+- SELF-CHECK: re-read the file; replace any style={{…}}, raw <div>/<span>, imported .css/@apply, or hardcoded/arbitrary value (bg-[#fff], p-[13px]) with the component or a token-backed utility.
 
-### Layout and styling
-
-- DON'T add superfluous UI microcopy that creates visual clutter. Include text only when it helps users understand or complete a task.
-- DO use components for layout and spacing, not raw `<div>` elements.
-- DO use `AppShell` for full pages and `SideNav` for sidebar navigation.
-- Before writing content, DO select the shell (`AppShell` or `Layout` with `LayoutPanel`) and plan region sizes in pixels using `astryx docs layout`.
-- DO display dense data as edge-to-edge rows with `Table` or `List`/`Item`.
-- DON'T wrap list items in `Card`.
-- DO use `Card` only for dashboard widgets, galleries, or settings groups.
-- DO use `StatusDot` or `Token` for status.
-- DO use `Badge` only for counts or enumerated states, not decoration.
-- DO use component props before custom styling.
-- When props are insufficient, DO use token-backed Tailwind utilities from `tailwind-theme.css`, such as `bg-surface`, `text-primary`, or `rounded-lg`.
-- DON'T use raw hexadecimal colors or pixel values in custom styles.
-- DO use tokens for style values and consult `astryx docs tokens`.
-- DO configure brand and accent colors through `astryx theme`.
-- DON'T override `--color-*` in `:root`.
-
-### Final review
-
-Before completing UI work, DO reread each changed file and replace:
-
-- `style={{…}}`;
-- raw `<div>` or `<span>` layout;
-- imported `.css` or `@apply` styling;
-- hardcoded or arbitrary values, such as `bg-[#fff]` or `p-[13px]`.
-
-DO use a component or token-backed utility for each replacement. When a component or prop is uncertain, DO run `astryx component <Name>` or `astryx search "<thing>"`. DON'T write custom CSS to bypass discovery.
-
-### Command reference
-
-| Command                   | Purpose                                                                                                                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `astryx search "<query>"` | Find a component, hook, document, template, or block.                                                                                                                              |
-| `astryx component --list` | List components by category.                                                                                                                                                       |
-| `astryx template --list`  | List page and block recipes.                                                                                                                                                       |
-| `astryx docs <topic>`     | Read documentation for color, elevation, icons, illustrations, internationalization, layout, migration, motion, principles, shape, spacing, styling, theme, tokens, or typography. |
-| `astryx swizzle <Name>`   | Export component source for deep customization.                                                                                                                                    |
-
-After each `@astryxdesign/core` version increase, DO run `astryx upgrade --apply`.
+`astryx help` lists every command. Key ones beyond the workflow:
+  search "<query>"   find any component / hook / doc / template
+  discover <words>   integrations you could add
+  docs <topic>       getting-started, principles, tokens, theme … (`astryx docs` lists all)
+  docs cli           commands, API reference, integration authoring
+  upgrade --from <old version> --apply   run after a dependency bump
+<!-- ASTRYX:END -->
 
 ## Commit Message Structure
 
