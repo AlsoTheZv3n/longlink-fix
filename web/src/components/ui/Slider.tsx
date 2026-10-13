@@ -48,7 +48,7 @@ export function Slider(props: SliderProps) {
         <AstryxSlider
             {...props}
             ref={ref}
-            className={props.hidden ? 'hidden!' : undefined}
+            containerClassName={props.hidden ? 'hidden!' : undefined}
             {...(Array.isArray(value)
                 ? {
                       value,

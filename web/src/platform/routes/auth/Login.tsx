@@ -152,7 +152,7 @@ export default function Login() {
                                     <TextField
                                         control={form.control}
                                         name="password"
-                                        className="pr-10"
+                                        controlClassName="pr-10"
                                         isLabelHidden
                                         isRequired
                                         label="Password"

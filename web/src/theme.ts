@@ -54,6 +54,34 @@ export const stoneTheme = defineTheme({
 
     motion: { fast: 125, medium: 300, slow: 700, ratio: 0.75 },
 
+    // Match Stone's readable phone scale without replacing authored documentation text sizes.
+    adaptations: {
+        rules: [
+            {
+                when: { pointer: 'coarse', width: { below: 'lg' } },
+                value: {
+                    typography: { scale: { base: 16, ratio: 1.2225 } },
+
+                    // Scale expansion otherwise replaces the documentation overrides below.
+                    tokens: {
+                        '--text-heading-1-size': 'var(--font-size-3xl)',
+                        '--text-heading-1-leading': '1.2941',
+                        '--text-heading-2-size': '1.75rem',
+                        '--text-heading-2-leading': '1.4286',
+                        '--text-heading-3-size': 'var(--font-size-xl)',
+                        '--text-heading-3-leading': '1.4545',
+                        '--text-heading-4-size': 'var(--font-size-lg)',
+                        '--text-heading-4-leading': '1.5556',
+                        '--text-body-size': '1rem',
+                        '--text-body-leading': '1.5',
+                        '--text-supporting-size': 'var(--font-size-base)',
+                        '--text-supporting-leading': '1.4286',
+                    },
+                },
+            },
+        ],
+    },
+
     syntax: stoneSyntax,
 
     // Shared handwritten typography and the success toast's inverted surface.

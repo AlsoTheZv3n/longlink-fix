@@ -6,6 +6,7 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import type { FormValidation } from './ui/FormField';
 import type { ReactElement, ReactNode } from 'react';
+import { useAnnounce } from '@astryxdesign/core/hooks';
 import { Children, isValidElement, useEffect, useRef, useState } from 'react';
 import { Layout, LayoutHeader, LayoutContent } from '@astryxdesign/core/Layout';
 
@@ -34,6 +35,7 @@ export function Form(props: {
 }) {
     // Guard writes and asynchronous advances independently of React render timing.
     const pending = useRef(false);
+    const announce = useAnnounce();
     const [submission, setSubmission] = useState<{ submitting: boolean; error?: string }>({ submitting: false });
 
     // Recognize direct marker children, retaining other content as shared fields or layout.
@@ -125,10 +127,14 @@ export function Form(props: {
                 await props.action(data);
             }
         } catch (failure) {
+            // Announce the failed action once, independently of the banner's visual status.
+            const error = failure instanceof Error ? failure.message : 'Form submission failed';
+
             setSubmission((current) => ({
                 ...current,
-                error: failure instanceof Error ? failure.message : 'Form submission failed',
+                error,
             }));
+            announce(error, 'assertive');
         } finally {
             pending.current = false;
             setSubmission((current) => ({ ...current, submitting: false }));
