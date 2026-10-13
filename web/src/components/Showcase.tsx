@@ -6,90 +6,154 @@ import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Switch } from '@/components/ui/Switch';
-import { Circle, FileText } from 'lucide-react';
 import { Wordmark } from '@/components/Wordmark';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Stack } from '@astryxdesign/core/Stack';
-import { Button } from '@astryxdesign/core/Button';
-import { Currency } from '@/components/ui/Currency';
 import { Selector } from '@/components/ui/Selector';
+import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Section } from '@astryxdesign/core/Section';
 import { TextInput } from '@/components/ui/TextInput';
-import { Timestamp } from '@/components/ui/Timestamp';
+import { Thumbnail } from '@astryxdesign/core/Thumbnail';
 import { NumberInput } from '@/components/ui/NumberInput';
 import { Tab, TabList } from '@astryxdesign/core/TabList';
+import { Circle, FileText, Settings } from 'lucide-react';
 import { PageContainer } from '@/components/PageContainer';
 import { Step, Stepper } from '@astryxdesign/core/Stepper';
 import { PlatformFrame } from '@/components/layouts/Platform';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
+import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { BreadcrumbItem, Breadcrumbs } from '@astryxdesign/core/Breadcrumbs';
+import { Layout, LayoutContent, LayoutPanel } from '@astryxdesign/core/Layout';
 import { Menu, MenuItem, MenuSection, MenuNavigationContext } from '@/components/ui/Menu';
-
-type Invoice = {
-    id: number;
-    name: string;
-    price: number;
-    status: 'draft' | 'pending' | 'approved';
-    createdAt: string;
-    createdBy: string;
-};
 
 // Mirror the sample Solution's tabs without organization navigation or account data.
 const showcaseTabs = [
-    { id: 'cards', label: 'Cards', description: 'This can be used for comparing invoices in a gallery.' },
-    { id: 'menu', label: 'Menu', description: 'This can be used for organizing settings into navigable sections.' },
-    {
-        id: 'steps',
-        label: 'Steps',
-        description: 'This can be used for opening invoices through a sequence of steps.',
-    },
-    { id: 'table', label: 'Table', description: 'This can be used for reviewing invoices and managing approvals.' },
+    { id: 'cards', label: 'Projects', description: 'This can be used for tracking projects in a gallery.' },
+    { id: 'table', label: 'Table', description: 'This can be used for reviewing projects in a table.' },
+    { id: 'menu', label: 'Settings', description: 'This can be used for organizing settings into navigable sections.' },
 ] as const;
 
-// Keep demo invoices local so homepage interactions never read or change Solution data.
-const sampleInvoices: Invoice[] = [
+// Share four local projects between the gallery and table without requesting Solution data.
+const projects = [
     {
         id: 1,
-        name: 'INV-2026-001',
-        price: 1250,
-        status: 'draft',
-        createdAt: '2026-10-08T09:30:00Z',
-        createdBy: 'Anna Keller',
+        name: 'Riverside Residences',
+        description: 'Modern riverside apartments.',
+        status: 'Planning',
+        owner: 'Anna Keller',
+        ownerEmail: 'anna.keller@example.com',
+        photo: 'riverside',
+        activeStep: 0,
     },
     {
         id: 2,
-        name: 'INV-2026-002',
-        price: 840,
-        status: 'pending',
-        createdAt: '2026-10-09T11:00:00Z',
-        createdBy: 'Marco Rossi',
+        name: 'Skyline Tower',
+        description: 'A new landmark for the city.',
+        status: 'In progress',
+        owner: 'Marco Rossi',
+        ownerEmail: 'marco.rossi@example.com',
+        photo: 'skyline',
+        activeStep: 4,
     },
     {
         id: 3,
-        name: 'INV-2026-003',
-        price: 3200,
-        status: 'approved',
-        createdAt: '2026-10-10T10:15:00Z',
-        createdBy: 'Anna Keller',
+        name: 'Garden Apartments',
+        description: 'Light-filled homes with green spaces.',
+        status: 'Completed',
+        owner: 'Anna Keller',
+        ownerEmail: 'anna.keller@example.com',
+        photo: 'garden',
+        activeStep: 5,
     },
     {
         id: 4,
-        name: 'INV-2026-004',
-        price: 560,
-        status: 'pending',
-        createdAt: '2026-10-11T08:45:00Z',
-        createdBy: 'Marco Rossi',
+        name: 'Harbor Offices',
+        description: 'Contemporary waterfront workspaces.',
+        status: 'In progress',
+        owner: 'Marco Rossi',
+        ownerEmail: 'marco.rossi@example.com',
+        photo: 'harbor',
+        activeStep: 2,
     },
 ];
 
-/** Shows the sample's invoice views in one local-only, tabbed homepage preview. */
+// Use the same construction lifecycle for every building project, with project-specific progress.
+const projectSteps = [
+    {
+        label: 'Strategic planning',
+        description: 'Define what you want to build, the budget, and your objectives.',
+        documents: [
+            { name: 'Client brief', available: true },
+            { name: 'Room schedule', available: true },
+            { name: 'Financial budget', available: false },
+            { name: 'Preliminary schedule', available: false },
+        ],
+    },
+    {
+        label: 'Preliminary studies',
+        description: 'Check the feasibility and select the project team.',
+        documents: [
+            { name: 'Site and zoning assessment', available: true },
+            { name: 'Feasibility study', available: true },
+            { name: 'Preliminary costs', available: false },
+            { name: 'Architect and engineer contracts', available: false },
+        ],
+    },
+    {
+        label: 'Project design',
+        description: 'Design the house and obtain planning permission.',
+        documents: [
+            { name: 'Architectural plans', available: true },
+            { name: 'Engineering concepts', available: true },
+            { name: 'Building description', available: true },
+            { name: 'Detailed cost estimate', available: false },
+            { name: 'Permit application and approvals', available: false },
+        ],
+    },
+    {
+        label: 'Tendering',
+        description: 'Request quotations, compare contractors, and award contracts.',
+        documents: [
+            { name: 'Tender drawings', available: true },
+            { name: 'Bills of quantities', available: true },
+            { name: 'Specifications', available: true },
+            { name: 'Contractor bids', available: false },
+            { name: 'Comparison', available: false },
+            { name: 'Construction contracts', available: false },
+        ],
+    },
+    {
+        label: 'Realization',
+        description: 'Prepare construction drawings, build, inspect, and hand over the house.',
+        documents: [
+            { name: 'Execution drawings', available: true },
+            { name: 'Construction and inspection records', available: true },
+            { name: 'Acceptance protocol', available: false },
+            { name: 'As-built documentation', available: false },
+            { name: 'Commissioning records', available: false },
+            { name: 'Final account', available: false },
+        ],
+    },
+    {
+        label: 'Operation and maintenance',
+        description: 'Operate, inspect, maintain, and repair the completed property.',
+        documents: [
+            { name: 'Building manual', available: true },
+            { name: 'Warranties', available: true },
+            { name: 'Inspection and service plans', available: true },
+            { name: 'Maintenance records', available: false },
+            { name: 'Repair documentation', available: false },
+        ],
+    },
+];
+
+/** Shows project views in one local-only, tabbed homepage preview. */
 export function Showcase() {
-    // Retain invoice edits and settings when switching between the sample views.
+    // Retain settings when switching between the sample views.
     const [tab, setTab] = useState('cards');
-    const [invoices, setInvoices] = useState(sampleInvoices);
-    const [invoiceId, setInvoiceId] = useState<number | null>(null);
+    const [projectId, setProjectId] = useState<number | null>(null);
+    const [phaseIndex, setPhaseIndex] = useState<number | null>(null);
     const [menuHash, setMenuHash] = useState('');
     const [company, setCompany] = useState('Acme Ink');
     const [currency, setCurrency] = useState('CHF');
@@ -98,11 +162,12 @@ export function Showcase() {
     const [pendingNotifications, setPendingNotifications] = useState(true);
     const [approvedNotifications, setApprovedNotifications] = useState(false);
 
-    // Resolve the visible tab and optional invoice detail from their stable identifiers.
+    // Resolve the visible tab and optional record details from their stable identifiers.
     const activeTab = showcaseTabs.find((item) => item.id === tab) ?? showcaseTabs[0];
-    const activeInvoice = invoices.find((invoice) => invoice.id === invoiceId);
+    const activeProject = projects.find((project) => project.id === projectId);
+    const activePhase = phaseIndex === null ? undefined : projectSteps[phaseIndex];
 
-    // Retain the 1000px preview window and its 420px mobile minimum around the shared AppShell.
+    // Keep the preview window's size while scaling its contents to 80%.
     return (
         <Section
             className="relative z-20 -mt-32 sm:-mt-48"
@@ -158,11 +223,11 @@ export function Showcase() {
                             padding={0}
                             isScrollable={false}
                             role="region"
-                            label="Interactive invoice showcase"
+                            label="Interactive project showcase"
                         >
                             <PlatformFrame
                                 height="fill"
-                                className="h-full"
+                                className="h-full zoom-80"
                                 breadcrumb={
                                     <Breadcrumbs separator=">" variant="supporting" label="Showcase breadcrumb">
                                         <BreadcrumbItem
@@ -171,25 +236,38 @@ export function Showcase() {
                                                 // Return to the showcase's first tab without leaving the homepage.
                                                 event.preventDefault();
                                                 setTab('cards');
-                                                setInvoiceId(null);
+                                                setProjectId(null);
+                                                setPhaseIndex(null);
                                             }}
                                         >
                                             <Wordmark />
                                         </BreadcrumbItem>
                                         <BreadcrumbItem
-                                            href={activeInvoice ? `#showcase-${activeTab.id}` : undefined}
-                                            isCurrent={!activeInvoice}
+                                            href={activeProject ? `#showcase-${activeTab.id}` : undefined}
+                                            isCurrent={!activeProject}
                                             onClick={(event) => {
-                                                // Return from invoice details to the current showcase tab.
+                                                // Return from record details to the current showcase tab.
                                                 event.preventDefault();
-                                                setInvoiceId(null);
+                                                setProjectId(null);
+                                                setPhaseIndex(null);
                                             }}
                                         >
                                             Example Showcase
                                         </BreadcrumbItem>
-                                        {activeInvoice && (
-                                            <BreadcrumbItem isCurrent>{activeInvoice.name}</BreadcrumbItem>
+                                        {activeProject && (
+                                            <BreadcrumbItem
+                                                href={activePhase ? `#showcase-project-${activeProject.id}` : undefined}
+                                                isCurrent={!activePhase}
+                                                onClick={(event) => {
+                                                    // Return from a phase subview to this project's construction steps.
+                                                    event.preventDefault();
+                                                    setPhaseIndex(null);
+                                                }}
+                                            >
+                                                {activeProject.name}
+                                            </BreadcrumbItem>
                                         )}
+                                        {activePhase && <BreadcrumbItem isCurrent>{activePhase.label}</BreadcrumbItem>}
                                     </Breadcrumbs>
                                 }
                                 action={<Avatar name="Example user" src="/favicon.svg?v=2" />}
@@ -199,10 +277,12 @@ export function Showcase() {
                                         onChange={(value) => {
                                             // Open each tab at its main view without discarding local edits.
                                             setTab(value);
-                                            setInvoiceId(null);
+                                            setProjectId(null);
+                                            setPhaseIndex(null);
                                         }}
                                         role="tablist"
                                         aria-label="Example Showcase views"
+                                        className="relative z-20"
                                         size="sm"
                                     >
                                         {showcaseTabs.map((item) => (
@@ -211,7 +291,13 @@ export function Showcase() {
                                                 value={item.id}
                                                 label={item.label}
                                                 panelId={`showcase-${item.id}`}
-                                                icon={<FileText aria-hidden="true" size={16} />}
+                                                icon={
+                                                    item.id === 'menu' ? (
+                                                        <Settings aria-hidden="true" size={16} />
+                                                    ) : (
+                                                        <FileText aria-hidden="true" size={16} />
+                                                    )
+                                                }
                                             />
                                         ))}
                                     </TabList>
@@ -225,82 +311,168 @@ export function Showcase() {
                                         tabIndex={0}
                                         gap={4}
                                     >
-                                        {activeInvoice ? (
+                                        {activeProject ? (
                                             <Stack gap={4}>
-                                                <Button
-                                                    label={`Back to ${activeTab.label.toLowerCase()}`}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setInvoiceId(null)}
-                                                />
-                                                <Heading level={2}>{activeInvoice.name}</Heading>
-                                                <Currency value={activeInvoice.price} currency="CHF" locale="de-CH" />
-                                                <Text color="secondary">Created by {activeInvoice.createdBy}</Text>
-                                                <Selector
-                                                    label="Status"
-                                                    value={activeInvoice.status}
-                                                    options={['draft', 'pending', 'approved']}
-                                                    onChange={(status) => {
-                                                        // Accept only invoice statuses and update this local preview record.
-                                                        if (
-                                                            status !== 'draft' &&
-                                                            status !== 'pending' &&
-                                                            status !== 'approved'
-                                                        )
-                                                            return;
-
-                                                        setInvoices((current) =>
-                                                            current.map((invoice) =>
-                                                                invoice.id === activeInvoice.id
-                                                                    ? { ...invoice, status }
-                                                                    : invoice
-                                                            )
-                                                        );
-                                                    }}
+                                                {activePhase ? (
+                                                    <Stack gap={0}>
+                                                        <Heading level={2}>{activePhase.label}</Heading>
+                                                        <Text type="supporting">{activePhase.description}</Text>
+                                                    </Stack>
+                                                ) : (
+                                                    <Stack direction="horizontal" align="center" gap={2}>
+                                                        <Thumbnail
+                                                            src={`/images/showcase/${activeProject.photo}.jpg`}
+                                                            alt={`${activeProject.name} building`}
+                                                            label={activeProject.name}
+                                                            className="w-10!"
+                                                        />
+                                                        <Stack gap={0}>
+                                                            <Heading level={2}>{activeProject.name}</Heading>
+                                                            <Text type="supporting">{activeProject.description}</Text>
+                                                        </Stack>
+                                                    </Stack>
+                                                )}
+                                                <Divider />
+                                                <Layout
+                                                    height="auto"
+                                                    padding={0}
+                                                    content={
+                                                        <LayoutContent isScrollable={false}>
+                                                            <Stack paddingInlineEnd={8}>
+                                                                {activePhase ? (
+                                                                    <Table
+                                                                        data={activePhase.documents}
+                                                                        idKey="name"
+                                                                        density="compact"
+                                                                        verticalAlign="top"
+                                                                        columns={[
+                                                                            {
+                                                                                key: 'name',
+                                                                                header: 'Document',
+                                                                                width: proportional(1),
+                                                                                renderCell: (document) => (
+                                                                                    <CheckboxInput
+                                                                                        label={document.name}
+                                                                                        size="sm"
+                                                                                        value={document.available}
+                                                                                        isReadOnly
+                                                                                    />
+                                                                                ),
+                                                                            },
+                                                                        ]}
+                                                                    />
+                                                                ) : (
+                                                                    <Stepper
+                                                                        activeStep={activeProject.activeStep}
+                                                                        onStepClick={setPhaseIndex}
+                                                                        orientation="vertical"
+                                                                        density="compact"
+                                                                        label={`${activeProject.name} construction phases`}
+                                                                    >
+                                                                        {projectSteps.map((step, index) => (
+                                                                            <Step
+                                                                                key={step.label}
+                                                                                step={index}
+                                                                                label={step.label}
+                                                                                description={step.description}
+                                                                                indicator={String(index + 1).padStart(
+                                                                                    2,
+                                                                                    '0'
+                                                                                )}
+                                                                            />
+                                                                        ))}
+                                                                    </Stepper>
+                                                                )}
+                                                            </Stack>
+                                                        </LayoutContent>
+                                                    }
+                                                    end={
+                                                        <LayoutPanel
+                                                            width="30%"
+                                                            isScrollable={false}
+                                                            role="complementary"
+                                                            label="Project details"
+                                                        >
+                                                            <Stack gap={2}>
+                                                                <Badge label={activeProject.status} />
+                                                                <Stack gap={2}>
+                                                                    <Text type="supporting">Project owner</Text>
+                                                                    <Stack
+                                                                        direction="horizontal"
+                                                                        align="center"
+                                                                        gap={2}
+                                                                    >
+                                                                        <Avatar name={activeProject.owner} size="sm" />
+                                                                        <Stack gap={0}>
+                                                                            <Text>{activeProject.owner}</Text>
+                                                                            <Text type="supporting">
+                                                                                {activeProject.ownerEmail}
+                                                                            </Text>
+                                                                        </Stack>
+                                                                    </Stack>
+                                                                </Stack>
+                                                            </Stack>
+                                                        </LayoutPanel>
+                                                    }
                                                 />
                                             </Stack>
                                         ) : (
                                             <>
                                                 <Stack gap={0}>
-                                                    <Heading level={2}>Example {activeTab.label} View</Heading>
+                                                    <Heading level={2}>
+                                                        {activeTab.id === 'cards'
+                                                            ? 'Projects'
+                                                            : `Example ${activeTab.label} View`}
+                                                    </Heading>
                                                     <Text color="secondary">{activeTab.description}</Text>
                                                 </Stack>
                                                 {activeTab.id === 'cards' && (
-                                                    <Grid columns={{ minWidth: 200, max: 3 }} gap={4}>
-                                                        {invoices.map((invoice) => (
+                                                    <Grid columns={4} gap={2} align="stretch">
+                                                        {projects.map((project) => (
                                                             <Card
-                                                                key={invoice.id}
-                                                                label={invoice.name}
+                                                                key={project.id}
+                                                                label={project.name}
                                                                 variant="muted"
-                                                                padding={4}
-                                                                onClick={() => setInvoiceId(invoice.id)}
+                                                                padding={0}
+                                                                height="100%"
+                                                                isClipped
+                                                                onClick={() => {
+                                                                    // Open the project's overview rather than a previously selected phase.
+                                                                    setProjectId(project.id);
+                                                                    setPhaseIndex(null);
+                                                                }}
                                                             >
-                                                                <Stack gap={3}>
-                                                                    <Stack
-                                                                        direction="horizontal"
-                                                                        justify="between"
-                                                                        align="center"
-                                                                        gap={2}
-                                                                        wrap="wrap"
-                                                                    >
-                                                                        <Heading level={3}>{invoice.name}</Heading>
-                                                                        <Badge
-                                                                            label={invoice.status}
-                                                                            variant={
-                                                                                invoice.status === 'approved'
-                                                                                    ? 'success'
-                                                                                    : invoice.status === 'pending'
-                                                                                      ? 'warning'
-                                                                                      : 'neutral'
-                                                                            }
-                                                                        />
-                                                                    </Stack>
-                                                                    <Currency
-                                                                        value={invoice.price}
-                                                                        currency="CHF"
-                                                                        locale="de-CH"
+                                                                <Stack gap={0} height="100%">
+                                                                    <Thumbnail
+                                                                        src={`/images/showcase/${project.photo}.jpg`}
+                                                                        alt={`${project.name} building`}
+                                                                        className="w-full! [&>div]:aspect-video! [&>div]:rounded-none!"
                                                                     />
-                                                                    <Text color="secondary">{invoice.createdBy}</Text>
+                                                                    <Stack gap={4} padding={3} className="flex-1">
+                                                                        <Stack gap={0} hAlign="start">
+                                                                            <Heading level={3} maxLines={1}>
+                                                                                {project.name}
+                                                                            </Heading>
+                                                                            <Badge
+                                                                                label={project.status}
+                                                                                variant={
+                                                                                    project.status === 'Completed'
+                                                                                        ? 'success'
+                                                                                        : project.status ===
+                                                                                            'In progress'
+                                                                                          ? 'warning'
+                                                                                          : 'neutral'
+                                                                                }
+                                                                            />
+                                                                        </Stack>
+                                                                        <Text
+                                                                            type="supporting"
+                                                                            maxLines={2}
+                                                                            className="mt-auto"
+                                                                        >
+                                                                            {project.description}
+                                                                        </Text>
+                                                                    </Stack>
                                                                 </Stack>
                                                             </Card>
                                                         ))}
@@ -367,101 +539,84 @@ export function Showcase() {
                                                         </Menu>
                                                     </MenuNavigationContext>
                                                 )}
-                                                {activeTab.id === 'steps' && (
-                                                    <Stepper
-                                                        activeStep={0}
-                                                        orientation="vertical"
-                                                        onStepClick={(index) => {
-                                                            // Open the invoice represented by this step without leaving the showcase.
-                                                            const invoice = invoices[index];
-
-                                                            if (invoice) setInvoiceId(invoice.id);
-                                                        }}
-                                                    >
-                                                        {['Step one', 'Step two', 'Step three', 'Step four'].map(
-                                                            (label, index) => (
-                                                                <Step
-                                                                    key={label}
-                                                                    step={index}
-                                                                    label={label}
-                                                                    description={`Open invoice ${invoices[index]?.name ?? ''}.`}
-                                                                />
-                                                            )
-                                                        )}
-                                                    </Stepper>
-                                                )}
                                                 {activeTab.id === 'table' && (
                                                     <Table
-                                                        data={invoices}
+                                                        data={projects}
                                                         idKey="id"
                                                         density="compact"
                                                         hasHover
                                                         columns={[
                                                             {
                                                                 key: 'name',
-                                                                header: 'Invoice',
+                                                                header: 'Project',
                                                                 width: proportional(2),
-                                                                renderCell: (invoice) => (
-                                                                    <Link
-                                                                        href="#showcase-invoice"
-                                                                        onClick={(event) => {
-                                                                            // Keep invoice navigation local to the homepage preview.
-                                                                            event.preventDefault();
-                                                                            setInvoiceId(invoice.id);
-                                                                        }}
-                                                                    >
-                                                                        {invoice.name}
-                                                                    </Link>
-                                                                ),
-                                                            },
-                                                            {
-                                                                key: 'price',
-                                                                header: 'Amount',
-                                                                width: proportional(1),
-                                                                renderCell: (invoice) => (
-                                                                    <Currency
-                                                                        value={invoice.price}
-                                                                        currency="CHF"
-                                                                        locale="de-CH"
-                                                                    />
-                                                                ),
-                                                            },
-                                                            {
-                                                                key: 'createdBy',
-                                                                header: 'Created by',
-                                                                width: proportional(2),
-                                                                renderCell: (invoice) => (
+                                                                renderCell: (project) => (
                                                                     <Stack
                                                                         direction="horizontal"
                                                                         align="center"
                                                                         gap={2}
                                                                     >
-                                                                        <Avatar name={invoice.createdBy} size="sm" />
+                                                                        <Thumbnail
+                                                                            src={`/images/showcase/${project.photo}.jpg`}
+                                                                            alt={`${project.name} building`}
+                                                                            label={project.name}
+                                                                            className="w-8!"
+                                                                        />
                                                                         <Stack gap={0}>
-                                                                            <Text>{invoice.createdBy}</Text>
-                                                                            <Timestamp
-                                                                                value={invoice.createdAt}
-                                                                                format="date"
-                                                                            />
+                                                                            <Stack
+                                                                                direction="horizontal"
+                                                                                align="center"
+                                                                                gap={2}
+                                                                                wrap="wrap"
+                                                                            >
+                                                                                <Link
+                                                                                    href={`#showcase-project-${project.id}`}
+                                                                                    onClick={(event) => {
+                                                                                        // Open the same project detail as the gallery without leaving the homepage.
+                                                                                        event.preventDefault();
+                                                                                        setProjectId(project.id);
+                                                                                        setPhaseIndex(null);
+                                                                                    }}
+                                                                                >
+                                                                                    {project.name}
+                                                                                </Link>
+                                                                                <Badge
+                                                                                    label={project.status}
+                                                                                    variant={
+                                                                                        project.status === 'Completed'
+                                                                                            ? 'success'
+                                                                                            : project.status ===
+                                                                                                'In progress'
+                                                                                              ? 'warning'
+                                                                                              : 'neutral'
+                                                                                    }
+                                                                                />
+                                                                            </Stack>
+                                                                            <Text type="supporting">
+                                                                                {project.description}
+                                                                            </Text>
                                                                         </Stack>
                                                                     </Stack>
                                                                 ),
                                                             },
                                                             {
-                                                                key: 'status',
-                                                                header: 'Status',
-                                                                width: proportional(1),
-                                                                renderCell: (invoice) => (
-                                                                    <Badge
-                                                                        label={invoice.status}
-                                                                        variant={
-                                                                            invoice.status === 'approved'
-                                                                                ? 'success'
-                                                                                : invoice.status === 'pending'
-                                                                                  ? 'warning'
-                                                                                  : 'neutral'
-                                                                        }
-                                                                    />
+                                                                key: 'owner',
+                                                                header: 'Project owner',
+                                                                width: proportional(2),
+                                                                renderCell: (project) => (
+                                                                    <Stack
+                                                                        direction="horizontal"
+                                                                        align="center"
+                                                                        gap={2}
+                                                                    >
+                                                                        <Avatar name={project.owner} size="sm" />
+                                                                        <Stack gap={0}>
+                                                                            <Text>{project.owner}</Text>
+                                                                            <Text type="supporting">
+                                                                                {project.ownerEmail}
+                                                                            </Text>
+                                                                        </Stack>
+                                                                    </Stack>
                                                                 ),
                                                             },
                                                         ]}
