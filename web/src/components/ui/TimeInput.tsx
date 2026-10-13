@@ -20,13 +20,14 @@ export function TimeInput(
     }
 ) {
     // Keep editing and reset state behind Astryx's themed time picker.
-    const { defaultValue, ...control } = props;
+    const { name, defaultValue, ...control } = props;
     const field = useValue(props.value, defaultValue, props.onChange, Object.hasOwn(props, 'value'));
 
     // Default to minute precision while keeping the selected time controlled by the Solution.
     return (
         <FormField
-            {...props}
+            {...control}
+            name={name}
             fieldRef={field.ref}
             values={[field.value ?? '']}
             serialize
@@ -36,6 +37,7 @@ export function TimeInput(
                     : undefined
             }
         >
+            {/* Only the canonical ISO carrier owns the submission name, not the formatted display input. */}
             <AstryxTimeInput
                 {...control}
                 value={field.value}

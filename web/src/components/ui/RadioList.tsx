@@ -26,7 +26,7 @@ export function RadioList(
         <AstryxRadioList
             {...props}
             {...field}
-            className={props.hidden ? 'hidden!' : undefined}
+            containerClassName={props.hidden ? 'hidden!' : undefined}
             htmlName={props.name}
             children={props.children}
             orientation={props.orientation ?? 'vertical'}

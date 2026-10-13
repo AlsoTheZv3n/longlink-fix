@@ -10,11 +10,13 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAnnounce } from '@astryxdesign/core/hooks';
 import { emailPayloadSchema, type EmailPayload } from './validation';
 
 /** Requests a password reset email without disclosing whether an account exists. */
 export default function ForgotPassword() {
     const [sent, setSent] = useState(false);
+    const announce = useAnnounce();
 
     const form = useForm<EmailPayload>({
         defaultValues: { email: '' },
@@ -43,6 +45,9 @@ export default function ForgotPassword() {
                                 // Show the confirmation without disclosing whether an account exists.
                                 await api('/api/v1/auth/forgot-password', { json: payload, method: 'POST' });
                                 setSent(true);
+                                announce(
+                                    'If an account exists for that email, password reset instructions are on the way.'
+                                );
                             })()
                         }
                     >

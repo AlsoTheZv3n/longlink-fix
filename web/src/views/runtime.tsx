@@ -316,6 +316,7 @@ function initialize(event: MessageEvent<unknown>): void {
                                             onReset={reset}
                                             fallbackRender={({ error, resetErrorBoundary }) => (
                                                 <Banner
+                                                    role="status"
                                                     status="error"
                                                     title="View could not be loaded"
                                                     description={
@@ -352,6 +353,7 @@ function initialize(event: MessageEvent<unknown>): void {
                 <Layout height="fill">
                     <LayoutContent padding={0} label="Solution View" role="region">
                         <Banner
+                            role="status"
                             status="error"
                             title="View compilation failed"
                             description={
