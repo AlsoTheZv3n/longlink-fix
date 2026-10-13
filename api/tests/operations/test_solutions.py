@@ -199,15 +199,16 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     class FakeKubernetes(DatabaseKubernetes):
         """Record the Kubernetes connection scope during deployment."""
 
-        def __init__(self, *_args: object) -> None:
+        def __init__(self, kubeconfig: dict[str, object]) -> None:
             """Record client construction alongside shared fake ownership."""
 
-            super().__init__()
+            super().__init__(kubeconfig)
             calls.append("open")
 
         async def aclose(self) -> None:
             """Provide the Kubernetes client cleanup contract."""
 
+            await super().aclose()
             calls.append("close")
 
     async def apply(

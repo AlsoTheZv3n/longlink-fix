@@ -5,24 +5,28 @@ import { readFileSync } from 'node:fs';
 
 // Validate the shared YAML catalog before exposing it to routes or browser bundles.
 const schema = z.array(
-    z.object({
-        name: z.string(),
-        category: z.string(),
-        introduction: z.string(),
-        keywords: z.array(z.string()).optional(),
-        guidance: z.string().optional(),
-        properties: z
-            .array(
-                z.object({
-                    name: z.string(),
-                    type: z.string(),
-                    description: z.string().optional(),
-                    default: z.json().optional(),
-                })
-            )
-            .optional(),
-        members: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
-    })
+    z
+        .object({
+            name: z.string(),
+            category: z.string(),
+            introduction: z.string(),
+            keywords: z.array(z.string()).optional(),
+            guidance: z.string().optional(),
+            properties: z
+                .array(
+                    z.object({
+                        name: z.string(),
+                        type: z.string(),
+                        description: z.string().optional(),
+                        default: z.json().optional(),
+                    })
+                )
+                .optional(),
+            members: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
+        })
+
+        // Keep validating CLI metadata without carrying it into the website's catalog contract.
+        .transform(({ keywords: _keywords, guidance: _guidance, ...component }) => component)
 );
 
 /** Reads the documentation catalog for route generation and Vite's browser-module loader. */

@@ -53,22 +53,23 @@ export default function ResetPassword() {
               })
             : api('/api/v1/auth/reset-password/setup', { signal });
 
-        return request.then(
-            () => {
-                if (signal.aborted) return;
-                sessionStorage.removeItem(PASSWORD_RESET_TOKEN_KEY);
+        // Handle only transport failures as invalid credentials.
+        try {
+            await request;
+        } catch (cause: unknown) {
+            if (signal.aborted) return;
 
-                return { status: 'verified' };
-            },
-            (cause: unknown) => {
-                if (signal.aborted) return;
+            if (!isBadTokenError(cause)) throw cause;
+            sessionStorage.removeItem(PASSWORD_RESET_TOKEN_KEY);
 
-                if (!isBadTokenError(cause)) throw cause;
-                sessionStorage.removeItem(PASSWORD_RESET_TOKEN_KEY);
+            return { status: 'error' };
+        }
 
-                return { status: 'error' };
-            }
-        );
+        // Clear the accepted credential only while verification is still active.
+        if (signal.aborted) return;
+        sessionStorage.removeItem(PASSWORD_RESET_TOKEN_KEY);
+
+        return { status: 'verified' };
     }
 
     const { verification } = useVerification(token, verify);
@@ -103,17 +104,18 @@ export default function ResetPassword() {
                     action={() =>
                         form.handleSubmit(async (payload) => {
                             // Publish the saved result only after the password change succeeds.
-                            await api('/api/v1/auth/reset-password', { json: payload, method: 'POST' }).then(
-                                () => {
-                                    // Announce only the completed password change, not a banner render.
-                                    setReset({ status: 'saved' });
-                                    announce('Your password has been reset. You can now sign in.');
-                                },
-                                (cause: unknown) => {
-                                    if (!isBadTokenError(cause)) throw cause;
-                                    setReset({ status: 'error' });
-                                }
-                            );
+                            try {
+                                await api('/api/v1/auth/reset-password', { json: payload, method: 'POST' });
+                            } catch (cause: unknown) {
+                                if (!isBadTokenError(cause)) throw cause;
+                                setReset({ status: 'error' });
+
+                                return;
+                            }
+
+                            // Announce only the completed password change, not a banner render.
+                            setReset({ status: 'saved' });
+                            announce('Your password has been reset. You can now sign in.');
                         })()
                     }
                 >
