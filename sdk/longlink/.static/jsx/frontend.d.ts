@@ -4542,6 +4542,7 @@ declare function LayoutContent(props: {
     hidden?: boolean;
     children?: ViewNode;
     padding?: Spacing;
+    /** Enables independent scrolling; defaults to true. */
     isScrollable?: boolean;
     /** Accessible name for the region; distinguish repeated landmarks with labels. */
     label?: string;
@@ -4586,6 +4587,7 @@ declare function LayoutPanel(props: {
     children?: ViewNode;
     hasDivider?: boolean;
     padding?: Spacing;
+    /** Enables independent scrolling; defaults to true. */
     isScrollable?: boolean;
     label?: string;
     role?: 'complementary' | 'navigation' | 'region';

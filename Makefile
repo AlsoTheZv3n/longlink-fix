@@ -113,7 +113,7 @@ up:
 # Build and push the local sample, preserving an existing development project.
 # Keep sample preparation explicit in image and sdk so each workflow remains standalone.
 image:
-	cd web && vp run build:views && vp run build:sdk:bundle --logLevel warn
+	cd web && vp run build:sdk:bundle --logLevel warn
 	@if [ ! -d sdk/dev ]; then \
 		cd sdk && uv run --locked longlink init --folder dev --name sample && \
 		printf '\n\n[tool.uv.sources]\nlonglink = { path = "..", editable = true }\n' >> dev/pyproject.toml; \
@@ -174,7 +174,7 @@ web:
 
 # Recreate and run the local sample Solution from the current scaffold.
 sdk:
-	cd web && vp run build:views && vp run build:sdk:bundle --logLevel warn
+	cd web && vp run build:sdk:bundle --logLevel warn
 	# Remove only the generated sample, including its database, storage, and local edits.
 	rm -rf -- sdk/dev
 	cd sdk && uv run --locked longlink init --folder dev --name sample

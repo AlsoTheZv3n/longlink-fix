@@ -1,4 +1,5 @@
 import asyncio
+import sqlalchemy
 from uuid import UUID
 from datetime import datetime
 from sqlmodel import Field, SQLModel
@@ -113,17 +114,18 @@ class Database:
                                     await conn.run_sync(SQLModel.metadata.tables["audit"].create, checkfirst=True)
 
                                 # Seed the local user within the schema bootstrap's connection and transaction.
-                                session = AsyncSession(conn)
-                                async with session:
-                                    if await session.get(User, LOCAL_USER_ID) is None:
-                                        name = "Development user" if self._env.ENV == "development" else "Testing user"
-                                        user = User(
+                                users = SQLModel.metadata.tables["audit"]
+                                user_id = await conn.scalar(sqlalchemy.select(users.c.id).where(users.c.id == LOCAL_USER_ID))
+                                if user_id is None:
+                                    name = "Development user" if self._env.ENV == "development" else "Testing user"
+                                    await conn.execute(
+                                        sqlalchemy.insert(users).values(
                                             id=LOCAL_USER_ID,
                                             name=name,
                                             email="local@example.com",
+                                            avatar="",
                                         )
-                                        session.add(user)
-                                        await session.flush()
+                                    )
                         else:
                             async with engine.connect():
                                 pass

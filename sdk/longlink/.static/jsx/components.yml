@@ -1199,7 +1199,7 @@
 
     - name: LayoutContent.isScrollable
       type: boolean
-      default: true
+      description: Enables independent scrolling; defaults to true.
 
     - name: LayoutContent.label
       type: string
@@ -1277,7 +1277,7 @@
 
     - name: LayoutPanel.isScrollable
       type: boolean
-      default: true
+      description: Enables independent scrolling; defaults to true.
 
     - name: LayoutPanel.label
       type: string
