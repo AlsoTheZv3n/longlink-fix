@@ -2,6 +2,7 @@ import { ApiError } from '@/lib/api';
 import Brand from '@/platform/layouts/Brand';
 import { NoIndex } from '@/components/NoIndex';
 import { Navigate, Outlet } from 'react-router';
+import { PageLoading } from '@/components/Utils';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
@@ -15,7 +16,12 @@ export default function AuthenticatedLayout() {
 
     // Wait for profile loading before deciding access.
     if (isLoading) {
-        return pageMetadata;
+        return (
+            <>
+                {pageMetadata}
+                <PageLoading label="Loading account" />
+            </>
+        );
     }
 
     // Keep authenticated users from seeing a sign-in prompt during profile API failures.
