@@ -19,6 +19,14 @@ uv sync
 uv run longlink dev
 ```
 
+The starter mirrors the landing-page construction demo: four building projects,
+a photo gallery, a compact project table, and project details with six phases and
+read-only example document checklists. One initial migration creates the project
+table and seeds the four examples in every environment; the photos are bundled
+and served by the Solution.
+
+Project contacts and document availability are illustrative. Settings are local
+to the current View session and do not enforce approval or notification rules.
 
 <br />
 

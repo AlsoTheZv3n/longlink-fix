@@ -28,7 +28,7 @@ def test_init_copies_github_project_scaffold_with_custom_name(tmp_path: Path) ->
             assert (target / path).exists()
         main_source = (target / "main.py").read_text(encoding="utf-8")
         assert "app = LongLink()" in main_source
-        assert "app.include_router(items.router)" in main_source
+        assert "app.include_router(projects.router)" in main_source
         pyproject = (target / "pyproject.toml").read_text(encoding="utf-8")
         assert 'name = "sample"' in pyproject
         assert "[tool.longlink]" in pyproject
@@ -95,8 +95,8 @@ def test_initialized_project_applies_bundled_migration_through_deployment_entryp
         # Assert
         with closing(sqlite3.connect(target / "dev.db")) as connection:
             tables = connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('alembic_version', 'item') ORDER BY name"
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('alembic_version', 'project') ORDER BY name"
             ).fetchall()
             revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-        assert tables == [("alembic_version",), ("item",)]
+        assert tables == [("alembic_version",), ("project",)]
         assert revision == ("20260713_0001",)

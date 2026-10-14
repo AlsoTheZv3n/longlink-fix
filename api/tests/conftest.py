@@ -78,6 +78,9 @@ class StorageKubernetes:
 
         return Credentials("solution", "generated-secret")
 
+    async def delete_solution(self, organization: UUID, solution: UUID) -> None:
+        """Accept revocation and private-object cleanup without storage I/O."""
+
 
 class DatabaseKubernetes(Kubernetes):
     """Provide the CNPG provider boundary without opening Kubernetes connections."""
@@ -128,6 +131,9 @@ class SeedPostgres(DatabasePostgres):
         """Return the scoped database username for the Solution."""
 
         return solution_id.hex
+
+    async def delete_solution_schema(self, organization: UUID, solution: UUID) -> None:
+        """Accept schema and credential cleanup without SQL I/O."""
 
 
 @pytest.fixture(scope="session")
@@ -200,6 +206,9 @@ def seed_runtime(monkeypatch: pytest.MonkeyPatch, database_runtime: None, comput
     async def apply_solution(client: object, *_args: object, **_kwargs: object) -> None:
         """Accept Solution workload provisioning without external I/O."""
 
+    async def delete_solution(client: object, organization: UUID, solution: UUID) -> None:
+        """Accept workload cleanup without Kubernetes I/O."""
+
     # Preserve the seed-specific client after installing the Compute verification boundary.
     monkeypatch.setattr("src.routes.v1.computes.Kubernetes", SeedKubernetes)
     monkeypatch.setattr(databases, "Kubernetes", SeedKubernetes)
@@ -209,6 +218,7 @@ def seed_runtime(monkeypatch: pytest.MonkeyPatch, database_runtime: None, comput
     monkeypatch.setattr(solutions, "Kubernetes", SeedKubernetes)
     monkeypatch.setattr(solutions, "Storage", StorageKubernetes)
     monkeypatch.setattr(solution_resources, "apply", apply_solution)
+    monkeypatch.setattr(solution_resources, "delete", delete_solution)
     monkeypatch.setattr(database_resources.postgres, "Postgres", SeedPostgres)
 
 

@@ -1,117 +1,65 @@
-/** Displays invoice approvals using the shared, isolated LongLink frontend. */
-export default function InvoiceTable() {
-    const [page, setPage] = useState(1);
-    const [open, setOpen] = useState(false);
-    const [invoices] = useApi(`/api/items?page=${page}&page_size=8`);
+/** Displays the same building projects as the gallery in compact rows. */
+export default function ProjectTable() {
+    // Load project records through the isolated runtime's scoped data API.
+    const [projects] = useApi('/api/projects');
 
+    // Align project summaries and owner contacts without wrapping rows in cards.
     return (
-        <Stack gap={4}>
-            <Stack direction="horizontal" justify="between" align="center" wrap="wrap">
-                <Stack gap={0}>
-                    <Heading level={1}>Example Table View</Heading>
-                    <Text color="secondary">This can be used for reviewing invoices and managing approvals.</Text>
-                </Stack>
-                <Button label="New Invoice" onClick={() => setOpen(true)} />
+        <Stack gap={4} paddingInline={8} paddingBlock={2}>
+            <Stack gap={0}>
+                <Heading level={1}>Example Table View</Heading>
+                <Text color="secondary">This can be used for reviewing projects in a table.</Text>
             </Stack>
-            {/* Match Platform creation dialogs with a viewport-bounded frame and centered form column. */}
-            <Dialog
-                aria-label="New Invoice"
-                isOpen={open}
-                onOpenChange={setOpen}
-                purpose="form"
-                padding={8}
-                contentWidth={640}
-            >
-                <Form action="/api/items" method="post" onSuccess={() => setOpen(false)}>
-                    <TextInput label="Invoice number" name="name" required />
-                    <NumberInput label="Amount (CHF)" name="price" defaultValue={0} min={0} required />
-                    <Selector
-                        label="Status"
-                        name="status"
-                        defaultValue="draft"
-                        options={[
-                            { value: 'draft', label: 'Draft' },
-                            { value: 'pending', label: 'Pending' },
-                            { value: 'approved', label: 'Approved' },
-                        ]}
-                    />
-                    <Button label="Create Invoice" variant="primary" type="submit" />
-                </Form>
-            </Dialog>
             <Table
-                data={invoices.items}
+                data={projects}
                 idKey="id"
                 density="compact"
+                hasHover
                 columns={[
                     {
                         key: 'name',
-                        header: 'Invoice',
-                        renderCell: (row) => (
-                            <Stack gap={0}>
-                                <Stack direction="horizontal" align="center" gap={2} wrap="wrap">
-                                    <Link to={`/table/${row.id}`}>{row.name}</Link>
-                                    <Badge
-                                        variant={
-                                            row.status === 'approved'
-                                                ? 'success'
-                                                : row.status === 'pending'
-                                                  ? 'warning'
-                                                  : 'neutral'
-                                        }
-                                        label={row.status}
-                                    />
+                        header: 'Project',
+                        width: proportional(2),
+                        renderCell: (project) => (
+                            <Stack direction="horizontal" align="center" gap={2}>
+                                <Stack width="var(--size-element-lg)">
+                                    <Image src={`/api/demo/photos/${project.photo}`} alt={`${project.name} building`} />
                                 </Stack>
-                                <Stack direction="horizontal" align="center" gap={0}>
-                                    {row.created_at && (
-                                        <>
-                                            <Text color="secondary">
-                                                <Timestamp value={row.created_at} format="date" />
-                                            </Text>
-                                            <Text color="secondary">-</Text>
-                                        </>
-                                    )}
-                                    <Text color="secondary">
-                                        <Currency value={row.price} currency="CHF" locale="de-CH" />
-                                    </Text>
+                                <Stack gap={0}>
+                                    <Stack direction="horizontal" align="center" gap={2} wrap="wrap">
+                                        <Link to={`/projects/${project.id}`}>{project.name}</Link>
+                                        <Badge
+                                            label={project.status}
+                                            variant={
+                                                project.status === 'Completed'
+                                                    ? 'success'
+                                                    : project.status === 'In progress'
+                                                      ? 'warning'
+                                                      : 'neutral'
+                                            }
+                                        />
+                                    </Stack>
+                                    <Text type="supporting">{project.description}</Text>
                                 </Stack>
                             </Stack>
                         ),
                     },
                     {
-                        key: 'created_by',
-                        header: 'Created by',
-                        renderCell: (row) =>
-                            row.created_by ? (
-                                <Stack direction="horizontal" align="center" gap={3}>
-                                    <Avatar src={row.created_by.avatar} name={row.created_by.name} />
-                                    <Stack gap={0}>
-                                        <Text>{row.created_by.name}</Text>
-                                        <Text color="secondary">{row.created_by.email}</Text>
-                                    </Stack>
+                        key: 'owner',
+                        header: 'Project owner',
+                        width: proportional(2),
+                        renderCell: (project) => (
+                            <Stack direction="horizontal" align="center" gap={2}>
+                                <Avatar name={project.owner} size="sm" />
+                                <Stack gap={0}>
+                                    <Text>{project.owner}</Text>
+                                    <Text type="supporting">{project.owner_email}</Text>
                                 </Stack>
-                            ) : (
-                                'Unknown'
-                            ),
-                    },
-                    {
-                        key: 'approved_by',
-                        header: 'Approved by',
-                        renderCell: (row) =>
-                            row.approved_by ? (
-                                <Stack direction="horizontal" align="center" gap={3}>
-                                    <Avatar src={row.approved_by.avatar} name={row.approved_by.name} />
-                                    <Stack gap={0}>
-                                        <Text>{row.approved_by.name}</Text>
-                                        <Text color="secondary">{row.approved_by.email}</Text>
-                                    </Stack>
-                                </Stack>
-                            ) : (
-                                '—'
-                            ),
+                            </Stack>
+                        ),
                     },
                 ]}
             />
-            <Pagination page={page} onPageChange={setPage} totalItems={invoices.total} pageSize={8} />
         </Stack>
     );
 }

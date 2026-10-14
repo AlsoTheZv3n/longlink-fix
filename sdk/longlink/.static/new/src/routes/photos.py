@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/demo/photos")
     responses={200: {"content": {"image/jpeg": {}}}},
 )
 def photo_get_endpoint(
-    photo_id: Literal["office", "workspace", "desk"],
+    photo_id: Literal["riverside", "skyline", "garden", "harbor"],
 ) -> responses.FileResponse:
     """Serve one bundled example photo without external image services."""
 

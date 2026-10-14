@@ -154,6 +154,6 @@ def test_migration_environment_emits_offline_sql_without_creating_database(monke
 
     # Assert
     sql = output.getvalue()
-    assert "CREATE TABLE item (" in sql
+    assert "CREATE TABLE project (" in sql
     assert "INSERT INTO alembic_version" in sql
     assert not (tmp_path / "dev.db").exists()
