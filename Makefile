@@ -169,7 +169,7 @@ tunnel:
 # Run the Vite web app.
 web:
 	cd web && vp install --frozen-lockfile
-	cd web && vp run dev --port 5173
+	cd web && vp run dev
 
 
 # Recreate and run the local sample Solution from the current scaffold.
