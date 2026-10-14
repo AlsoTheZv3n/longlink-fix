@@ -31,7 +31,7 @@ jobs:
             - name: Detect Compute changes
               if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
               id: changes
-              uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+              uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
               with:
                   token: ''
                   base: ${{ github.event.merge_group.base_sha }}
