@@ -209,7 +209,7 @@ async def deploy(
     if missing:
         raise InvalidError(f"Solution environment does not satisfy required image variables: {', '.join(missing)}")
 
-    # Preserve omitted scaling and reject identical snapshots before queuing work.
+    # Preserve omitted scaling and validate it before queuing work.
     if min_scale is None:
         min_scale = current.min_scale if current is not None else 0
     if idle_seconds is None:
@@ -218,16 +218,6 @@ async def deploy(
         validate_idle_seconds(idle_seconds)
     except ValueError as exc:
         raise InvalidError(str(exc)) from exc
-    if (
-        current is not None
-        and not current.failed
-        and current.image == metadata.image
-        and current.source == source
-        and current.envs == merged
-        and current.min_scale == min_scale
-        and current.idle_seconds == idle_seconds
-    ):
-        raise ConflictError("Source and configuration are up to date. No revision was created.")
 
     # Never change Solution-owned runtime credentials when appending a release.
     revision = Revision(
