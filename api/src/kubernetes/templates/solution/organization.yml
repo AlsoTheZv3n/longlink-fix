@@ -28,7 +28,7 @@ spec:
                         app.kubernetes.io/name: longlink-storage
           ports:
               - { protocol: TCP, port: 8443 }
-        # Preserve public SOS/S3 and HTTPS integrations without opening private or special-use networks.
+        # Allow public integrations on all ports without opening private or special-use networks.
         - to:
               - ipBlock:
                     cidr: 0.0.0.0/0
@@ -56,8 +56,6 @@ spec:
                         - 2001:db8::/32
                         - 2002::/16
                         - 3fff::/20
-          ports:
-              - { protocol: TCP, port: 443 }
         # Private dependencies remain explicitly scoped to their namespaces and Pods.
         - to:
               - namespaceSelector:
