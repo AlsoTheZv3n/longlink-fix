@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { Info } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import { useApiError } from '@/lib/errors';
-import { useEffect, useState } from 'react';
+import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
@@ -15,6 +14,7 @@ import { TextArea } from '@astryxdesign/core/TextArea';
 import { FileInput } from '@astryxdesign/core/FileInput';
 import { DialogClose } from '@/components/ui/DialogClose';
 import { Pagination } from '@astryxdesign/core/Pagination';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
@@ -27,14 +27,16 @@ const registrationSchema = schemas.zComputeRegistryCreate.extend({
 
 /** Lists registered Compute infrastructure and manages registration and removal. */
 export default function Compute() {
-    const [page, setPage] = useState(1);
+    // Defer list requests so typing remains responsive while a new page loads.
+    const [filters, setFilters] = useState({ search: '', page: 1 });
+    const { search, page } = useDeferredValue(filters);
 
     const [dialog, setDialog] = useState<
         { kind: 'metadata'; id: string } | { kind: 'deletion'; item: { id: string; name: string } } | null
     >(null);
 
     const [registrationOpen, setRegistrationOpen] = useState(false);
-    const path = `/api/v1/computes?page=${page}&page_size=25`;
+    const path = `/api/v1/computes?page=${page}&page_size=25&search=${encodeURIComponent(search.trim())}`;
     const [computes, invalidate] = useApi(path, schemas.zPageComputeRegistryResponse);
 
     // Use current metadata and clear missing selections so returning to a page cannot reopen the dialog.
@@ -43,12 +45,21 @@ export default function Compute() {
     if (dialog?.kind === 'metadata' && !metadata) setDialog(null);
 
     return (
-        <Stack gap={4}>
+        <Stack gap={2}>
             <NoIndex title="Compute | LongLink" />
             <Stack direction="horizontal" justify="between" align="center" wrap="wrap">
                 <Heading level={1}>Compute</Heading>
                 <Button label="Register Compute" onClick={() => setRegistrationOpen(true)} />
             </Stack>
+            <TextInput
+                label="Search compute"
+                isLabelHidden
+                placeholder="Search by name or endpoint"
+                value={filters.search}
+                startIcon={<Search />}
+                hasClear
+                onChange={(search) => setFilters({ search, page: 1 })}
+            />
             <Stack gap={1}>
                 <Table
                     data={computes.items}
@@ -84,7 +95,15 @@ export default function Compute() {
                         },
                     ]}
                 />
-                <Pagination page={page} onChange={setPage} totalItems={computes.total} pageSize={25} variant="none" />
+                <Stack as="footer" align="center" paddingBlock={2}>
+                    <Pagination
+                        page={page}
+                        onChange={(page) => setFilters({ ...filters, page })}
+                        totalItems={computes.total}
+                        pageSize={25}
+                        variant="pages"
+                    />
+                </Stack>
             </Stack>
             {registrationOpen && (
                 <ComputeRegistration invalidate={invalidate} onClose={() => setRegistrationOpen(false)} />

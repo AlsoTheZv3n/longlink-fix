@@ -1,6 +1,5 @@
 import { api } from '@/lib/api';
-import { useState } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
@@ -9,7 +8,9 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
+import { useDeferredValue, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
+import { TextInput } from '@/components/ui/TextInput';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
@@ -18,14 +19,16 @@ import { zPageOrganizationIdentity } from '@/lib/generated/platform-api-v1/zod.g
 
 /** Lists organizations and confirms administrator deletion. */
 export default function Organizations() {
-    const [page, setPage] = useState(1);
+    // Defer list requests so typing remains responsive while a new page loads.
+    const [filters, setFilters] = useState({ search: '', page: 1 });
+    const { search, page } = useDeferredValue(filters);
 
     const [dialog, setDialog] = useState<
         { kind: 'metadata'; id: string } | { kind: 'deletion'; item: { id: string; name: string } } | null
     >(null);
 
     const [organizations, invalidate] = useApi(
-        `/api/v1/organizations?page=${page}&page_size=25`,
+        `/api/v1/organizations?page=${page}&page_size=25&search=${encodeURIComponent(search.trim())}`,
         zPageOrganizationIdentity
     );
 
@@ -36,9 +39,18 @@ export default function Organizations() {
     if (dialog?.kind === 'metadata' && !metadata) setDialog(null);
 
     return (
-        <Stack gap={4}>
+        <Stack gap={2}>
             <NoIndex title="Organizations | LongLink" />
             <Heading level={1}>Organizations</Heading>
+            <TextInput
+                label="Search organizations"
+                isLabelHidden
+                placeholder="Search by name or slug"
+                value={filters.search}
+                startIcon={<Search />}
+                hasClear
+                onChange={(search) => setFilters({ search, page: 1 })}
+            />
             <Stack gap={1}>
                 <Table
                     data={organizations.items}
@@ -85,13 +97,15 @@ export default function Organizations() {
                         },
                     ]}
                 />
-                <Pagination
-                    page={page}
-                    onChange={setPage}
-                    totalItems={organizations.total}
-                    pageSize={25}
-                    variant="none"
-                />
+                <Stack as="footer" align="center" paddingBlock={2}>
+                    <Pagination
+                        page={page}
+                        onChange={(page) => setFilters({ ...filters, page })}
+                        totalItems={organizations.total}
+                        pageSize={25}
+                        variant="pages"
+                    />
+                </Stack>
             </Stack>
             {metadata && (
                 <Dialog

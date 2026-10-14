@@ -14,7 +14,7 @@ from src.database.models.operations import Operation
 from src.database.models.organizations import Organization
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[dict[str, object]], int]:
+async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[dict[str, object]], int]:
     """Return one newest-first page of platform operations."""
 
     # Resolve names by operation kind while retaining missing and tombstoned targets.
@@ -37,10 +37,14 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
         ),
     )
 
+    # Match literal operation kinds and resource names, including retained deleted targets.
+    query = select(Operation, resource_name)
+    if search:
+        query = query.where(or_(col(Operation.kind).icontains(search, autoescape=True), resource_name.icontains(search, autoescape=True)))
+
     # Load only fields needed by the operation response and its derived status.
     statement = (
-        select(Operation, resource_name)
-        .options(
+        query.options(
             load_only(
                 attr(Operation.id),
                 attr(Operation.kind),
@@ -73,8 +77,8 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
         for operation, resource_name in operations
     ]
 
-    # Count all operation history rows.
-    count_result = await session.execute(select(func.count()).select_from(Operation))
+    # Count matches before pagination using the same search filters.
+    count_result = await session.execute(select(func.count()).select_from(query.subquery()))
     return items, count_result.scalar_one()
 
 

@@ -1,5 +1,5 @@
 from src import auth
-from fastapi import Depends, APIRouter
+from fastapi import Query, Depends, APIRouter
 from src.operations import databases
 from src.models.users import UserUpdate, UserSummary, AdminUserSummary, UserOrganizationMembership
 from src.database.services import users, organizations
@@ -28,10 +28,12 @@ async def list_users(
     _: auth.PlatformAdmin,
     session: auth.Session,
     pagination: Pagination = Depends(),
+    search: str = Query(default="", max_length=200),
 ):
     """Return all user summaries for administrator views."""
 
-    items, total = await users.fetch_page(session, pagination)
+    # Search the full administrator listing before pagination.
+    items, total = await users.fetch_page(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 
