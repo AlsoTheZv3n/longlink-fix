@@ -54,7 +54,7 @@ async def test_local_seed_creates_example_through_api(
     seed_runtime: None,
     client: AsyncClient,
 ) -> None:
-    """Keep local seed resources stable across repeated initialization."""
+    """Reuse local infrastructure while recreating the sample through its full lifecycle."""
 
     # Arrange
     administrator = users[0]
@@ -73,6 +73,8 @@ async def test_local_seed_creates_example_through_api(
     scheduler = asyncio.create_task(jobs.run_operation_scheduler())
     try:
         await seed(local_settings, client)
+        async with session_scope() as session:
+            first_solution_id = await session.scalar(select(col(Solution.id)).where(col(Solution.slug) == "invoices"))
         await seed(local_settings, client)
     finally:
         scheduler.cancel()
@@ -91,7 +93,8 @@ async def test_local_seed_creates_example_through_api(
     assert organization is not None
     assert organization.name == "ACME Ink"
     assert solution is not None
+    assert solution.id != first_solution_id
     assert solution.name == "Invoices"
     assert solution.organization_id == organization.id
-    assert solution.description == "Manage invoices for ACME Ink."
+    assert solution.description == "Track building projects and construction phases for ACME Ink."
     assert solution.desired_revision.image == "localhost:15000/sample@sha256:resolved"

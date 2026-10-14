@@ -182,7 +182,7 @@ sdk:
 	cd sdk/dev && uv run longlink dev
 
 
-# Recreate the local sample and seed the example Organization and Solution after the Platform API starts.
+# Recreate the local sample files, deployed Solution, database, and attachments after the Platform API starts.
 seed:
 	# Remove the generated sample, including any local edits, before rebuilding it.
 	rm -rf sdk/dev
