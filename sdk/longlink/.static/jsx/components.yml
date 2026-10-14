@@ -2578,6 +2578,11 @@
       description: Automatically focuses the input on mount.
       default: false
 
+    - name: isLabelHidden
+      type: boolean
+      description: Visually hides the label while keeping it accessible to screen readers.
+      default: false
+
     - name: startIcon
       type: ReactNode
       description: SVG icon component displayed at the start of the input. See `astryx

@@ -4928,6 +4928,7 @@ declare function TextInput(
         autoComplete?: string;
         hasClear?: boolean;
         hasAutoFocus?: boolean;
+        isLabelHidden?: boolean;
         startIcon?: ViewNode;
         onEnter?: () => void;
     },
