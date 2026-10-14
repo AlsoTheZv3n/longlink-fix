@@ -11,7 +11,7 @@ export default function ImagePage() {
             examples={[
                 {
                     title: 'Card photo',
-                    preview: <ImageExample />,
+                    preview: <Image src={photo} alt="Laptop on an office desk" />,
                     code: `function Example() {
   return <Image src="/api/demo/photos/office" alt="Laptop on an office desk" />;
 }`,
@@ -19,10 +19,4 @@ export default function ImagePage() {
             ]}
         />
     );
-}
-
-/** Renders a bundled photo without an external image request. */
-export function ImageExample() {
-    // Inline the documentation photo while Solutions use scoped server paths.
-    return <Image src={photo} alt="Laptop on an office desk" />;
 }

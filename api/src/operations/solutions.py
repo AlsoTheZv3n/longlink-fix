@@ -157,31 +157,31 @@ async def delete(solution_id: UUID) -> None:
 
     # An absent tombstone means a previous execution completed cleanup.
     async with session_scope() as session:
-        target = await organizations.solution_infrastructure(session, solution_id)
+        target = await organizations.solution_cleanup_infrastructure(session, solution_id)
         if target is None:
             logger.info("Solution %s no longer exists; skipping deletion", solution_id)
             return
-        solution, organization, compute = target
+        organization, compute = target
         if organization.deleted_at is not None:
             return
 
     # Remove Solution Kubernetes resources before revoking provider credentials.
-    logger.info("Deleting Kubernetes workload for Solution %s", solution.id)
+    logger.info("Deleting Kubernetes workload for Solution %s", solution_id)
     cluster = Kubernetes(
         compute.kubeconfig,
     )
     async with cluster:
-        await solution_resources.delete(cluster, organization.id, solution.id)
+        await solution_resources.delete(cluster, organization.id, solution_id)
         db = await database_resources.connection(organization, cluster)
-        logger.info("Deleting PostgreSQL schema for Solution %s", solution.id)
-        await db.delete_solution_schema(organization.id, solution.id)
+        logger.info("Deleting PostgreSQL schema for Solution %s", solution_id)
+        await db.delete_solution_schema(organization.id, solution_id)
 
         # Revoke the service account before owner credentials remove its private objects.
         storage = Storage(compute, cluster)
-        await storage.delete_solution(organization.id, solution.id)
+        await storage.delete_solution(organization.id, solution_id)
 
     # Purge the tombstone only after all external resources are absent.
-    logger.info("Purging Solution %s", solution.id)
+    logger.info("Purging Solution %s", solution_id)
     async with session_scope() as session:
         # The delete statement locks the tombstone while making completed cleanup idempotent.
         await session.execute(

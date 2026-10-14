@@ -15,14 +15,12 @@ status and ready instance Pods before callers connect.
         └── NetworkPolicy database
 """
 
-import ssl
 import json
-import base64
 import asyncio
 from uuid import UUID
 from typing import TYPE_CHECKING
 from src.utils import postgres, templates
-from src.kubernetes import utils, databases, namespace
+from src.kubernetes import tls, utils, databases, namespace
 from src.models.types import DatabaseSSLMode
 from importlib.resources import files
 from kr8s.asyncio.objects import Pod, Secret, new_class, object_from_spec
@@ -161,15 +159,7 @@ async def certificate(client: "Kubernetes", organization_id: UUID) -> str:
     """Read the CNPG-generated server CA as PEM text, not a filesystem path."""
 
     # CNPG's default server CA Secret is named after its Cluster.
-    secret = Secret(
-        "database-ca",
-        namespace=namespace.database(organization_id),
-        api=await client.api(),
-    )
-    await secret.refresh()
-    certificate = base64.b64decode(secret.raw["data"]["ca.crt"], validate=True).decode("ascii")
-    ssl.create_default_context(cadata=certificate)
-    return certificate
+    return await tls.certificate(client, namespace.database(organization_id), "database-ca", entry="ca.crt")
 
 
 async def delete(client: "Kubernetes", organization_id: UUID) -> None:

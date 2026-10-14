@@ -215,6 +215,19 @@ async def infrastructure(session: AsyncSession, organization_id: UUID) -> tuple[
     return result.tuples().one_or_none()
 
 
+async def solution_cleanup_infrastructure(session: AsyncSession, solution_id: UUID) -> tuple[Organization, ComputeRegistry] | None:
+    """Return provider connections for cleanup without loading Solution release state."""
+
+    # Include tombstones while leaving secrets and revision snapshots outside the cleanup projection.
+    statement = (
+        _infrastructure_query()
+        .join_from(Organization, Solution, col(Solution.organization_id) == col(Organization.id))
+        .where(col(Solution.id) == solution_id)
+    )
+    result = await session.execute(statement)
+    return result.tuples().one_or_none()
+
+
 async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> tuple[Solution, Organization, ComputeRegistry] | None:
     """Return one Solution and its assigned infrastructure."""
 

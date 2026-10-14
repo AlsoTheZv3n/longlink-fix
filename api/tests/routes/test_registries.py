@@ -306,7 +306,6 @@ async def test_registry_delete_preserves_credentials_used_by_historical_revision
     historical = Revision(
         solution_id=solution.id,
         image="ghcr.io/acme/private@sha256:historical",
-        source="ghcr.io/acme/private:old",
         registry_connection_id=connection.id,
         envs={},
     )

@@ -101,7 +101,6 @@ class Revision(AuditTable, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     solution_id: UUID = Field(foreign_key="solutions.id", ondelete="CASCADE")
     image: str = Field(max_length=512)
-    source: str = Field(max_length=512)
     registry_connection_id: UUID | None = Field(default=None, foreign_key="registry_connections.id")
     min_scale: MinScale = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
     idle_seconds: int = Field(default=60, ge=0, le=3600, sa_column=Column(Integer, nullable=False, server_default="60"))
@@ -122,7 +121,6 @@ def protect_snapshot(_mapper: Mapper[Revision], _connection: Connection, revisio
         for name in (
             "id",
             "solution_id",
-            "source",
             "image",
             "envs",
             "min_scale",
