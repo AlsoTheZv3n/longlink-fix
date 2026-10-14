@@ -16,6 +16,7 @@ type TextInputProps = FieldProps & {
     autoComplete?: string;
     hasClear?: boolean;
     hasAutoFocus?: boolean;
+    isLabelHidden?: boolean;
     startIcon?: ReactNode;
     onEnter?: () => void;
 };
@@ -50,7 +51,7 @@ export function TextInput(props: TextInputProps) {
                 isReadOnly={false}
                 hasClear={props.hasClear ?? false}
                 hasAutoFocus={props.hasAutoFocus ?? false}
-                isLabelHidden={false}
+                isLabelHidden={props.isLabelHidden ?? false}
                 isRequired={props.required ?? false}
                 isDisabled={props.disabled ?? false}
                 changeAction={undefined}

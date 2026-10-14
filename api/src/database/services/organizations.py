@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
 from src.utils import names, roles
-from sqlalchemy import Select, func, delete, select
+from sqlalchemy import Select, or_, func, delete, select
 from sqlalchemy import update as sql_update
 from src.errors import ConflictError, NotFoundError, ForbiddenError, UnavailableError
 from sqlalchemy.exc import IntegrityError
@@ -240,13 +240,19 @@ async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> t
     return result.tuples().one_or_none()
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[Organization], int]:
-    """Return one ordered page of active organizations for administrator views."""
+async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Organization], int]:
+    """Return one newest-first page of active organizations for administrator views."""
+
+    # Match literal names and slugs while retaining active Organization visibility.
+    query = select(Organization).where(col(Organization.deleted_at).is_(None))
+    if search:
+        query = query.where(
+            or_(col(Organization.name).icontains(search, autoescape=True), col(Organization.slug).icontains(search, autoescape=True))
+        )
 
     # Load only Organization identity fields using a stable page order.
     statement = (
-        select(Organization)
-        .options(
+        query.options(
             load_only(
                 attr(Organization.id),
                 attr(Organization.name),
@@ -254,15 +260,14 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
                 attr(Organization.status),
             )
         )
-        .where(col(Organization.deleted_at).is_(None))
-        .order_by(col(Organization.name), col(Organization.id))
+        .order_by(col(Organization.created_at).desc(), col(Organization.id).desc())
         .offset(pagination.offset)
         .limit(pagination.page_size)
     )
     result = await session.scalars(statement)
 
-    # Count only active organizations visible in the listing.
-    count_result = await session.execute(select(func.count()).select_from(Organization).where(col(Organization.deleted_at).is_(None)))
+    # Count matches before pagination using the same visibility and search filters.
+    count_result = await session.execute(select(func.count()).select_from(query.subquery()))
     return result.all(), count_result.scalar_one()
 
 

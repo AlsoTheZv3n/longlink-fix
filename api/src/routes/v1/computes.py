@@ -2,7 +2,7 @@ import asyncio
 from src import auth
 from kr8s import ServerError, NotFoundError
 from uuid import UUID
-from fastapi import Depends, APIRouter
+from fastapi import Query, Depends, APIRouter
 from src.errors import InvalidError, ConflictError, UnavailableError
 from src.logger import logger
 from sqlalchemy.exc import IntegrityError
@@ -82,10 +82,15 @@ async def create_compute_registry(payload: ComputeRegistryCreate, session: auth.
 
 
 @router.get("/computes", response_model=Page[ComputeRegistryResponse])
-async def list_compute_registries(session: auth.Session, pagination: Pagination = Depends()) -> dict[str, Sequence[ComputeRegistry] | int]:
+async def list_compute_registries(
+    session: auth.Session,
+    pagination: Pagination = Depends(),
+    search: str = Query(default="", max_length=200),
+) -> dict[str, Sequence[ComputeRegistry] | int]:
     """Return all registered compute backends."""
 
-    items, total = await compute.fetch_page(session, pagination)
+    # Search the full administrator listing before pagination.
+    items, total = await compute.fetch_page(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 

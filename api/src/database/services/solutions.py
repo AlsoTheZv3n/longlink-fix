@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import UTC, datetime
 from sqlmodel import col
 from src.utils import names, roles, images
-from sqlalchemy import func, select, update
+from sqlalchemy import or_, func, select, update
 from src.errors import InvalidError, ConflictError, NotFoundError, ForbiddenError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer, selectinload, contains_eager
@@ -21,14 +21,26 @@ from src.database.models.association import UserOrganization
 from src.database.models.organizations import Organization
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[Solution], int]:
-    """Return one ordered page of active solutions for administrator views."""
+async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Solution], int]:
+    """Return one newest-first page of active solutions for administrator views."""
+
+    # Match literal Solution details and owning Organization names before pagination.
+    query = (
+        select(Solution).join(Organization, col(Organization.id) == col(Solution.organization_id)).where(col(Solution.deleted_at).is_(None))
+    )
+    if search:
+        query = query.where(
+            or_(
+                col(Solution.name).icontains(search, autoescape=True),
+                col(Solution.slug).icontains(search, autoescape=True),
+                col(Solution.description).icontains(search, autoescape=True),
+                col(Organization.name).icontains(search, autoescape=True),
+            )
+        )
 
     # Load response image and deployment state without decrypting secrets or revision environments.
     statement = (
-        select(Solution)
-        .join(Organization, col(Organization.id) == col(Solution.organization_id))
-        .options(
+        query.options(
             contains_eager(attr(Solution.organization)).load_only(
                 attr(Organization.id),
                 attr(Organization.name),
@@ -38,15 +50,14 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
             defer(attr(Solution.secrets)),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.image), attr(Revision.failed), raiseload=True),
         )
-        .where(col(Solution.deleted_at).is_(None))
-        .order_by(col(Organization.name), col(Solution.name), col(Solution.id))
+        .order_by(col(Solution.created_at).desc(), col(Solution.id).desc())
         .offset(pagination.offset)
         .limit(pagination.page_size)
     )
     result = await session.scalars(statement)
 
-    # Count only rows eligible for the administrator listing.
-    count_result = await session.execute(select(func.count()).select_from(Solution).where(col(Solution.deleted_at).is_(None)))
+    # Count matches before pagination using the same visibility and search filters.
+    count_result = await session.execute(select(func.count()).select_from(query.subquery()))
     return result.all(), count_result.scalar_one()
 
 

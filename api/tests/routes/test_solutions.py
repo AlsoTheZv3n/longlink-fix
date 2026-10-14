@@ -45,8 +45,8 @@ async def test_list_apps_returns_requested_page_for_admin(
     user = users[0]
     acme = await create_organization(user)
     globex = await create_organization(user, name="globex")
-    await create_solution(acme)
-    console = await create_solution(globex, name="console")
+    solution = await create_solution(acme)
+    await create_solution(globex, name="console")
 
     # Act
     paged_response = await clients[0].get("/api/v1/solutions?page=2&page_size=1")
@@ -54,7 +54,7 @@ async def test_list_apps_returns_requested_page_for_admin(
     # Assert
     assert paged_response.status_code == 200
     payload = paged_response.json()
-    assert [item["id"] for item in payload["items"]] == [str(console.id)]
+    assert [item["id"] for item in payload["items"]] == [str(solution.id)]
     assert payload["total"] == 2
 
 

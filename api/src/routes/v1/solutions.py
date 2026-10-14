@@ -3,7 +3,7 @@ import json
 import zipfile
 from src import auth
 from uuid import UUID
-from fastapi import Depends, Response, APIRouter, HTTPException
+from fastapi import Query, Depends, Response, APIRouter, HTTPException
 from src.utils import roles, images
 from src.errors import NotFoundError, ForbiddenError
 from src.logger import logger
@@ -57,10 +57,12 @@ async def list_solutions(
     _user: auth.PlatformAdmin,
     session: auth.Session,
     pagination: Pagination = Depends(),
+    search: str = Query(default="", max_length=200),
 ):
     """Return all solutions for administrator views."""
 
-    items, total = await solutions.fetch_page(session, pagination)
+    # Search the full administrator listing before pagination.
+    items, total = await solutions.fetch_page(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 

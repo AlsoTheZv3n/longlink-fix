@@ -2,7 +2,7 @@ import asyncio
 from uuid import UUID
 from pwdlib import PasswordHash
 from sqlmodel import col
-from sqlalchemy import func, select
+from sqlalchemy import or_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 from collections.abc import Sequence
@@ -29,13 +29,17 @@ async def active(session: AsyncSession, user_id: UUID) -> User | None:
     )
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[User], int]:
-    """Return one ordered page of Platform users for administrators."""
+async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[User], int]:
+    """Return one newest-first page of Platform users for administrators."""
+
+    # Match literal text without changing visibility of tombstoned users.
+    query = select(User)
+    if search:
+        query = query.where(or_(col(User.name).icontains(search, autoescape=True), col(User.email).icontains(search, autoescape=True)))
 
     # Preserve the existing administrator list visibility, including tombstoned users.
     statement = (
-        select(User)
-        .options(
+        query.options(
             load_only(
                 attr(User.id),
                 attr(User.name),
@@ -45,14 +49,14 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
                 attr(User.created_at),
             )
         )
-        .order_by(col(User.name), col(User.id))
+        .order_by(col(User.created_at).desc(), col(User.id).desc())
         .offset(pagination.offset)
         .limit(pagination.page_size)
     )
     result = await session.scalars(statement)
 
-    # Count every Platform user visible in the administrator list.
-    count_result = await session.execute(select(func.count()).select_from(User))
+    # Count matches before pagination using the same visibility and search filters.
+    count_result = await session.execute(select(func.count()).select_from(query.subquery()))
     return result.all(), count_result.scalar_one()
 
 

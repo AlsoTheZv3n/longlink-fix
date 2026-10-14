@@ -3,7 +3,7 @@ import asyncio
 from src import auth
 from kr8s import ServerError, NotFoundError, APITimeoutError, ConnectionClosedError
 from uuid import UUID
-from fastapi import Depends, APIRouter, HTTPException, BackgroundTasks
+from fastapi import Query, Depends, APIRouter, HTTPException, BackgroundTasks
 from src.utils import s3, mail, roles
 from src.logger import logger
 from sqlalchemy.exc import SQLAlchemyError
@@ -38,10 +38,12 @@ async def list_organizations(
     _user: auth.PlatformAdmin,
     session: auth.Session,
     pagination: Pagination = Depends(),
+    search: str = Query(default="", max_length=200),
 ):
     """Return all organizations for administrator views."""
 
-    items, total = await organizations.fetch_page(session, pagination)
+    # Search the full administrator listing before pagination.
+    items, total = await organizations.fetch_page(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 

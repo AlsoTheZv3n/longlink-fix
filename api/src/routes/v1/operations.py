@@ -1,5 +1,5 @@
 from src import auth
-from fastapi import Depends, APIRouter
+from fastapi import Query, Depends, APIRouter
 from src.database.services import operations
 from src.models.operations import OperationResponse
 from src.models.pagination import Page, Pagination
@@ -8,8 +8,13 @@ router = APIRouter(dependencies=[Depends(auth.authadmin)])
 
 
 @router.get("/operations", response_model=Page[OperationResponse])
-async def list_operations(session: auth.Session, pagination: Pagination = Depends()):
+async def list_operations(
+    session: auth.Session,
+    pagination: Pagination = Depends(),
+    search: str = Query(default="", max_length=200),
+):
     """Return Platform reconciliation history for administrators."""
 
-    items, total = await operations.fetch_page(session, pagination)
+    # Search the full administrator listing before pagination.
+    items, total = await operations.fetch_page(session, pagination, search.strip())
     return {"items": items, "total": total}

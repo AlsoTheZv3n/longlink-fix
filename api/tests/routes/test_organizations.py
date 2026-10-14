@@ -597,8 +597,8 @@ async def test_list_organizations_returns_stable_page_and_active_total(
 
     # Arrange
     owner = users[0]
-    await create_organization(owner, name="acme")
-    organization = await create_organization(owner, name="globex")
+    organization = await create_organization(owner, name="acme")
+    await create_organization(owner, name="globex")
     client = clients[0]
 
     # Act
@@ -610,8 +610,8 @@ async def test_list_organizations_returns_stable_page_and_active_total(
         "items": [
             {
                 "id": str(organization.id),
-                "name": "globex",
-                "slug": "globex",
+                "name": "acme",
+                "slug": "acme",
                 "status": "creating",
             }
         ],

@@ -1,6 +1,5 @@
 import { api } from '@/lib/api';
-import { useState } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
@@ -8,7 +7,9 @@ import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
+import { useDeferredValue, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
+import { TextInput } from '@/components/ui/TextInput';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
@@ -17,13 +18,18 @@ import { zPageSolutionResponse } from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Lists Solutions and manages administrator metadata and deletion dialogs. */
 export default function Solutions() {
-    const [page, setPage] = useState(1);
+    // Defer list requests so typing remains responsive while a new page loads.
+    const [filters, setFilters] = useState({ search: '', page: 1 });
+    const { search, page } = useDeferredValue(filters);
 
     const [dialog, setDialog] = useState<
         { kind: 'metadata'; id: string } | { kind: 'deletion'; item: { id: string; name: string } } | null
     >(null);
 
-    const [solutions, invalidate] = useApi(`/api/v1/solutions?page=${page}&page_size=25`, zPageSolutionResponse);
+    const [solutions, invalidate] = useApi(
+        `/api/v1/solutions?page=${page}&page_size=25&search=${encodeURIComponent(search.trim())}`,
+        zPageSolutionResponse
+    );
 
     // Use current metadata and clear missing selections so returning to a page cannot reopen the dialog.
     const metadata = dialog?.kind === 'metadata' ? solutions.items.find((item) => item.id === dialog.id) : undefined;
@@ -31,9 +37,18 @@ export default function Solutions() {
     if (dialog?.kind === 'metadata' && !metadata) setDialog(null);
 
     return (
-        <Stack gap={4}>
+        <Stack gap={2}>
             <NoIndex title="Solutions | LongLink" />
             <Heading level={1}>Solutions</Heading>
+            <TextInput
+                label="Search solutions"
+                isLabelHidden
+                placeholder="Search by name, slug, description, or organization"
+                value={filters.search}
+                startIcon={<Search />}
+                hasClear
+                onChange={(search) => setFilters({ search, page: 1 })}
+            />
             <Stack gap={1}>
                 <Table
                     data={solutions.items}
@@ -112,7 +127,15 @@ export default function Solutions() {
                         },
                     ]}
                 />
-                <Pagination page={page} onChange={setPage} totalItems={solutions.total} pageSize={25} variant="none" />
+                <Stack as="footer" align="center" paddingBlock={2}>
+                    <Pagination
+                        page={page}
+                        onChange={(page) => setFilters({ ...filters, page })}
+                        totalItems={solutions.total}
+                        pageSize={25}
+                        variant="pages"
+                    />
+                </Stack>
             </Stack>
             {metadata && (
                 <Dialog
