@@ -32,10 +32,12 @@ export default function Compute() {
     const { search, page } = useDeferredValue(filters);
 
     const [dialog, setDialog] = useState<
-        { kind: 'metadata'; id: string } | { kind: 'deletion'; item: { id: string; name: string } } | null
+        | { kind: 'registration' }
+        | { kind: 'metadata'; id: string }
+        | { kind: 'deletion'; item: { id: string; name: string } }
+        | null
     >(null);
 
-    const [registrationOpen, setRegistrationOpen] = useState(false);
     const path = `/api/v1/computes?page=${page}&page_size=25&search=${encodeURIComponent(search.trim())}`;
     const [computes, invalidate] = useApi(path, schemas.zPageComputeRegistryResponse);
 
@@ -49,7 +51,7 @@ export default function Compute() {
             <NoIndex title="Compute | LongLink" />
             <Stack direction="horizontal" justify="between" align="center" wrap="wrap">
                 <Heading level={1}>Compute</Heading>
-                <Button label="Register Compute" onClick={() => setRegistrationOpen(true)} />
+                <Button label="Register Compute" onClick={() => setDialog({ kind: 'registration' })} />
             </Stack>
             <TextInput
                 label="Search compute"
@@ -105,8 +107,14 @@ export default function Compute() {
                     />
                 </Stack>
             </Stack>
-            {registrationOpen && (
-                <ComputeRegistration invalidate={invalidate} onClose={() => setRegistrationOpen(false)} />
+            {dialog?.kind === 'registration' && (
+                <ComputeRegistration
+                    invalidate={invalidate}
+                    onClose={() => {
+                        // An obsolete registration cannot dismiss a replacement dialog selection.
+                        setDialog((current) => (current === dialog ? null : current));
+                    }}
+                />
             )}
             {metadata && (
                 <Dialog
@@ -153,7 +161,7 @@ export default function Compute() {
                             // Remove the registry entry without deleting its Kubernetes resources.
                             await api.delete(`/api/v1/computes/${dialog.item.id}`);
                             await invalidate();
-                            setDialog(null);
+                            setDialog((current) => (current === dialog ? null : current));
                         },
                     }}
                     onClose={() => setDialog(null)}

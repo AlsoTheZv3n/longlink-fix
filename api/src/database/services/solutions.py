@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer, selectinload, contains_eager
 from collections.abc import Mapping, Sequence
 from src.models.roles import OrganizationRoles
-from src.models.types import Image, MinScale
+from src.models.types import MinScale
 from src.database.types import attr
 from src.models.metadata import LongLinkMetadata
 from src.models.solutions import SolutionCreate, validate_idle_seconds, validate_environment_variables
@@ -124,7 +124,6 @@ async def create(
         user_id,
         metadata,
         payload.envs,
-        source=payload.image,
         min_scale=payload.min_scale,
         idle_seconds=payload.idle_seconds,
         registry_connection_id=registry_connection_id,
@@ -173,7 +172,6 @@ async def deploy(
     metadata: LongLinkMetadata,
     envs: Mapping[str, str | None],
     *,
-    source: Image,
     min_scale: MinScale | None = None,
     idle_seconds: int | None = None,
     registry_connection_id: UUID | None = None,
@@ -192,7 +190,7 @@ async def deploy(
         registry_connection_id = current.registry_connection_id
     if registry_connection_id is not None:
         await registries.lock(session, solution.organization_id)
-        await registries.resolve(session, solution.organization_id, registry_connection_id, source)
+        await registries.resolve(session, solution.organization_id, registry_connection_id, metadata.image)
 
     # Apply explicit environment edits while preserving untouched secrets.
     merged = dict(current.envs) if current is not None else {}
@@ -223,7 +221,6 @@ async def deploy(
     revision = Revision(
         solution_id=solution.id,
         image=metadata.image,
-        source=source,
         min_scale=min_scale,
         idle_seconds=idle_seconds,
         envs=merged,

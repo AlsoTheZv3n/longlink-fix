@@ -192,7 +192,6 @@ async def test_operations_service_failed_creation_updates_targets_and_resolves_r
         session.add(solution)
         await session.flush()
         revision = Revision(
-            source="ghcr.io/longlink/dashboard:latest",
             solution_id=solution.id,
             image="ghcr.io/longlink/dashboard@sha256:resolved",
             envs={},
@@ -277,7 +276,6 @@ async def pending_revision_change() -> tuple[Solution, Revision, Revision]:
         session.add(solution)
         await session.flush()
         deployed_revision = Revision(
-            source="ghcr.io/longlink/dashboard:1",
             solution_id=solution.id,
             image="ghcr.io/longlink/dashboard@sha256:one",
             envs={},
@@ -286,7 +284,6 @@ async def pending_revision_change() -> tuple[Solution, Revision, Revision]:
         session.add(deployed_revision)
         await session.flush()
         desired_revision = Revision(
-            source="ghcr.io/longlink/dashboard:2",
             solution_id=solution.id,
             image="ghcr.io/longlink/dashboard@sha256:two",
             envs={},

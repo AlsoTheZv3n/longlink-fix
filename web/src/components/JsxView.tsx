@@ -2,11 +2,11 @@ import { ApiError } from '@/lib/api';
 import * as icons from '@/lib/icons';
 import * as host from '@/views/host';
 import { useNavigate } from 'react-router';
-import { PageError } from '@/components/Utils';
 import { resolveNavigationUrl } from '@/lib/url';
 import { useQuery } from '@tanstack/react-query';
 import type { ViewRuntime } from '@/views/manifest';
 import { useEffect, useRef, useState } from 'react';
+import { PageError, PageLoading } from '@/components/Utils';
 import {
     commandSchema,
     parametersSchema,
@@ -20,6 +20,13 @@ import {
 } from '@/views/protocol';
 
 const BOOTSTRAP_TIMEOUT_MS = 10_000;
+
+const STARTUP_FAILURES = {
+    assets: 'The View runtime assets could not be loaded or did not match the manifest.',
+    preparation: 'The isolated View document could not be prepared.',
+    transfer: 'The isolated View could not receive its startup capabilities.',
+    readiness: 'The isolated View did not become ready within 10 seconds.',
+} as const;
 
 /** Renders Solution code only in a credential-free, opaque-origin sandbox. */
 export function JsxView({
@@ -40,7 +47,9 @@ export function JsxView({
     const [height, setHeight] = useState(1);
 
     const [bootstrapState, setBootstrapState] = useState<
-        { status: 'preparing' } | { status: 'prepared'; document: string } | { status: 'failed' }
+        | { status: 'preparing' }
+        | { status: 'prepared'; document: string }
+        | { status: 'failed'; stage: keyof typeof STARTUP_FAILURES }
     >({ status: 'preparing' });
 
     const parameters = JSON.stringify(params);
@@ -81,6 +90,11 @@ export function JsxView({
     });
 
     useEffect(() => {
+        // Report only the failure stage and error type, never source or response data.
+        if (import.meta.env.DEV && runtimeError) console.error('View startup failed: assets', runtimeError.name);
+    }, [runtimeError]);
+
+    useEffect(() => {
         if (!kernel) return;
         const [script, styles] = kernel;
         const controller = new AbortController();
@@ -99,10 +113,13 @@ export function JsxView({
         }
 
         /** Reports startup failure only while this attempt still owns the mounted frame. */
-        function fail(): void {
+        function fail(stage: keyof typeof STARTUP_FAILURES, errorType = 'Error'): void {
             if (controller.signal.aborted) return;
             dispose();
-            setBootstrapState({ status: 'failed' });
+
+            // Keep technical diagnostics local to development without exposing exception messages or payloads.
+            if (import.meta.env.DEV) console.error('View startup failed:', stage, errorType);
+            setBootstrapState({ status: 'failed', stage });
         }
 
         /** Connects only this sandbox instance; subsequent window messages have no capabilities. */
@@ -122,8 +139,8 @@ export function JsxView({
                     [channel.port2]
                 );
                 clearTimeout(handshakeTimer);
-            } catch {
-                fail();
+            } catch (error) {
+                fail('transfer', error instanceof Error ? error.name : 'Error');
             }
         }
 
@@ -233,7 +250,7 @@ export function JsxView({
 
             if (!controller.signal.aborted) {
                 // A blocked bootstrap script must surface an error instead of leaving a blank frame.
-                handshakeTimer = setTimeout(fail, BOOTSTRAP_TIMEOUT_MS);
+                handshakeTimer = setTimeout(() => fail('readiness'), BOOTSTRAP_TIMEOUT_MS);
                 const document = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${styles.replace(/<\/style/gi, '<\\/style')}</style></head><body class="overflow-hidden bg-transparent text-primary"><main id="view"></main><script>${code}</script></body></html>`;
 
                 // Keep startup failure latched until the route owner mounts a fresh View.
@@ -243,16 +260,19 @@ export function JsxView({
             }
         }
 
-        void bootstrap().catch(fail);
+        void bootstrap().catch(() => fail('preparation'));
 
         // Replacing or unmounting a View revokes its channel and cancels every outstanding operation.
         return dispose;
     }, [source, parameters, requestBaseUrl, navigationBaseUrl, navigate, kernel]);
 
-    if (runtimeError || bootstrapState.status === 'failed')
-        return (
-            <PageError title="Unable to load this View" description="The isolated View runtime could not be loaded." />
-        );
+    if (runtimeError) return <PageError title="Unable to load this View" description={STARTUP_FAILURES.assets} />;
+
+    if (bootstrapState.status === 'failed')
+        return <PageError title="Unable to load this View" description={STARTUP_FAILURES[bootstrapState.stage]} />;
+
+    // Keep runtime fetching and document preparation visible before mounting the sandbox.
+    if (bootstrapState.status === 'preparing') return <PageLoading label="Preparing View" />;
 
     return (
         // Grow with the isolated content so the same page scrollport serves native pages and Views.
@@ -262,7 +282,7 @@ export function JsxView({
             // Allow native validation and submit events; CSP form-action blocks direct form navigation.
             sandbox="allow-scripts allow-forms"
             referrerPolicy="no-referrer"
-            srcDoc={bootstrapState.status === 'prepared' ? bootstrapState.document : undefined}
+            srcDoc={bootstrapState.document}
             className="block w-full shrink-0 border-0 bg-transparent"
             style={{ height }}
         />

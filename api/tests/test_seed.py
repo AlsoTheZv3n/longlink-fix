@@ -97,4 +97,4 @@ async def test_local_seed_creates_example_through_api(
     assert solution.name == "Invoices"
     assert solution.organization_id == organization.id
     assert solution.description == "Track building projects and construction phases for ACME Ink."
-    assert solution.desired_revision.source == "localhost:15000/sample:latest"
+    assert solution.desired_revision.image == "localhost:15000/sample@sha256:resolved"

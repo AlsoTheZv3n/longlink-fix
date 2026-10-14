@@ -41,7 +41,6 @@ async def test_revision_references_require_same_solution(users: tuple[User, User
         ("id", uuid4()),
         ("solution_id", uuid4()),
         ("image", "ghcr.io/longlink/dashboard@sha256:replacement"),
-        ("source", "ghcr.io/longlink/dashboard:replacement"),
         ("envs", {"KEY": "replacement"}),
         ("created_at", datetime.now(UTC)),
         ("created_id", uuid4()),
@@ -137,7 +136,7 @@ async def test_update_allows_unchanged_deployments_and_enforces_min_scale_bounds
 
     monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
 
-    # Verify the first update saves latest while preserving environment names and scale defaults.
+    # Verify the first update saves the resolved digest while preserving environment names and scale defaults.
     initial_response = await clients[0].post(url, json={})
     assert initial_response.status_code == 204
     async with session_scope() as session:
@@ -145,7 +144,7 @@ async def test_update_allows_unchanged_deployments_and_enforces_min_scale_bounds
         assert current is not None
         revision = await session.get(Revision, current.desired_revision_id)
         assert revision is not None
-        assert revision.source == source
+        assert revision.image == resolved.image
         assert revision.envs == {"KEEP": "private-value", "DROP": "old-value"}
         assert revision.min_scale == 0
 
@@ -217,7 +216,6 @@ async def test_update_reresolves_moved_tag_and_enforces_required_envs(
         current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
         assert current is not None
         assert current.desired_revision.image == resolved.image
-        assert current.desired_revision.source == source
         assert current.desired_revision.min_scale == 1
         assert current.desired_revision.envs == {"KEEP": "private-value", "NEW": "new-value"}
         assert current.deployment_pending
@@ -321,7 +319,7 @@ async def test_release_inspection_revalidates_concurrent_desired_changes(
         nonlocal replacement_id
         async with session_scope() as session:
             current = await solutions.access(session, solution.id, users[0].id)
-            await solutions.deploy(session, current, users[0].id, metadata, {"OTHER": "concurrent-secret"}, source=metadata.image)
+            await solutions.deploy(session, current, users[0].id, metadata, {"OTHER": "concurrent-secret"})
             replacement_id = current.desired_revision_id
             await session.commit()
         return metadata
@@ -599,5 +597,5 @@ async def test_local_registry_release_roundtrip(
         assert current is not None
         revision = await session.get(Revision, current.desired_revision_id)
         assert revision is not None
-        assert revision.source == source
+        assert revision.image == metadata.image
         assert revision.envs == {**envs, "EXTRA": "replacement"}

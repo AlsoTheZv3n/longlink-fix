@@ -137,6 +137,7 @@ export default defineConfig(({ mode }) => {
         server: {
             host: devServerHost,
             port: devServerPort,
+            strictPort: true,
 
             // Route API calls and canonical MCP resource discovery to the local backend.
             proxy: {
