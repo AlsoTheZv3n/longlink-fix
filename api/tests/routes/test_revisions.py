@@ -117,10 +117,10 @@ async def test_update_rejects_solution_without_desired_revision(
     assert post_response.json() == {"detail": "Solution has no desired revision"}
 
 
-async def test_update_enforces_idempotency_and_min_scale_bounds(
+async def test_update_allows_unchanged_deployments_and_enforces_min_scale_bounds(
     clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Follow latest and preserve release defaults while rejecting unchanged or invalid updates."""
+    """Follow latest and preserve release defaults while allowing unchanged deployments and rejecting invalid scaling."""
 
     # Arrange
     organization = await create_organization(users[0])
@@ -156,12 +156,12 @@ async def test_update_enforces_idempotency_and_min_scale_bounds(
     invalid_response = await clients[0].post(url, json={"min_scale": 2})
 
     # Assert
-    assert unchanged_response.status_code == 409
+    assert unchanged_response.status_code == 204
     assert grow_response.status_code == 204
-    assert repeat_response.status_code == 409
+    assert repeat_response.status_code == 204
     assert invalid_response.status_code == 422
     async with session_scope() as session:
-        assert await session.scalar(select(func.count()).select_from(Revision).where(col(Revision.solution_id) == solution.id)) == 3
+        assert await session.scalar(select(func.count()).select_from(Revision).where(col(Revision.solution_id) == solution.id)) == 5
 
 
 async def test_update_reresolves_moved_tag_and_enforces_required_envs(
@@ -592,7 +592,7 @@ async def test_local_registry_release_roundtrip(
     assert check.json()["current_image"] == check.json()["metadata"]["image"] == metadata.image
     assert {"source", "image", "available"}.isdisjoint(check.json())
     assert "integration-value" not in check.text
-    assert (await clients[0].post(url, json={})).status_code == 409
+    assert (await clients[0].post(url, json={})).status_code == 204
     assert (await clients[0].post(url, json={"envs": {"EXTRA": "replacement"}})).status_code == 204
     async with session_scope() as session:
         current = await session.get(Solution, solution_id)

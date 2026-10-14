@@ -160,9 +160,6 @@ async def create_sample(client: httpx2.AsyncClient, settings: SeedSettings, orga
     )
     if response.status_code == 404:
         raise RuntimeError("Sample image 'localhost:15000/sample:latest' was not found in the local registry; run 'make image' first")
-    if response.status_code == 409 and str(response.json().get("detail", "")).endswith("No revision was created."):
-        # The rebuilt image matches the deployed snapshot, keeping repeated seeding idempotent.
-        return
     response.raise_for_status()
 
 
