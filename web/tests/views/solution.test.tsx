@@ -205,7 +205,7 @@ describe('SolutionRuntime', () => {
         });
         const port = await connectView(await renderRuntime('/home'));
         const replies: unknown[] = [];
-        port.onmessage = (event: { data: unknown }) => replies.push(event.data);
+        port.on('message', replies.push.bind(replies));
 
         try {
             // Act
@@ -240,7 +240,7 @@ describe('SolutionRuntime', () => {
         });
         const port = await connectView(await renderRuntime('/home'));
         const replies: unknown[] = [];
-        port.onmessage = (event: { data: unknown }) => replies.push(event.data);
+        port.on('message', replies.push.bind(replies));
         const barrier = new MessageChannel();
 
         try {
