@@ -135,7 +135,7 @@ function SolutionPage() {
             viewsUrl={`/api/v1/solutions/${solutionAccess.id}/proxy/views.json`}
         >
             {({ content, tabs, title }) => (
-                <Platform action={action} breadcrumb={breadcrumb} height="fill" tabs={tabs}>
+                <Platform action={action} breadcrumb={breadcrumb} tabs={tabs}>
                     <NoIndex title={`${title ?? solutionAccess.name} | LongLink`} />
                     <PageContainer height="100%" minHeight={0} padding={2}>
                         {content}
