@@ -66,6 +66,7 @@ describe('Compute registration', () => {
 
     it('rejects unsupported files and discards previous YAML', async () => {
         const user = await renderCompute();
+        await fillEndpoints(user);
         await act(async () => user.upload(fileInput(), new File([kubeconfig], 'compute.yaml')));
         await vi.waitFor(() => expect(textarea().value).toBe(kubeconfig));
 
@@ -82,6 +83,7 @@ describe('Compute registration', () => {
     it('reports whitespace-only file content without submitting', async () => {
         // Arrange
         const user = await renderCompute();
+        await fillEndpoints(user);
 
         // Act
         await act(async () => user.upload(fileInput(), new File([' \n\t'], 'empty.yaml')));
@@ -95,6 +97,7 @@ describe('Compute registration', () => {
 
     it('reports read failures without exposing the thrown error', async () => {
         const user = await renderCompute();
+        await fillEndpoints(user);
 
         // Model a failed local file read without changing global File behavior.
         class UnreadableFile extends File {
@@ -114,6 +117,7 @@ describe('Compute registration', () => {
     it('ignores a pending read after replacing the file', async () => {
         // Arrange
         const user = await renderCompute();
+        await fillEndpoints(user);
         let finishRead: ((text: string) => void) | undefined;
 
         const pending = new Promise<string>((resolve) => {
@@ -143,6 +147,7 @@ describe('Compute registration', () => {
     it('ignores a pending read after clearing the file', async () => {
         // Arrange
         const user = await renderCompute();
+        await fillEndpoints(user);
         let finishRead: ((text: string) => void) | undefined;
 
         const pending = new Promise<string>((resolve) => {
@@ -177,6 +182,7 @@ describe('Compute registration', () => {
     it('ignores a pending read after dismissing the dialog', async () => {
         // Arrange
         const user = await renderCompute();
+        await fillEndpoints(user);
         let finishRead: ((text: string) => void) | undefined;
 
         const pending = new Promise<string>((resolve) => {
@@ -194,7 +200,7 @@ describe('Compute registration', () => {
         // Act
         await act(async () => user.upload(fileInput(), new PendingFile([], 'pending.yaml')));
         expect(button('Register').disabled).toBe(true);
-        await act(async () => user.click(button('Cancel')));
+        await act(async () => user.click(button('Close dialog')));
         await act(async () => user.click(button('Register Compute')));
         await act(async () => finishRead?.(kubeconfig));
 
@@ -235,7 +241,7 @@ describe('Compute registration', () => {
         await fillEndpoints(user);
         await act(async () => user.upload(fileInput(), new File([kubeconfig], 'compute.yaml')));
         await vi.waitFor(() => expect(textarea().value).toBe(kubeconfig));
-        await act(async () => user.click(button('Cancel')));
+        await act(async () => user.click(button('Close dialog')));
         await act(async () => user.click(button('Register Compute')));
         expect(textarea().value).toBe('');
         expect(document.querySelector('dialog')?.textContent).not.toContain('compute.yaml');
@@ -288,7 +294,7 @@ describe('Compute registration', () => {
         return user;
     }
 
-    /** Completes the existing endpoint fields using their accessible labels. */
+    /** Completes metadata using accessible labels before advancing to the kubeconfig step. */
     async function fillEndpoints(user: ReturnType<typeof userEvent.setup>) {
         for (const [label, value] of [
             ['Name', 'Production'],
@@ -305,6 +311,9 @@ describe('Compute registration', () => {
 
             await act(async () => user.type(input, value));
         }
+
+        // Follow the shared wizard navigation before interacting with cluster credentials.
+        await act(async () => user.click(button('Next')));
     }
 
     /** Returns the real file chooser. */
@@ -327,7 +336,9 @@ describe('Compute registration', () => {
 
     /** Finds a native action without replacing UI components. */
     function button(label: string) {
-        const found = [...document.querySelectorAll('button')].find((item) => item.textContent === label);
+        const found = [...document.querySelectorAll('button')].find(
+            (item) => item.textContent === label || item.getAttribute('aria-label') === label
+        );
 
         if (!found) throw new Error(`Missing button ${label}`);
 

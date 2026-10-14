@@ -32,6 +32,8 @@ export function Form(props: {
     submitDisabled?: boolean;
     /** Shows a cancel action beside the automatic navigation controls. */
     onCancel?: () => void;
+    /** Appearance of the wizard's Back action; defaults to secondary. */
+    backVariant?: 'secondary' | 'ghost';
 }) {
     // Guard writes and asynchronous advances independently of React render timing.
     const pending = useRef(false);
@@ -184,7 +186,7 @@ export function Form(props: {
                         {props.onCancel && <Button label="Cancel" variant="ghost" onClick={props.onCancel} />}
                         <Button
                             label="Back"
-                            variant="secondary"
+                            variant={props.backVariant ?? 'secondary'}
                             hidden={Boolean(props.onCancel) && activeStep === 0}
                             disabled={activeStep === 0}
                             onClick={() => setStep(activeStep - 1)}
