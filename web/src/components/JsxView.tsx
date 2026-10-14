@@ -37,6 +37,7 @@ export function JsxView({
 }) {
     const frame = useRef<HTMLIFrameElement>(null);
     const navigate = useNavigate();
+    const [height, setHeight] = useState(1);
 
     const [bootstrapState, setBootstrapState] = useState<
         { status: 'preparing' } | { status: 'prepared'; document: string } | { status: 'failed' }
@@ -134,6 +135,13 @@ export function JsxView({
             if (!parsed.success || controller.signal.aborted) return;
             const command = parsed.data;
 
+            // Size the isolated document without creating a second page scrollport.
+            if (command.type === 'resize') {
+                setHeight(command.height);
+
+                return;
+            }
+
             if (command.type === 'navigate') {
                 try {
                     // Open web destinations only during user activation, without exposing the host to the new page.
@@ -226,7 +234,7 @@ export function JsxView({
             if (!controller.signal.aborted) {
                 // A blocked bootstrap script must surface an error instead of leaving a blank frame.
                 handshakeTimer = setTimeout(fail, BOOTSTRAP_TIMEOUT_MS);
-                const document = `<!doctype html><html class="h-full"><head><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${styles.replace(/<\/style/gi, '<\\/style')}</style></head><body class="h-full overflow-hidden bg-transparent text-primary"><main id="view" class="h-full"></main><script>${code}</script></body></html>`;
+                const document = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="referrer" content="no-referrer"><style>${styles.replace(/<\/style/gi, '<\\/style')}</style></head><body class="overflow-hidden bg-transparent text-primary"><main id="view"></main><script>${code}</script></body></html>`;
 
                 // Keep startup failure latched until the route owner mounts a fresh View.
                 setBootstrapState((current) =>
@@ -247,7 +255,7 @@ export function JsxView({
         );
 
     return (
-        // Fill the host shell's allocated region; scrolling and overlays stay inside the isolated View.
+        // Grow with the isolated content so the same page scrollport serves native pages and Views.
         <iframe
             ref={frame}
             title="Solution View"
@@ -255,7 +263,8 @@ export function JsxView({
             sandbox="allow-scripts allow-forms"
             referrerPolicy="no-referrer"
             srcDoc={bootstrapState.status === 'prepared' ? bootstrapState.document : undefined}
-            className="block h-full min-h-0 w-full flex-1 border-0 bg-transparent"
+            className="block w-full shrink-0 border-0 bg-transparent"
+            style={{ height }}
         />
     );
 }

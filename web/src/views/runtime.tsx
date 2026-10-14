@@ -240,11 +240,22 @@ function initialize(event: MessageEvent<unknown>): void {
 
     const root = createRoot(mount);
 
+    // Report natural content height, including async data and wrapping, over the private channel.
+    const observer = new ResizeObserver(() => {
+        port.postMessage({
+            type: 'resize',
+            height: Math.min(1_000_000, Math.max(1, Math.ceil(mount.getBoundingClientRect().height))),
+        });
+    });
+
+    observer.observe(mount);
+
     // Release all resources acquired by this initialized sandbox in one teardown.
     window.addEventListener(
         'pagehide',
         () => {
             lifetime.abort();
+            observer.disconnect();
 
             for (const waiter of pending.values()) {
                 clearTimeout(waiter.timer);
@@ -310,8 +321,8 @@ function initialize(event: MessageEvent<unknown>): void {
                     <QueryClientProvider client={client}>
                         <QueryErrorResetBoundary>
                             {({ reset }) => (
-                                <Layout height="fill">
-                                    <LayoutContent padding={0} label="Solution View" role="region">
+                                <Layout height="auto">
+                                    <LayoutContent padding={0} isScrollable={false} label="Solution View" role="region">
                                         <ErrorBoundary
                                             onReset={reset}
                                             fallbackRender={({ error, resetErrorBoundary }) => (
@@ -350,8 +361,8 @@ function initialize(event: MessageEvent<unknown>): void {
         // Compilation diagnostics belong to the authored source, not privileged host state.
         root.render(
             <Theme theme={stoneTheme} mode="dark">
-                <Layout height="fill">
-                    <LayoutContent padding={0} label="Solution View" role="region">
+                <Layout height="auto">
+                    <LayoutContent padding={0} isScrollable={false} label="Solution View" role="region">
                         <Banner
                             role="status"
                             status="error"

@@ -18,7 +18,6 @@ export default function Solution() {
                             Documentation
                         </Link>
                     }
-                    height="fill"
                     tabs={tabs}
                 >
                     <NoIndex title={title ? `${title} | LongLink` : 'LongLink'} />
