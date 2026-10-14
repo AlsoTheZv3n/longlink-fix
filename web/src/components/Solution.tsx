@@ -9,11 +9,14 @@ import { Center } from '@astryxdesign/core/Center';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { matchRoutes, Navigate, useParams } from 'react-router';
-import type { NavigationTab } from '@/components/layouts/Platform';
 import { RELATIVE_URL_ORIGIN, resolveNavigationUrl, resolveRequestUrl } from '@/lib/url';
 
 type SolutionRuntimeProps = {
-    children: (solution: { content: ReactNode; tabs: readonly NavigationTab[]; title?: string }) => ReactNode;
+    children: (solution: {
+        content: ReactNode;
+        tabs: readonly { href: string; label: string }[];
+        title?: string;
+    }) => ReactNode;
     navigationBaseUrl?: string;
     viewsUrl?: string;
 };
@@ -78,13 +81,10 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
     });
 
     // Build one static navigation target per solution tab.
-    const tabs = tabViews.map(
-        (view) =>
-            ({
-                href: resolveNavigationUrl(navigationBaseUrl, view.route),
-                label: viewLabel(view.path),
-            }) satisfies NavigationTab
-    );
+    const tabs = tabViews.map((view) => ({
+        href: resolveNavigationUrl(navigationBaseUrl, view.route),
+        label: viewLabel(view.path),
+    }));
 
     let content: ReactNode;
 
