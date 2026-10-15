@@ -26,3 +26,8 @@ updates:
       directory: '/dev'
       schedule:
           interval: 'weekly'
+
+    - package-ecosystem: 'helm'
+      directory: '/k8s/chart'
+      schedule:
+          interval: 'weekly'
