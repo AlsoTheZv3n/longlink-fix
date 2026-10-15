@@ -29,6 +29,11 @@ export default defineConfig({
     ],
     resolve: { tsconfigPaths: true },
     build: {
+        rolldownOptions: {
+            checks: {
+                moduleLevelDirective: false,
+            },
+        },
         outDir: 'public/views',
         emptyOutDir: false,
         lib: {
