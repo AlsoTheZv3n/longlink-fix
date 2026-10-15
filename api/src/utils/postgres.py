@@ -1,7 +1,7 @@
 import contextlib
 from uuid import UUID
 from sqlalchemy import String, text
-from collections.abc import Iterator, AsyncGenerator
+from collections.abc import Generator, AsyncGenerator
 from longlink.shared import migrations as shared_migrations
 from longlink.storage import tls
 from src.models.types import DatabaseSSLMode
@@ -59,7 +59,7 @@ class Postgres:
         self._certificate = certificate
 
     @contextlib.contextmanager
-    def url(self, database: str, search_path: str | None = None) -> Iterator[URL]:
+    def url(self, database: str, search_path: str | None = None) -> Generator[URL]:
         """Yield a libpq URL whose CA file lives until exit; dispose all consuming engines inside this context."""
 
         # Derive operation-local settings without accumulating changes on the cluster URL.
