@@ -1,5 +1,3 @@
-"""MCP persistence operations; callers own transaction commits."""
-
 import hmac
 import base64
 import hashlib

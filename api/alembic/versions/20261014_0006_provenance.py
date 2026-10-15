@@ -1,5 +1,3 @@
-"""Remove original image-reference provenance from release snapshots."""
-
 import sqlalchemy as sa
 from alembic import op
 
