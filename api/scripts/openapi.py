@@ -1,5 +1,3 @@
-"""Export the versioned Platform OpenAPI document without requiring local secrets."""
-
 import json
 from main import app
 from pathlib import Path

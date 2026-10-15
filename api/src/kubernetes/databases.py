@@ -1,20 +1,3 @@
-"""Reconcile, connect to, and delete isolated Organization CNPG clusters.
-
-An Organization database lives in ``longlink-database-{organization UUID hex}``
-with its Cluster, credentials, quota, and network policy. ``apply`` renders that
-boundary before creating CNPG resources. ``resume`` confirms both CNPG
-status and ready instance Pods before callers connect.
-
-    Structure::
-
-    Organization
-    └── Namespace longlink-database-{organization UUID hex}
-        ├── Cluster database
-        ├── Secret database-superuser
-        ├── ResourceQuota database
-        └── NetworkPolicy database
-"""
-
 import json
 import asyncio
 from uuid import UUID

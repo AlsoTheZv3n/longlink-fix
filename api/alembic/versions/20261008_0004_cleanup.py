@@ -1,5 +1,3 @@
-"""Remove redundant Organization lease identifiers and registry providers."""
-
 import sqlalchemy as sa
 from alembic import op
 

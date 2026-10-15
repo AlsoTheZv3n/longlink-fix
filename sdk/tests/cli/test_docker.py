@@ -1,8 +1,3 @@
-"""Check generated manifest layers with real Docker, without pulling runtime images.
-
-Run from sdk/: LONGLINK_DOCKER_TESTS=1 uv run pytest -m integration tests/cli/test_docker.py
-"""
-
 import os
 import json
 import uuid
