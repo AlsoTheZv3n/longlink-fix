@@ -7,6 +7,7 @@ from sqlmodel import Session as SyncSession
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import relationship, declared_attr
 from collections.abc import AsyncGenerator
+from sqlmodel._compat import SQLModelConfig
 from longlink.database import urls
 from sqlalchemy.engine import URL, make_url
 from longlink.shared.models import User
@@ -21,8 +22,7 @@ LOCAL_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 class Audit(Model):
     """Base SQLModel for Solution tables that track Platform users."""
 
-    model_config = SQLModel.model_config.copy()
-    model_config["ignored_types"] = (declared_attr,)
+    model_config = SQLModelConfig(ignored_types=(declared_attr,))
 
     # Audit timestamps
     # The flush listener supplies required values before persistence.
