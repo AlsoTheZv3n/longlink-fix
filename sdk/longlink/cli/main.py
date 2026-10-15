@@ -1,6 +1,6 @@
 import sys
 import cyclopts
-from longlink.cli import dev, docs, init, build, errors, migrate
+from longlink.cli import dev, docs, init, build, errors, update, migrate
 from collections.abc import Sequence
 
 # Register typed commands directly, keeping error ownership at the entrypoint.
@@ -9,6 +9,7 @@ app.command(build.build_command, name="build")
 app.command(dev.dev_command, name="dev")
 app.command(init.init_command, name="init")
 app.command(migrate.migrate_command, name="migrate")
+app.command(update.update_command, name="update")
 
 # A default docs command displays the playbook without a framework context parameter.
 documentation = cyclopts.App(name="docs", help="Discover LongLink View APIs and implementation guidance.")
