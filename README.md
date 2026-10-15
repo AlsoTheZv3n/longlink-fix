@@ -32,15 +32,14 @@ LongLink is an open-source platform for building and running custom business too
 - 🤖 **AI integration**: Expose your applications to AI agents through an MCP server.
 - 📦 **Portable**: Applications run as standard containers.
 
+![Invoice approvals in the sample Solution](sample.png)
 
 
 <br />
 
 ## Create a Solution
 
-> [!WARNING]
-> LongLink is under active development. APIs may change before version 1.0.
-> 
+
 Requirements: Python 3.12 or later and [`uv`](https://docs.astral.sh/uv/). See the [sample Solution](https://github.com/xLongLink/sample) for a complete example.
 
 ```bash
@@ -49,20 +48,40 @@ uvx --from longlink longlink init --folder . --ci github
 
 Open `http://127.0.0.1:1707` to preview your Solution.
 
-
+> [!WARNING]
+> LongLink is under active development. APIs may change before version 1.0.
+> 
 
 
 <br />
 
 ## How it works
 
-![Invoice approvals in the sample Solution](sample.png)
+A Solution is a Python project where you define your data, business logic, and user interface using familiar tools, it follows:
 
-`LongLink()` is a headless FastAPI application with the common runtime already configured. Your routes remain standard FastAPI routes, while `Context` provides access to the current user, database, and storage.
+```text
+├── main.py             # Application entry point
+├── src/
+│   ├── models/         # SQLModel database models
+│   ├── schemas/        # Pydantic schemas
+│   ├── routes/         # FastAPI endpoints
+│   └── views/          # JSX user interfaces
+├── migrations/         # Database migrations
+├── tests/              # Automated tests
+└── pyproject.toml      # Project dependencies
+```
 
-The same code runs in development, testing, and production. When deployed, LongLink packages the Solution as a standard container image.
+Your application starts with `LongLink()`, which extends FastAPI with the services needed to run your Solution.
 
-Each View is defined in a single file that describes its layout, elements, and actions.
+```python
+from longlink import LongLink
+from src.routes import projects
+
+app = LongLink()
+app.include_router(projects.router)
+```
+
+Write your business logic in Python, build interactive Views using JSX, and let LongLink handle authentication, database connections, storage, and deployment.
 
 
 <br />
@@ -96,16 +115,14 @@ Specific workflows can be customized through code, built quickly with modern AI-
 
 ## Develop LongLink
 
-The repository contains the LongLink SDK in `sdk/`, the Platform API in `api/`, and the frontend in `web/`.
-On Linux, install the development requirements with:
+Run these commands from the repository root:
+
 
 ```bash
 make apt   # Ubuntu, Debian, ...
 ```
 
 ### Develop the Platform
-
-Run these commands from the repository root:
 
 ```bash
 make up     # Create local infrastructure
@@ -114,13 +131,9 @@ make seed   # In another terminal, after API startup completes
 make web    # In the second terminal, after seeding finishes
 ```
 
-`make seed` recreates `sdk/dev/`, removing any local edits in that directory.
-
 The default development email address is `admin@admin.com`, and the password is `admin`.
 
 ### Develop the SDK runtime
-
-Run a standalone sample Solution from the repository root:
 
 ```bash
 make sdk
@@ -128,7 +141,6 @@ make sdk
 
 ### Stop local services
 
-Stop running development servers with **Ctrl+C** in their terminals. Then run:
 
 ```bash
 make down
