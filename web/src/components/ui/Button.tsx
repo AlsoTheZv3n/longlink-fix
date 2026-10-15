@@ -31,7 +31,7 @@ type ButtonProps = {
 export function Button({ onClick, ...props }: ButtonProps) {
     // Preserve container sizing before falling back to the standard medium button.
     const size = useSize(props.size, 'md');
-    const navigate = useContext(LinkNavigationContext);
+    const navigate = useContext(LinkNavigationContext)?.navigate;
 
     // Standardize advanced behavior even when untyped JSX supplies unsupported props.
     return (

@@ -134,7 +134,12 @@ export function JsxView({
             // A failed capability transfer is a startup failure, not a connected runtime.
             try {
                 frame.current?.contentWindow?.postMessage(
-                    { session, source, params: parametersSchema.parse(JSON.parse(parameters)) },
+                    {
+                        session,
+                        source,
+                        params: parametersSchema.parse(JSON.parse(parameters)),
+                        navigationBaseUrl: new URL(navigationBaseUrl, window.location.origin).href,
+                    },
                     '*',
                     [channel.port2]
                 );
@@ -183,7 +188,13 @@ export function JsxView({
                     host.requestUrl(navigationBaseUrl, command.path);
                     const destination = resolveNavigationUrl(navigationBaseUrl, command.path);
 
-                    if (destination) await navigate(destination);
+                    if (destination) {
+                        if (command.newTab) {
+                            if (navigator.userActivation.isActive) {
+                                window.open(destination, '_blank', 'noopener,noreferrer');
+                            }
+                        } else await navigate(destination);
+                    }
                 } catch {
                     // Invalid navigation does not acquire any host capability.
                 }

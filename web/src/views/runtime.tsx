@@ -72,11 +72,9 @@ function MenuNavigationProvider({ children }: { children: React.ReactNode }) {
                 },
             }}
         >
-            <LinkNavigationContext value={navigate}>
-                <FileRequestContext value={fileRequests}>
-                    <FormRequestContext value={request}>{children}</FormRequestContext>
-                </FileRequestContext>
-            </LinkNavigationContext>
+            <FileRequestContext value={fileRequests}>
+                <FormRequestContext value={request}>{children}</FormRequestContext>
+            </FileRequestContext>
         </MenuNavigationContext>
     );
 }
@@ -184,8 +182,8 @@ async function download(path: string, filename: string): Promise<void> {
 }
 
 /** Requests scoped Solution navigation or opens an HTTP(S) URL in a new tab during user activation. */
-function navigate(path: string): void {
-    port.postMessage({ type: 'navigate', path });
+function navigate(path: string, newTab = false): void {
+    port.postMessage({ type: 'navigate', path, newTab });
 }
 
 /** Returns Solution data and an awaitable invalidator scoped to the full request path. */
@@ -204,7 +202,14 @@ function useApi(path: string): readonly [ViewData, () => Promise<void>] {
     return [data, invalidate];
 }
 
-const initialization = z.object({ session: z.string(), source: z.string(), params: parametersSchema }).strict();
+const initialization = z
+    .object({
+        session: z.string(),
+        source: z.string(),
+        params: parametersSchema,
+        navigationBaseUrl: z.url({ protocol: /^https?$/ }),
+    })
+    .strict();
 
 /** Receives source once from the parent, then accepts capabilities only over the transferred port. */
 function initialize(event: MessageEvent<unknown>): void {
@@ -343,9 +348,13 @@ function initialize(event: MessageEvent<unknown>): void {
                                         >
                                             <React.Suspense fallback={<Spinner label="Loading View" />}>
                                                 <IconRequestContext value={loadIcon}>
-                                                    <MenuNavigationProvider>
-                                                        <View params={params} />
-                                                    </MenuNavigationProvider>
+                                                    <LinkNavigationContext
+                                                        value={{ baseUrl: parsed.data.navigationBaseUrl, navigate }}
+                                                    >
+                                                        <MenuNavigationProvider>
+                                                            <View params={params} />
+                                                        </MenuNavigationProvider>
+                                                    </LinkNavigationContext>
                                                 </IconRequestContext>
                                             </React.Suspense>
                                         </ErrorBoundary>
