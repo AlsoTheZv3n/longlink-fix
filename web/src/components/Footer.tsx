@@ -33,11 +33,11 @@ function LinkedInIcon(props: SVGProps<SVGSVGElement>) {
     );
 }
 
-/** Renders the public landing page footer. */
-export function Footer() {
+/** Renders the public footer at the page's content width. */
+export function Footer({ maxWidth = 1000 }: { maxWidth?: number }) {
     return (
         <Stack as="footer" className="border-t border-border" paddingInline={6} paddingBlock={10}>
-            <Stack className="mx-auto max-sm:text-center" maxWidth={1000} width="100%" gap={6}>
+            <Stack className="mx-auto max-sm:text-center" maxWidth={maxWidth} width="100%" gap={6}>
                 <Stack
                     className="max-sm:flex-col max-sm:justify-center"
                     direction="horizontal"
@@ -48,7 +48,7 @@ export function Footer() {
                 >
                     <Stack className="max-sm:flex-col" direction="horizontal" gap={4} vAlign="center">
                         <Link href="/" label="LongLink home" color="inherit">
-                            <Wordmark />
+                            <Wordmark size="heading" />
                         </Link>
                         <Stack as="ul" direction="horizontal" gap={3} vAlign="center">
                             <li>

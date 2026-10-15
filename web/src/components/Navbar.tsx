@@ -12,7 +12,7 @@ export function Navbar({ maxWidth = 1000 }: { maxWidth?: number }) {
                 <TopNav
                     heading={
                         <Link href="/" label="LongLink home" color="inherit">
-                            <Wordmark />
+                            <Wordmark size="heading" />
                         </Link>
                     }
                     label="Main navigation"
