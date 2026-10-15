@@ -24,8 +24,10 @@ ENV PATH="/app/.venv/bin:${PATH}"
 ENV HOME="/tmp"
 ENV PYTHONDONTWRITEBYTECODE="1"
 
-# uv installs dependencies; remove unused pip.
-RUN /usr/local/bin/python -m pip uninstall --yes pip
+# Remove unused pip, system utilities, and their unused libraries.
+RUN /usr/local/bin/python -m pip uninstall --yes pip \
+    && apt-get remove --yes --no-auto-remove --allow-remove-essential \
+        libblkid1 liblastlog2-2 libmount1 libsmartcols1 mount ncurses-bin util-linux
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c /uv /usr/local/bin/uv
 
