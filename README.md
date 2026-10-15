@@ -7,8 +7,8 @@
 Create the tools your company always needed
 </h3 >
 
+Build dashboards, workflows, and internal tools tailored to your business using Python. <br /> LongLink provides everything you need to develop, deploy, and manage them in a single place
 
-Write your application logic using familiar Python tools. LongLink takes care of the common infrastructure, so you can focus on solving the actual problems.
 
 [![Tests](https://github.com/xLongLink/longlink/actions/workflows/tests.yml/badge.svg)](https://github.com/xLongLink/longlink/actions/workflows/tests.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
