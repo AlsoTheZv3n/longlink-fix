@@ -170,18 +170,12 @@ export function Showcase() {
     // Keep the preview window's size while scaling its contents to 80%.
     return (
         <Section
-            className="relative z-20 -mt-32 sm:-mt-48"
-            padding={6}
-            paddingBlock={10}
-            paddingBlockStart={6}
+            className="hidden sm:block"
+            paddingInline={6}
+            paddingBlockEnd={10}
             variant="transparent"
             aria-label="Example Showcase"
         >
-            <Stack hAlign="center" className="mb-4">
-                <Heading level={2} className="font-(family-name:--font-family-handwritten)">
-                    Create the tools your business needs
-                </Heading>
-            </Stack>
             <Section
                 padding={0}
                 width="100%"

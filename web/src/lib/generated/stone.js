@@ -196,11 +196,7 @@ export const stoneTheme = {
     "--color-window-close": "#ff5f57",
     "--color-window-minimize": "#ff9f0a",
     "--color-window-maximize": "#28c840",
-    "--layout-side-nav-width": "260px",
-    "--hero-globe-bottom": "clamp(-94rem, -74vw, -58rem)",
-    "--hero-globe-width": "max(84rem, 112vw)",
-    "--hero-globe-mobile-bottom": "-42rem",
-    "--hero-globe-mobile-width": "68rem"
+    "--layout-side-nav-width": "260px"
   },
   __localTokenOwners: {
     "--font-family-handwritten": "stone",
@@ -208,11 +204,7 @@ export const stoneTheme = {
     "--color-window-close": "stone",
     "--color-window-minimize": "stone",
     "--color-window-maximize": "stone",
-    "--layout-side-nav-width": "stone",
-    "--hero-globe-bottom": "stone",
-    "--hero-globe-width": "stone",
-    "--hero-globe-mobile-bottom": "stone",
-    "--hero-globe-mobile-width": "stone"
+    "--layout-side-nav-width": "stone"
   },
   __localTokenLineage: ["stone"],
   components: {

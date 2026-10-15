@@ -96,12 +96,6 @@ export const stoneTheme = defineTheme({
 
         // Keep the fixed content frame aligned with SideNav's default width.
         '--layout-side-nav-width': '260px',
-
-        // Preserve the globe's authored desktop and phone composition.
-        '--hero-globe-bottom': 'clamp(-94rem, -74vw, -58rem)',
-        '--hero-globe-width': 'max(84rem, 112vw)',
-        '--hero-globe-mobile-bottom': '-42rem',
-        '--hero-globe-mobile-width': '68rem',
     },
 
     tokens: {

@@ -50,27 +50,3 @@
         }
     }
 }
-
-.homepage-hero-globe-surface {
-    fill: color-mix(in oklch, var(--color-background-body) 96%, currentColor 4%);
-}
-
-.homepage-hero-globe-blue-rim {
-    stroke-opacity: 0.24;
-    stroke-width: 36;
-}
-
-.homepage-hero-globe-cap-shadow {
-    fill: url(#hero-globe-cap-shadow);
-}
-
-.homepage-hero-globe-land {
-    opacity: 0.78;
-    stroke-width: 1.05;
-    vector-effect: non-scaling-stroke;
-}
-
-.homepage-hero-globe-horizon {
-    stroke-opacity: 0.62;
-    stroke-width: 1.4;
-}
