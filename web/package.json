@@ -61,7 +61,7 @@
         "tailwindcss": "^4.3.3",
         "typescript": "5.9.3",
         "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
-        "vite-plus": "0.3.1",
+        "vite-plus": "1.1.0",
         "vitest": "4.1.11",
         "yaml": "^2.9.1"
     },
