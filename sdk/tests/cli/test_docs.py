@@ -32,7 +32,7 @@ def test_docs_command_resolves_a_component_name_case_insensitively(capsys: pytes
     output = capsys.readouterr().out
     assert "Button [Action]" in output
     assert "- label (string):\n  Visible button text and accessible label." in output
-    assert '- variant ("primary" | "secondary" | "ghost" | "destructive"):\n  Visual style variant.' in output
+    assert '- variant ("ghost" | "primary" | "secondary" | "destructive"):\n  Visual style variant.' in output
     assert "undefined" not in output
     assert "onClick" in output
     assert "Example" not in output

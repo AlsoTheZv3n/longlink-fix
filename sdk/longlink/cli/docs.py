@@ -1,6 +1,5 @@
 import re
-import yaml
-from pydantic import Field, BaseModel, JsonValue, TypeAdapter
+from pydantic import Field, BaseModel, JsonValue
 from rapidfuzz import fuzz
 from longlink.cli import errors
 from collections.abc import Sequence
@@ -51,29 +50,21 @@ class Pattern(BaseModel):
     description: str
 
 
-class Discovery(BaseModel):
-    """Authored category overviews and supported interface patterns."""
+class Catalog(BaseModel):
+    """Generated APIs, category overviews, and supported interface patterns."""
 
     # Navigation and task guidance.
     groups: dict[str, str]
     patterns: list[Pattern]
+    components: list[Component]
 
 
-def catalog() -> list[Component]:
+def catalog() -> Catalog:
     """Read and validate the packaged catalog shared with the website."""
 
     # Validate generated documentation at the file boundary.
-    source = (ROOT / ".static" / "jsx" / "components.yml").read_text(encoding="utf-8")
-    adapter = TypeAdapter(list[Component])
-    return adapter.validate_python(yaml.safe_load(source))
-
-
-def discovery() -> Discovery:
-    """Read the packaged, authored discovery guidance."""
-
-    # Validate workflow metadata at the file boundary.
-    source = (ROOT / ".static" / "jsx" / "discovery.yml").read_text(encoding="utf-8")
-    return Discovery.model_validate(yaml.safe_load(source))
+    source = (ROOT / ".static" / "jsx" / "components.json").read_text(encoding="utf-8")
+    return Catalog.model_validate_json(source)
 
 
 def score(query: str, name: str, keywords: list[str], description: str) -> float:
@@ -157,8 +148,7 @@ def docs_command() -> None:
     """Show the View-authoring playbook and available groups."""
 
     # Render the playbook when no documentation subcommand was requested.
-    components = catalog()
-    guidance = discovery()
+    documentation = catalog()
     print("LongLink JSX View components")
     print("Export one default React component from each .jsx file; no package imports or frontend build is required.")
     print("Use React state and controlled callbacks; express queries and ordered actions in ordinary JavaScript.")
@@ -170,8 +160,8 @@ def docs_command() -> None:
 
     # List documented categories without dumping their complete API surfaces.
     print("\nGroups")
-    for category in sorted({component.category for component in components}):
-        print(f"- {category}: {guidance.groups[category]}")
+    for category in sorted({component.category for component in documentation.components}):
+        print(f"- {category}: {documentation.groups[category]}")
         print(f"  longlink docs group {category}")
 
 
@@ -186,7 +176,7 @@ def component_command(name: str, /) -> None:
     """
 
     # Resolve the public entry case-insensitively before rendering its contract.
-    component = next((component for component in catalog() if component.name.casefold() == name.strip().casefold()), None)
+    component = next((component for component in catalog().components if component.name.casefold() == name.strip().casefold()), None)
     if component is None:
         raise errors.Error(f'Unknown component: {name}. Run `longlink docs search "{name}"` to find available APIs.')
     print(f"{component.name} [{component.category}]")
@@ -217,13 +207,13 @@ def group_command(name: str, /) -> None:
     """
 
     # Keep the category lookup and existence check together at the CLI boundary.
-    components = catalog()
-    categories = sorted({component.category for component in components})
+    documentation = catalog()
+    categories = sorted({component.category for component in documentation.components})
     category = next((category for category in categories if category.casefold() == name.strip().casefold()), None)
     if category is None:
         raise errors.Error(f"Unknown group: {name}. Available groups: {', '.join(categories)}.")
-    print(f"{category}\n{discovery().groups[category]}")
-    render_matches([component for component in components if component.category == category])
+    print(f"{category}\n{documentation.groups[category]}")
+    render_matches([component for component in documentation.components if component.category == category])
 
 
 def search_command(query: str, /) -> None:
@@ -238,7 +228,7 @@ def search_command(query: str, /) -> None:
 
     # Validate input before searching the shared catalog.
     query = validate_query(query)
-    matches = search(query, catalog())
+    matches = search(query, catalog().components)
     print(f'Search results for "{query}"')
     if not matches:
         print("No matches. Try other words, or run `longlink docs` to browse groups.")
@@ -258,9 +248,8 @@ def build_command(query: str, /) -> None:
 
     # Reuse API search and rank authored patterns by explicit intent only.
     query = validate_query(query)
-    components = catalog()
-    guidance = discovery()
-    ranked = [(score(query, pattern.name, pattern.keywords, ""), pattern) for pattern in guidance.patterns]
+    documentation = catalog()
+    ranked = [(score(query, pattern.name, pattern.keywords, ""), pattern) for pattern in documentation.patterns]
     ranked.sort(key=lambda match: -match[0])
     pattern = ranked[0][1] if ranked and ranked[0][0] >= 70 else None
     print(f'Build guidance for "{query}"')
@@ -270,10 +259,10 @@ def build_command(query: str, /) -> None:
         print(f"\nApproach: {pattern.name}\n{pattern.description}")
         for index, step in enumerate(pattern.steps, start=1):
             print(f"{index}. {step}")
-        matches = [next(component for component in components if component.name == name) for name in pattern.components]
+        matches = [next(component for component in documentation.components if component.name == name) for name in pattern.components]
     else:
         print("\nNo specific workflow guidance matches this idea. These are documentation matches, not a complete implementation plan.")
-        matches = search(query, components)
+        matches = search(query, documentation.components)
     print("\nRelevant APIs")
     if matches:
         render_matches(matches)
