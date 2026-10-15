@@ -71,7 +71,7 @@ export function Card({
     onChange,
     ...props
 }: CardProps) {
-    const navigate = useContext(LinkNavigationContext);
+    const navigate = useContext(LinkNavigationContext)?.navigate;
 
     // Use Astryx's controlled selection behavior whenever a selection callback is supplied.
     if (onChange !== undefined) {
@@ -106,7 +106,7 @@ export function Card({
 
                               if (navigate && href && !event.defaultPrevented) {
                                   event.preventDefault();
-                                  navigate(href);
+                                  navigate(href, event.ctrlKey || event.metaKey || event.shiftKey);
                               }
                           }
                         : undefined

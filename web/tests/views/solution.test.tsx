@@ -187,7 +187,12 @@ describe('SolutionRuntime', () => {
         // A correctly authenticated bootstrap must still acquire its port and cancel the deadline.
         window.dispatchEvent(new MessageEvent('message', handshake));
         expect(transfer).toHaveBeenCalledOnce();
-        expect(transfer.mock.calls[0]?.[0]).toEqual({ session, source, params: {} });
+        expect(transfer.mock.calls[0]?.[0]).toEqual({
+            session,
+            source,
+            params: {},
+            navigationBaseUrl: 'http://localhost:3000/',
+        });
         await act(async () => vi.advanceTimersByTimeAsync(10_000));
         expect(output.querySelector('iframe')).toBe(frame);
     });

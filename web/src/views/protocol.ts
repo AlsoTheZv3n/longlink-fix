@@ -104,7 +104,9 @@ export const commandSchema = z.discriminatedUnion('type', [
     requestSchema,
     // Only bounded dimensions cross the sandbox boundary; the host owns page scrolling.
     z.object({ type: z.literal('resize'), height: z.number().int().min(1).max(1_000_000) }).strict(),
-    z.object({ type: z.literal('navigate'), path: z.string().min(1).max(4096) }).strict(),
+    z
+        .object({ type: z.literal('navigate'), path: z.string().min(1).max(4096), newTab: z.boolean().optional() })
+        .strict(),
     downloadSchema,
     iconSchema,
 ]);
