@@ -5,7 +5,7 @@ import sqlite3
 from typing import Literal
 from pathlib import Path
 from sqlmodel import SQLModel, select
-from sqlalchemy import text, event
+from sqlalchemy import text, event, literal
 from sqlalchemy.exc import OperationalError
 from longlink.database import base as database_base
 from longlink.database import urls as database_urls
@@ -150,7 +150,7 @@ async def test_concurrent_sessions_share_a_usable_engine_until_disposal() -> Non
         """Query through an SDK-managed session and return its public bind."""
 
         async with database.session() as session:
-            result = await session.exec(select(1))
+            result = await session.exec(select(literal(1)))
             assert result.one() == 1
             return session.bind
 
