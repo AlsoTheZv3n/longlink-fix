@@ -114,6 +114,14 @@ export default defineConfig(({ mode }) => {
 
         envPrefix: ['VITE_', 'VERSION'],
 
+        build: {
+            rolldownOptions: {
+                checks: {
+                    moduleLevelDirective: false,
+                },
+            },
+        },
+
         resolve: {
             tsconfigPaths: true,
         },
