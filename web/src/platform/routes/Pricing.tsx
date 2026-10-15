@@ -20,7 +20,7 @@ export default function Pricing() {
             />
             <main>
                 <Section variant="transparent" padding={6}>
-                    <Stack className="mx-auto" width="100%" maxWidth={1120} gap={10} align="center">
+                    <Stack className="mx-auto" width="100%" maxWidth={1000} gap={10} align="center">
                         <Stack className="text-center" gap={3} hAlign="center" width="100%">
                             <Heading
                                 className="font-(family-name:--font-family-handwritten) tracking-wide uppercase"

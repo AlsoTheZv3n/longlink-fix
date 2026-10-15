@@ -1,64 +1,54 @@
-import { Card } from '@astryxdesign/core/Card';
 import { Link } from '@astryxdesign/core/Link';
 import { Wordmark } from '@/components/Wordmark';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
-import { Center } from '@astryxdesign/core/Center';
 import { TopNav } from '@astryxdesign/core/TopNav';
 
 /** Renders the public landing page navigation. */
 export function Navbar() {
     return (
-        <Stack as="header" className="relative z-20" padding={4} paddingBlock={5}>
-            <Center axis="horizontal">
-                <Card maxWidth={720} padding={0} width="100%">
-                    <TopNav
-                        endContent={<Button href="/login/" label="Sign In" size="sm" variant="primary" />}
-                        heading={
-                            <Link href="/" label="LongLink home" color="inherit">
-                                <Wordmark />
+        <Stack as="header" className="border-b border-border bg-body" paddingInline={6} paddingBlock={3}>
+            <Stack className="mx-auto" maxWidth={1000} width="100%">
+                <TopNav
+                    heading={
+                        <Link href="/" label="LongLink home" color="inherit">
+                            <Wordmark />
+                        </Link>
+                    }
+                    label="Main navigation"
+                    endContent={
+                        <Stack direction="horizontal" gap={6} vAlign="center">
+                            <Link className="sm:hidden" href="/docs/" color="secondary" isStandalone weight="medium">
+                                Docs
                             </Link>
-                        }
-                        label="Main navigation"
-                        centerContent={
-                            <>
-                                <Link
-                                    className="sm:hidden"
-                                    href="/docs/"
-                                    color="secondary"
-                                    isStandalone
-                                    weight="medium"
-                                >
-                                    Docs
-                                </Link>
-                                <Stack className="hidden sm:flex" direction="horizontal" gap={4} vAlign="center">
-                                    {/* Use cases are a work in progress; keep hidden until ready.
+                            <Stack className="hidden sm:flex" direction="horizontal" gap={4} vAlign="center">
+                                {/* Use cases are a work in progress; keep hidden until ready.
                                     <Link href="/use-cases/" color="secondary" isStandalone weight="medium">
                                         Use cases
                                     </Link>
                                     */}
-                                    <Link href="/docs/" color="secondary" isStandalone weight="medium">
-                                        Documentation
-                                    </Link>
-                                    <Link href="/pricing/" color="secondary" isStandalone weight="medium">
-                                        Pricing
-                                    </Link>
-                                    <Link
-                                        as="a"
-                                        color="secondary"
-                                        href="https://github.com/xLongLink/longlink"
-                                        isExternalLink
-                                        isStandalone
-                                        weight="medium"
-                                    >
-                                        GitHub
-                                    </Link>
-                                </Stack>
-                            </>
-                        }
-                    />
-                </Card>
-            </Center>
+                                <Link href="/docs/" color="secondary" isStandalone weight="medium">
+                                    Documentation
+                                </Link>
+                                <Link href="/pricing/" color="secondary" isStandalone weight="medium">
+                                    Pricing
+                                </Link>
+                                <Link
+                                    as="a"
+                                    color="secondary"
+                                    href="https://github.com/xLongLink/longlink"
+                                    isExternalLink
+                                    isStandalone
+                                    weight="medium"
+                                >
+                                    GitHub
+                                </Link>
+                            </Stack>
+                            <Button href="/login/" label="Sign In" size="sm" variant="primary" />
+                        </Stack>
+                    }
+                />
+            </Stack>
         </Stack>
     );
 }
