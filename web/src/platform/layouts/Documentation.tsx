@@ -1,3 +1,4 @@
+import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Outlet, useLocation } from 'react-router';
@@ -11,10 +12,11 @@ export default function Documentation() {
     const pagePath = pathname.replace(/\/+$/, '') || '/';
 
     return (
-        <>
+        <Stack minHeight="100dvh">
             <Navbar maxWidth={1272} />
-            <Stack className="mx-auto" maxWidth={1320} width="100%">
+            <Stack className="mx-auto flex-1" maxWidth={1320} width="100%">
                 <AppShell
+                    className="min-h-0! [&_:has(>.astryx-app-shell-sidenav)]:h-fit! [&_:has(>.astryx-app-shell-sidenav)]:max-h-dvh"
                     height="auto"
                     mobileNav={{ breakpoint: 'lg' }}
                     variant="wash"
@@ -41,6 +43,7 @@ export default function Documentation() {
                     <Outlet />
                 </AppShell>
             </Stack>
-        </>
+            <Footer maxWidth={1272} />
+        </Stack>
     );
 }

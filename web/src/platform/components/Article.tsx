@@ -2,7 +2,6 @@ import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
-import { Center } from '@astryxdesign/core/Center';
 import { documentationPaths } from '@/platform/docs';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Outline } from '@astryxdesign/core/Outline';
@@ -44,7 +43,7 @@ export function DocumentationArticle({
 }: DocumentationArticleProps) {
     // Keep documentation typography and reading order as wrapper-owned policy.
     return (
-        <ArticleRenderer article={article} className={className} paths={documentationPaths} isDocumentation>
+        <ArticleRenderer article={article} className={className} paths={documentationPaths}>
             {children}
         </ArticleRenderer>
     );
@@ -75,26 +74,21 @@ function ArticleRenderer({
     className,
     paths,
     root,
-    isDocumentation = false,
 }: {
     article: ArticleMetadata;
     children: ReactNode;
     className?: string;
     paths?: readonly string[];
     root?: ReactNode;
-    isDocumentation?: boolean;
 }) {
-    // Keep the reading columns shared while leaving documentation free of dashboard framing.
+    // Keep public articles and documentation in the same flat reading columns.
     return (
         <>
             <Seo description={article.description} hasBreadcrumbs title={article.title} />
             <Layout
                 height="auto"
                 header={
-                    <LayoutHeader
-                        className={isDocumentation ? undefined : 'sticky top-14 z-20 bg-card lg:top-2'}
-                        padding={0}
-                    >
+                    <LayoutHeader padding={0}>
                         <Stack>
                             <Stack className="relative" height={64} width="100%">
                                 <PageContainer height="100%" justify="center" maxWidth={1064} paddingInline={6}>
@@ -111,17 +105,7 @@ function ArticleRenderer({
                                         ) : null}
                                     </Stack>
                                 </PageContainer>
-                                {!isDocumentation ? (
-                                    <Center className="absolute end-0 top-0" height={64} paddingInline={4}>
-                                        <Button href="/login/" label="Get Started" size="sm" variant="primary" />
-                                    </Center>
-                                ) : null}
                             </Stack>
-                            {!isDocumentation ? (
-                                <Stack paddingInline={5}>
-                                    <Divider />
-                                </Stack>
-                            ) : null}
                         </Stack>
                     </LayoutHeader>
                 }
