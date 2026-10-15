@@ -24,7 +24,7 @@ from src.database.models.invitations import OrganizationInvitation
 from src.database.models.organizations import Organization
 
 
-def _membership_query(user_id: UUID) -> Select[tuple[UserOrganization]]:
+def _membership_query(user_id: UUID) -> Select[UserOrganization]:
     """Select one user's active membership with its response-ready Organization."""
 
     return (
@@ -185,7 +185,7 @@ async def database_infrastructure(session: AsyncSession, organization_id: UUID) 
     return result.tuples().one_or_none()
 
 
-def _infrastructure_query() -> Select[tuple[Organization, ComputeRegistry]]:
+def _infrastructure_query() -> Select[Organization, ComputeRegistry]:
     """Select one Organization's provider connections for lifecycle work."""
 
     # Keep provider projections and assignment joins shared across lifecycle targets.
