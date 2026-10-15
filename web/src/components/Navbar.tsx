@@ -4,11 +4,11 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { TopNav } from '@astryxdesign/core/TopNav';
 
-/** Renders the public landing page navigation. */
-export function Navbar() {
+/** Renders public navigation at the page's content width. */
+export function Navbar({ maxWidth = 1000 }: { maxWidth?: number }) {
     return (
         <Stack as="header" className="border-b border-border bg-body" paddingInline={6} paddingBlock={3}>
-            <Stack className="mx-auto" maxWidth={1000} width="100%">
+            <Stack className="mx-auto" maxWidth={maxWidth} width="100%">
                 <TopNav
                     heading={
                         <Link href="/" label="LongLink home" color="inherit">

@@ -44,7 +44,7 @@ export function DocumentationArticle({
 }: DocumentationArticleProps) {
     // Keep documentation typography and reading order as wrapper-owned policy.
     return (
-        <ArticleRenderer article={article} className={className} paths={documentationPaths}>
+        <ArticleRenderer article={article} className={className} paths={documentationPaths} isDocumentation>
             {children}
         </ArticleRenderer>
     );
@@ -75,21 +75,26 @@ function ArticleRenderer({
     className,
     paths,
     root,
+    isDocumentation = false,
 }: {
     article: ArticleMetadata;
     children: ReactNode;
     className?: string;
     paths?: readonly string[];
     root?: ReactNode;
+    isDocumentation?: boolean;
 }) {
-    // Preserve shared metadata, the 720px reading column, 224px outline, and 64px header.
+    // Keep the reading columns shared while leaving documentation free of dashboard framing.
     return (
         <>
             <Seo description={article.description} hasBreadcrumbs title={article.title} />
             <Layout
                 height="auto"
                 header={
-                    <LayoutHeader className="sticky top-14 z-20 bg-card lg:top-2" padding={0}>
+                    <LayoutHeader
+                        className={isDocumentation ? undefined : 'sticky top-14 z-20 bg-card lg:top-2'}
+                        padding={0}
+                    >
                         <Stack>
                             <Stack className="relative" height={64} width="100%">
                                 <PageContainer height="100%" justify="center" maxWidth={1064} paddingInline={6}>
@@ -106,13 +111,17 @@ function ArticleRenderer({
                                         ) : null}
                                     </Stack>
                                 </PageContainer>
-                                <Center className="absolute end-0 top-0" height={64} paddingInline={4}>
-                                    <Button href="/login/" label="Get Started" size="sm" variant="primary" />
-                                </Center>
+                                {!isDocumentation ? (
+                                    <Center className="absolute end-0 top-0" height={64} paddingInline={4}>
+                                        <Button href="/login/" label="Get Started" size="sm" variant="primary" />
+                                    </Center>
+                                ) : null}
                             </Stack>
-                            <Stack paddingInline={5}>
-                                <Divider />
-                            </Stack>
+                            {!isDocumentation ? (
+                                <Stack paddingInline={5}>
+                                    <Divider />
+                                </Stack>
+                            ) : null}
                         </Stack>
                     </LayoutHeader>
                 }
