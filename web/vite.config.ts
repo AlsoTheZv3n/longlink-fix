@@ -1,6 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
-import * as catalog from './src/lib/catalog-loader';
 import { reactRouter } from '@react-router/dev/vite';
 
 const ignoredPaths = [
@@ -31,22 +30,7 @@ export default defineConfig(({ mode }) => {
     return {
         // Isolate Platform, SDK, and test dependency optimization from each other and default-cache tooling.
         cacheDir: `node_modules/.vite-${mode}`,
-        plugins: [
-            {
-                name: 'documentation-catalog',
-
-                // Bundle validated data instead of Node filesystem access or a browser YAML parser.
-                load(id) {
-                    if (id !== new URL('./src/lib/catalog.ts', import.meta.url).pathname) return;
-
-                    this.addWatchFile(new URL('../sdk/longlink/.static/jsx/components.yml', import.meta.url).pathname);
-
-                    return `export default ${JSON.stringify(catalog.loadCatalog())};`;
-                },
-            },
-            ...tailwindcss(),
-            ...(mode === 'test' ? [] : reactRouter()),
-        ],
+        plugins: [...tailwindcss(), ...(mode === 'test' ? [] : reactRouter())],
 
         fmt: {
             arrowParens: 'always',
