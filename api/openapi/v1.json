@@ -3751,22 +3751,6 @@
             "title": "Client Name",
             "default": "MCP client"
           },
-          "grant_types": {
-            "items": {
-              "type": "string",
-              "enum": [
-                "authorization_code",
-                "refresh_token"
-              ]
-            },
-            "type": "array",
-            "maxItems": 2,
-            "minItems": 1,
-            "title": "Grant Types",
-            "default": [
-              "authorization_code"
-            ]
-          },
           "redirect_uris": {
             "items": {
               "type": "string"
@@ -3794,6 +3778,22 @@
             "const": "none",
             "title": "Token Endpoint Auth Method",
             "default": "none"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "authorization_code",
+                "refresh_token"
+              ]
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Grant Types",
+            "default": [
+              "authorization_code"
+            ]
           }
         },
         "type": "object",
@@ -4596,19 +4596,6 @@
             "title": "Client Name",
             "default": "MCP client"
           },
-          "grant_types": {
-            "items": {
-              "type": "string",
-              "const": "authorization_code"
-            },
-            "type": "array",
-            "maxItems": 1,
-            "minItems": 1,
-            "title": "Grant Types",
-            "default": [
-              "authorization_code"
-            ]
-          },
           "redirect_uris": {
             "items": {
               "type": "string"
@@ -4636,6 +4623,19 @@
             "const": "none",
             "title": "Token Endpoint Auth Method",
             "default": "none"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string",
+              "const": "authorization_code"
+            },
+            "type": "array",
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Grant Types",
+            "default": [
+              "authorization_code"
+            ]
           },
           "client_id": {
             "type": "string",

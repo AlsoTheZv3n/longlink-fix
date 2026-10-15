@@ -4,25 +4,14 @@ from datetime import datetime
 from pydantic import Field, HttpUrl, BaseModel, field_validator, model_validator
 
 
-class ClientRegistration(BaseModel):
-    """Negotiate public authorization-code clients with fixed safe callbacks."""
+class ClientMetadata(BaseModel):
+    """Describe public clients with fixed safe callbacks."""
 
     # Client metadata
     client_name: str = Field(default="MCP client", min_length=1, max_length=128)
-    grant_types: list[Literal["authorization_code", "refresh_token"]] = Field(default=["authorization_code"], min_length=1, max_length=2)
     redirect_uris: list[str] = Field(min_length=1, max_length=10)
     response_types: list[Literal["code"]] = Field(default=["code"], min_length=1, max_length=1)
     token_endpoint_auth_method: Literal["none"] = "none"  # noqa: S105
-
-    @field_validator("grant_types")
-    @classmethod
-    def negotiate_grants(cls, values: list[Literal["authorization_code", "refresh_token"]]) -> list[Literal["authorization_code"]]:
-        """Return only the implemented grant even when a client also requests refresh tokens."""
-
-        # RFC 7591 permits replacing requested metadata with the server's supported values.
-        if "authorization_code" not in values:
-            raise ValueError("The authorization_code grant is required")
-        return ["authorization_code"]
 
     @field_validator("redirect_uris")
     @classmethod
@@ -45,7 +34,24 @@ class ClientRegistration(BaseModel):
         return values
 
 
-class RegisteredClient(ClientRegistration):
+class ClientRegistration(ClientMetadata):
+    """Negotiate public authorization-code clients with fixed safe callbacks."""
+
+    # Requested client grants
+    grant_types: list[Literal["authorization_code", "refresh_token"]] = Field(default=["authorization_code"], min_length=1, max_length=2)
+
+    @field_validator("grant_types")
+    @classmethod
+    def negotiate_grants(cls, values: list[Literal["authorization_code", "refresh_token"]]) -> list[Literal["authorization_code"]]:
+        """Return only the implemented grant even when a client also requests refresh tokens."""
+
+        # RFC 7591 permits replacing requested metadata with the server's supported values.
+        if "authorization_code" not in values:
+            raise ValueError("The authorization_code grant is required")
+        return ["authorization_code"]
+
+
+class RegisteredClient(ClientMetadata):
     """Return public registration metadata, never a confidential client credential."""
 
     # Accepted client grants
