@@ -15,10 +15,16 @@ import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Owns membership loading and organization creation for the overview and account settings. */
 export default function OrganizationManagement({ presentation }: { presentation: 'overview' | 'settings' }) {
-    const [creating, setCreating] = useState(false);
+    const [selected, setSelected] = useState<{ type: 'create' } | null>(null);
 
     const [memberships, invalidate] = useApi('/api/v1/me/organizations', schemas.zUserOrganizationMembership.array());
     const onboarding = presentation === 'overview' && memberships.length === 0;
+
+    /** Closes only this attempt, leaving any replacement dialog open. */
+    function closeSelected() {
+        // Each render captures the attempt that owns its callbacks.
+        setSelected((current) => (current === selected ? null : current));
+    }
 
     // Keep overview onboarding and settings presentation around the same membership workflow.
     return (
@@ -44,14 +50,14 @@ export default function OrganizationManagement({ presentation }: { presentation:
                             <Heading level={2} hasCapsize>
                                 Organizations
                             </Heading>
-                            <Button label="Create Organization" onClick={() => setCreating(true)} />
+                            <Button label="Create Organization" onClick={() => setSelected({ type: 'create' })} />
                         </Stack>
                         <Divider />
                     </>
                 ) : memberships.length > 0 ? (
                     <Stack direction="horizontal" justify="between" align="center" wrap="wrap" className="min-h-12">
                         <Heading level={1}>Organizations</Heading>
-                        <Button label="Create Organization" onClick={() => setCreating(true)} />
+                        <Button label="Create Organization" onClick={() => setSelected({ type: 'create' })} />
                     </Stack>
                 ) : null}
                 {onboarding ? (
@@ -85,7 +91,7 @@ export default function OrganizationManagement({ presentation }: { presentation:
                                 label="Create organization"
                                 variant="primary"
                                 icon={<Plus className="size-4" aria-hidden="true" />}
-                                onClick={() => setCreating(true)}
+                                onClick={() => setSelected({ type: 'create' })}
                             />
                         </Stack>
                     </Stack>
@@ -125,7 +131,7 @@ export default function OrganizationManagement({ presentation }: { presentation:
                     />
                 )}
             </Stack>
-            <CreateOrganization isOpen={creating} onOpenChange={setCreating} invalidate={invalidate} />
+            {selected && <CreateOrganization onClose={closeSelected} invalidate={invalidate} />}
         </>
     );
 }

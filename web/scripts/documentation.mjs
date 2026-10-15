@@ -546,20 +546,10 @@ const catalog = z
         }),
     )
     .parse(
-        components.map(({ properties, ...component }) => ({
+        components.map((component) => ({
             ...component,
             introduction: component.introduction ?? '',
             ...discovery.components[component.name],
-            ...(properties
-                ? {
-                      properties: properties.map(({ name, type, description, default: defaultValue }) => ({
-                          name,
-                          type,
-                          description,
-                          ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-                      })),
-                  }
-                : {}),
         })),
     );
 const outputs = [

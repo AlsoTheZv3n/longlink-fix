@@ -2,6 +2,7 @@ import { Icon } from './ui/Icon';
 import { Button } from './ui/Button';
 import { FormStep } from './ui/FormStep';
 import { Step, Stepper } from './ui/Stepper';
+import { ReportedError } from '@/lib/errors';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import type { FormValidation } from './ui/FormField';
@@ -129,6 +130,9 @@ export function Form(props: {
                 await props.action(data);
             }
         } catch (failure) {
+            // The host toast already presents Solution request failures, including their accessible announcement.
+            if (failure instanceof ReportedError) return;
+
             // Announce the failed action once, independently of the banner's visual status.
             const error = failure instanceof Error ? failure.message : 'Form submission failed';
 

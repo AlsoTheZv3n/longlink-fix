@@ -3,6 +3,7 @@ import * as React from 'react';
 import { transform } from 'sucrase';
 import { limitAsync } from 'es-toolkit';
 import * as components from './components';
+import { ReportedError } from '@/lib/errors';
 import { createRoot } from 'react-dom/client';
 import { Theme } from '@astryxdesign/core/theme';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -232,7 +233,11 @@ function initialize(event: MessageEvent<unknown>): void {
 
             if (data.success) waiter.resolve(data.data);
             else waiter.reject(new Error('The Solution returned an invalid response.'));
-        } else waiter.reject(Object.assign(new Error(reply.data.error), { status: reply.data.status }));
+        } else {
+            // Preserve host notification ownership when this failure reaches a form or other workflow.
+            const error = reply.data.notified ? new ReportedError(reply.data.error) : new Error(reply.data.error);
+            waiter.reject(Object.assign(error, { status: reply.data.status }));
+        }
     };
 
     const mount = document.getElementById('view');

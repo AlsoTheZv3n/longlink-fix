@@ -5256,7 +5256,7 @@ declare function Tabs(props: {
     hidden?: boolean;
     /** Tab elements defining labels and panel content. */
     children?: ViewNode;
-    gap?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    gap?: Spacing;
     hasDivider?: boolean;
     /** Receives the selected Tab value; use with value to control selection. */
     onChange?: (value: string) => void;
@@ -5303,7 +5303,7 @@ declare function Menu(props: {
     hidden?: boolean;
     /** MenuSection elements defining navigation and content. */
     children?: ViewNode;
-    gap?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    gap?: Spacing;
 }): React.JSX.Element;
 
 /** @category Layouts @group Menu */
