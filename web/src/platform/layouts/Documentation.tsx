@@ -11,7 +11,13 @@ import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav
 export default function Documentation() {
     const { pathname } = useLocation();
     const pagePath = pathname.replace(/\/+$/, '') || '/';
-    const activeSection = pagePath === '/docs/api' || pagePath.startsWith('/docs/api/') ? 'Platform' : 'Solutions';
+
+    const activeSection =
+        pagePath === '/docs/alternatives' || pagePath.startsWith('/docs/alternatives/')
+            ? 'Alternatives'
+            : pagePath === '/docs/api' || pagePath.startsWith('/docs/api/')
+              ? 'Platform'
+              : 'Solutions';
 
     const sections = documentationSections.filter(
         (section) => section.title === 'Introduction' || section.title === activeSection
@@ -25,6 +31,7 @@ export default function Documentation() {
                     <TabList aria-label="Documentation sections" value={activeSection} onChange={() => undefined}>
                         <Tab href="/docs/sdk/" label="Solutions" value="Solutions" />
                         <Tab href="/docs/api/" label="Platform" value="Platform" />
+                        <Tab href="/docs/alternatives/" label="Alternatives" value="Alternatives" />
                     </TabList>
                 }
             />

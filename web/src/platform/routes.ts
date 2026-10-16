@@ -42,6 +42,7 @@ export default [
                 ]),
             ]),
             ...prefix('api', [index('./routes/docs/api/Index.tsx')]),
+            route('alternatives', './routes/docs/alternatives/Index.tsx'),
             route('*', '../components/layouts/NotFound.tsx', { id: 'docs-not-found' }),
         ]),
     ]),
