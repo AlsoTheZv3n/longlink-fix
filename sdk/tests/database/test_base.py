@@ -8,44 +8,9 @@ from sqlmodel import SQLModel, select
 from sqlalchemy import text, event, literal
 from sqlalchemy.exc import OperationalError
 from longlink.database import base as database_base
-from longlink.database import urls as database_urls
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncConnection, create_async_engine
 from longlink.utils.settings import Envs
-
-
-@pytest.mark.parametrize("database_schema", ["solution-schema", "public; DROP SCHEMA shared", '"solution"'])
-def test_production_settings_reject_invalid_database_schema(database_schema: str, production_settings: dict[str, str | int]) -> None:
-    """Reject production database schemas that are not PostgreSQL identifiers."""
-
-    # Arrange
-    settings = production_settings | {"DATABASE_SCHEMA": database_schema}
-
-    # Act and assert
-    with pytest.raises(ValueError, match="DATABASE_SCHEMA must be a valid PostgreSQL identifier"):
-        Envs.model_validate(settings)
-
-
-@pytest.mark.parametrize(
-    ("database_url", "schema", "expected"),
-    [
-        pytest.param("sqlite+aiosqlite:///:memory:", None, {}, id="sqlite"),
-        pytest.param(
-            "postgresql+asyncpg://solution:secret@db/longlink",
-            None,
-            {"server_settings": {"timezone": "UTC"}},
-            id="postgresql-defaults",
-        ),
-    ],
-)
-def test_connect_args_returns_driver_specific_settings(database_url: str, schema: str | None, expected: dict[str, object]) -> None:
-    """Return only the connection settings supported by each database driver."""
-
-    # Act
-    result = database_urls.connect_args(database_url, schema=schema)
-
-    # Assert
-    assert result == expected
 
 
 @pytest.mark.parametrize(

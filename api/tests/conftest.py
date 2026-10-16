@@ -45,7 +45,6 @@ from src.database import session
 from src.utils.s3 import Credentials
 from src.kubernetes import storage
 from src.kubernetes import databases as database_resources
-from src.kubernetes import solutions as solution_resources
 from src.environments import env
 from src.database.models import registry
 from src.kubernetes.client import Kubernetes
@@ -115,27 +114,6 @@ class DatabasePostgres:
         """Accept shared schema provisioning."""
 
 
-class SeedKubernetes(DatabaseKubernetes):
-    """Expose every seed lifecycle provider boundary without external I/O."""
-
-    async def cluster_uid(self) -> str:
-        """Return the identity submitted by the test Compute."""
-
-        return "https://kubernetes.example"
-
-
-class SeedPostgres(DatabasePostgres):
-    """Provide the Solution schema operation used during deployment."""
-
-    async def solution_schema(self, _organization_id: UUID, solution_id: UUID, _password: str) -> str:
-        """Return the scoped database username for the Solution."""
-
-        return solution_id.hex
-
-    async def delete_solution_schema(self, organization: UUID, solution: UUID) -> None:
-        """Accept schema and credential cleanup without SQL I/O."""
-
-
 @pytest.fixture(scope="session")
 def rendered_chart() -> list[dict]:
     """Render the real Compute chart with fixed gateway and storage addresses."""
@@ -192,34 +170,6 @@ def database_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(database_resources, "certificate", certificate)
     monkeypatch.setattr(database_resources.postgres, "Postgres", DatabasePostgres)
     monkeypatch.setattr(databases.shared_audit, "sync", sync)
-
-
-@pytest.fixture
-def seed_runtime(monkeypatch: pytest.MonkeyPatch, database_runtime: None, compute_runtime: None) -> None:
-    """Replace every seed lifecycle provider boundary without external I/O."""
-
-    from src.operations import databases, solutions, organizations
-
-    async def apply(client: object, organization_id: UUID) -> None:
-        """Accept Organization boundary provisioning without external I/O."""
-
-    async def apply_solution(client: object, *_args: object, **_kwargs: object) -> None:
-        """Accept Solution workload provisioning without external I/O."""
-
-    async def delete_solution(client: object, organization: UUID, solution: UUID) -> None:
-        """Accept workload cleanup without Kubernetes I/O."""
-
-    # Preserve the seed-specific client after installing the Compute verification boundary.
-    monkeypatch.setattr("src.routes.v1.computes.Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(databases, "Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(organizations, "Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(organizations, "Storage", StorageKubernetes)
-    monkeypatch.setattr(organizations.organizations, "apply", apply)
-    monkeypatch.setattr(solutions, "Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(solutions, "Storage", StorageKubernetes)
-    monkeypatch.setattr(solution_resources, "apply", apply_solution)
-    monkeypatch.setattr(solution_resources, "delete", delete_solution)
-    monkeypatch.setattr(database_resources.postgres, "Postgres", SeedPostgres)
 
 
 UNTRUSTED_ORIGINS: list[str | None] = [None, "", "https://attacker.example"]
