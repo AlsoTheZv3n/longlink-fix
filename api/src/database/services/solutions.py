@@ -49,6 +49,7 @@ async def fetch_page(session: AsyncSession, pagination: Pagination, search: str 
             ),
             defer(attr(Solution.secrets)),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.image), attr(Revision.failed), raiseload=True),
+            selectinload(attr(Solution.deployed_revision)).load_only(attr(Revision.version), raiseload=True),
         )
         .order_by(col(Solution.created_at).desc(), col(Solution.id).desc())
         .offset(pagination.offset)
@@ -221,6 +222,7 @@ async def deploy(
     revision = Revision(
         solution_id=solution.id,
         image=metadata.image,
+        version=metadata.version,
         min_scale=min_scale,
         idle_seconds=idle_seconds,
         envs=merged,

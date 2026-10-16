@@ -4403,6 +4403,18 @@
               }
             ],
             "title": "Desired Revision Id"
+          },
+          "deployed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployed Version",
+            "description": "Recorded image version of the last successfully deployed revision, when available."
           }
         },
         "type": "object",
@@ -5004,6 +5016,18 @@
               }
             ],
             "title": "Desired Revision Id"
+          },
+          "deployed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployed Version",
+            "description": "Recorded image version of the last successfully deployed revision, when available."
           },
           "organization": {
             "$ref": "#/components/schemas/OrganizationIdentity"

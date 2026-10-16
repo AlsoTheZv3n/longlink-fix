@@ -194,13 +194,24 @@ export default function SolutionManagement({
                                     </Stack>
                                 ),
                             },
+                            ...(presentation === 'settings'
+                                ? [
+                                      {
+                                          key: 'deployed_version',
+                                          header: 'Version',
+                                          align: 'end' as const,
+                                          width: proportional(0.25, { minWidth: 0 }),
+                                          renderCell: (row: Solution) => row.deployed_version || '—',
+                                      },
+                                  ]
+                                : []),
                             ...(presentation === 'settings' && canMaintain
                                 ? [
                                       {
                                           key: 'id',
                                           header: 'Actions',
                                           align: 'end' as const,
-                                          width: proportional(0.5),
+                                          width: proportional(0.25, { minWidth: 0 }),
                                           renderCell: (row: Solution) => (
                                               <MoreMenu
                                                   alignment="end"

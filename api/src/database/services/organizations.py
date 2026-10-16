@@ -301,6 +301,7 @@ async def solutions(session: AsyncSession, organization_id: UUID) -> Sequence[So
                 attr(Solution.deployed_revision_id),
             ),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.failed), raiseload=True),
+            selectinload(attr(Solution.deployed_revision)).load_only(attr(Revision.version), raiseload=True),
         )
         .where(
             col(Solution.organization_id) == organization_id,
