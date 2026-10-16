@@ -9,5 +9,5 @@ it('keeps the public onboarding destination reachable', () => {
 
     // Assert
     expect(output.querySelector('a[href="/login/"]')?.textContent).toContain('Get Started');
-    expect(output.querySelector('a[href="/docs/introduction/"]')).not.toBeNull();
+    expect(output.querySelector('a[href="/blog/why-longlink/"]')).not.toBeNull();
 });

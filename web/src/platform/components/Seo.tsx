@@ -7,8 +7,9 @@ import { buildBreadcrumbs } from '@/components/breadcrumb/text';
 /** Labels for public article route segments shared with visible breadcrumbs. */
 export const articleRouteLabels = {
     api: 'Platform',
+    blog: 'Blog',
     docs: 'Documentation',
-    introduction: 'Why LongLink',
+    'why-longlink': 'Why LongLink',
     sdk: 'Solutions',
     'use-cases': 'Use cases',
     views: 'Views',
