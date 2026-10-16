@@ -116,11 +116,10 @@ export function PlatformFrame({
             }
             variant="wash"
         >
-            {/* Fill the available main region without adding another viewport-height budget. */}
+            {/* Cover at least the main region and grow the background with overflowing View content. */}
             <Stack
                 className="relative"
-                height={height === 'fill' ? '100%' : undefined}
-                minHeight={height === 'fill' ? 0 : 'calc(100dvh - var(--_app-shell-header-height, 0px))'}
+                minHeight={height === 'fill' ? '100%' : 'calc(100dvh - var(--_app-shell-header-height, 0px))'}
             >
                 <Card
                     aria-hidden="true"
@@ -130,12 +129,7 @@ export function PlatformFrame({
                 >
                     <Card className="border-0" height="100%" width="100%" />
                 </Card>
-                <Stack
-                    className="relative z-10"
-                    height={height === 'fill' ? '100%' : undefined}
-                    minHeight={height === 'fill' ? 0 : undefined}
-                    padding={2}
-                >
+                <Stack className="relative z-10" minHeight={height === 'fill' ? 0 : undefined} padding={2}>
                     {children}
                 </Stack>
             </Stack>

@@ -20,13 +20,14 @@ export function DateInput(
     }
 ) {
     // Keep optional draft state inside the themed picker and synchronize native form resets.
-    const { defaultValue, ...control } = props;
+    const { name, defaultValue, ...control } = props;
     const field = useValue(props.value, defaultValue, props.onChange, Object.hasOwn(props, 'value'));
 
     // Start with an editable date field without inventing a selected date or constraints.
     return (
         <FormField
-            {...props}
+            {...control}
+            name={name}
             fieldRef={field.ref}
             values={[field.value ?? '']}
             serialize
@@ -36,6 +37,7 @@ export function DateInput(
                     : undefined
             }
         >
+            {/* Only the canonical ISO carrier owns the submission name, not the formatted display input. */}
             <AstryxDateInput
                 {...control}
                 value={field.value}

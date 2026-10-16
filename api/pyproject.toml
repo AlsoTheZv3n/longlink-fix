@@ -28,7 +28,7 @@ dependencies = [
     'python-slugify>=8.0.4',
     'psycopg[binary]>=3.3.4',
     'sqlalchemy>=2.0.51',
-    'sqlalchemy-utils>=0.42.1',
+    'sqlalchemy-utils>=0.43.0',
     'sqlmodel>=0.0.45',
     'stripe[async]>=14,<15',
     'kr8s>=0.20.15',
@@ -50,7 +50,7 @@ dev = [
     'pytest-cov>=7.0.0',
     'docker>=7.2.0',
     'testcontainers>=4.15.0',
-    'types-aiobotocore-s3==3.9.1',
+    'types-aiobotocore-s3==3.9.2',
 ]
 
 [tool.setuptools_scm]

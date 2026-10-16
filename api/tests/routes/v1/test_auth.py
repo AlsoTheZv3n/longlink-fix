@@ -1,0 +1,1238 @@
+import jwt
+import base64
+import httpx2
+import pytest
+import hashlib
+from src import auth
+from main import app
+from httpx2 import AsyncClient
+from conftest import TEST_PASSWORD, create_client
+from datetime import UTC, datetime, timedelta
+from sqlmodel import col, select
+from factories import create_organization
+from src.utils import oauth, token
+from urllib.parse import parse_qs, urlparse
+from collections.abc import AsyncIterator
+from src.environments import env
+from src.models.roles import OrganizationRoles
+from src.database.session import get_session, session_scope
+from src.database.services import users
+from src.database.models.users import User
+from src.database.models.association import UserOrganization
+from src.database.models.invitations import OrganizationInvitation
+
+INVALID_REGISTRATION_LINK = "This registration link is invalid or expired. Request a new link to continue."
+OAUTH_PROVIDERS = ("google", "github")
+UNVERIFIED_OAUTH_RESPONSES = (
+    pytest.param("google", {}, id="google-missing-verification"),
+    pytest.param("google", {"email_verified": False}, id="google-false-verification"),
+    pytest.param("google", {"email_verified": "true"}, id="google-string-verification"),
+    pytest.param("github", [], id="github-no-emails"),
+    pytest.param(
+        "github",
+        [{"primary": True, "verified": False}, {"primary": False, "verified": True}],
+        id="github-primary-and-verified-on-different-emails",
+    ),
+)
+
+
+def configure_oauth_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configure local OAuth credentials for every provider."""
+
+    # Keep provider credential setup in one owner instead of repeating it per test.
+    monkeypatch.setattr(env, "GOOGLE_OAUTH_CLIENT_ID", "google-client")
+    monkeypatch.setattr(env, "GOOGLE_OAUTH_CLIENT_SECRET", "google-secret")
+    monkeypatch.setattr(env, "GITHUB_OAUTH_CLIENT_ID", "github-client")
+    monkeypatch.setattr(env, "GITHUB_OAUTH_CLIENT_SECRET", "github-secret")
+
+
+@pytest.fixture
+def oauth_responses(monkeypatch: pytest.MonkeyPatch, users: tuple[User, User, User]) -> dict[str, object]:
+    """Supply provider HTTP responses while retaining real identity verification."""
+
+    # Arrange local credentials and verified control responses.
+    configure_oauth_env(monkeypatch)
+    responses: dict[str, object] = {
+        oauth.GOOGLE_TOKEN_URL: {"access_token": "private-provider-token"},
+        oauth.GITHUB_TOKEN_URL: {"access_token": "private-provider-token"},
+        oauth.GOOGLE_USERINFO_URL: {"sub": "12345", "email": users[1].email, "email_verified": True},
+        oauth.GITHUB_USER_URL: {"id": 12345, "email": users[1].email},
+        oauth.GITHUB_EMAILS_URL: [{"email": users[1].email, "primary": True, "verified": True}],
+    }
+
+    async def respond(_transport: httpx2.AsyncHTTPTransport, request: httpx2.Request) -> httpx2.Response:
+        """Intercept only outbound HTTP and reject unexpected provider endpoints."""
+
+        # Verify callback proof reaches the real provider code exchange.
+        if str(request.url) in (oauth.GOOGLE_TOKEN_URL, oauth.GITHUB_TOKEN_URL):
+            fields = parse_qs(request.content.decode())
+            assert request.method == "POST"
+            assert fields["code"] == ["provider-code"]
+            assert fields["code_verifier"] == ["pkce-verifier"]
+
+        # Return deterministic JSON at the network boundary.
+        return httpx2.Response(200, json=responses[str(request.url)], request=request)
+
+    monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", respond)
+    return responses
+
+
+def override_oauth_email(
+    responses: dict[str, object],
+    users: tuple[User, User, User],
+    verification: dict[str, bool | str] | list[dict[str, bool]],
+) -> None:
+    """Apply one unverified provider email shape to the fake OAuth responses."""
+
+    # Keep provider-response construction in one owner instead of branching in each test.
+    if isinstance(verification, dict):
+        responses[oauth.GOOGLE_USERINFO_URL] = {"sub": "12345", "email": users[1].email, **verification}
+    else:
+        responses[oauth.GITHUB_EMAILS_URL] = [{"email": user.email, **flags} for user, flags in zip(users[1:], verification)]
+
+
+def extract_fragment_token(url: str) -> str:
+    """Return the token carried by one link fragment."""
+
+    # Both registration and password-reset links carry browser-only proof in the fragment.
+    return parse_qs(urlparse(url).fragment)["token"][0]
+
+
+def registration_verification_token(captured_mail: list[tuple[str, str, str, str | None]]) -> str:
+    """Extract the registration token from captured verification mail."""
+
+    # Read the fragment-only credential from the registration link.
+    verification_url = next(
+        line.removeprefix("Continue account setup: ")
+        for line in captured_mail[0][2].splitlines()
+        if line.startswith("Continue account setup: ")
+    )
+    return extract_fragment_token(verification_url)
+
+
+async def register_and_verify(
+    client: AsyncClient, captured_mail: list[tuple[str, str, str, str | None]], email: str
+) -> tuple[httpx2.Response, httpx2.Response, str]:
+    """Register an email address and return its setup responses with the verified token."""
+
+    # Return both responses so each test owns its status assertions.
+    register_response = await client.post("/api/v1/auth/register", json={"email": email})
+    verification_token = registration_verification_token(captured_mail)
+    verify_response = await client.post("/api/v1/auth/verify", json={"token": verification_token})
+    return register_response, verify_response, verification_token
+
+
+def password_reset_token(captured_mail: list[tuple[str, str, str, str | None]]) -> str:
+    """Return the reset token from the latest captured password-reset email."""
+
+    # Extract browser-only proof from the password-reset link fragment.
+    reset_url = next(line for line in captured_mail[0][2].splitlines() if line.startswith("http"))
+    return extract_fragment_token(reset_url)
+
+
+@pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
+@pytest.mark.no_db
+async def test_oauth_login_redirects_with_browser_bound_state_and_pkce(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    provider: oauth.OAuthProvider,
+) -> None:
+    """Start configured OAuth login with browser-bound state and PKCE proof."""
+
+    # Arrange
+    configure_oauth_env(monkeypatch)
+
+    # Act
+    response = await client.get(f"/api/v1/auth/oauth/{provider}", follow_redirects=False)
+
+    # Assert
+    assert response.status_code == 302
+    assert response.content == b""
+    assert response.headers["cache-control"] == "no-store"
+    assert "HttpOnly" in response.headers["set-cookie"]
+    assert "Max-Age=600" in response.headers["set-cookie"]
+    assert "Path=/api/v1/auth/oauth" in response.headers["set-cookie"]
+    credential = client.cookies.get("longlink_oauth")
+    assert credential is not None
+    state, verifier, _ = token.oauth_state_claims(credential, provider)
+    redirect = urlparse(response.headers["location"])
+    parameters = parse_qs(redirect.query)
+    assert redirect.geturl().startswith(oauth.GOOGLE_AUTHORIZATION_URL if provider == "google" else oauth.GITHUB_AUTHORIZATION_URL)
+    assert parameters["client_id"] == [f"{provider}-client"]
+    assert parameters["redirect_uri"] == [oauth.redirect_uri(provider)]
+    assert parameters["response_type"] == ["code"]
+    assert parameters["state"] == [state]
+    assert parameters["code_challenge_method"] == ["S256"]
+    expected_challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest()).decode("ascii").rstrip("=")
+    assert parameters["code_challenge"] == [expected_challenge]
+    assert verifier not in response.headers["location"]
+
+
+@pytest.mark.no_db
+async def test_oauth_availability_reports_configured_providers(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Report OAuth availability without disclosing confidential client credentials."""
+
+    # Arrange
+    monkeypatch.setattr(env, "GOOGLE_OAUTH_CLIENT_ID", "google-client")
+    monkeypatch.setattr(env, "GOOGLE_OAUTH_CLIENT_SECRET", "google-secret")
+
+    # Act
+    response = await client.get("/api/v1/auth/oauth")
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json() == {"github": False, "google": True}
+    assert "google-client" not in response.text
+    assert "google-secret" not in response.text
+
+
+@pytest.mark.no_db
+async def test_oauth_login_rejects_unconfigured_provider_without_state_cookie(client: AsyncClient) -> None:
+    """Return not-found for an OAuth provider without complete server configuration."""
+
+    # Act
+    response = await client.get("/api/v1/auth/oauth/github", follow_redirects=False)
+
+    # Assert
+    assert response.status_code == 404
+    assert response.json() == {"detail": "OAuth provider is not configured"}
+    assert client.cookies.get("longlink_oauth") is None
+
+
+@pytest.mark.no_db
+@pytest.mark.parametrize(
+    ("callback_provider", "state"),
+    [
+        pytest.param("google", "mismatched-state", id="mismatched-state"),
+        pytest.param("github", "expected-state", id="cross-provider-state"),
+    ],
+)
+async def test_oauth_callback_rejects_invalid_state_without_provider_exchange(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    callback_provider: str,
+    state: str,
+) -> None:
+    """Reject a callback whose browser-bound OAuth state is invalid."""
+
+    # Arrange
+    credential = token.create_oauth_state_token("google", "expected-state", "pkce-verifier")
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+
+    async def unexpected_identity(
+        _provider: oauth.OAuthProvider,
+        _code: str,
+        _verifier: str,
+    ) -> oauth.OAuthIdentity | None:
+        """Fail if invalid callback state reaches the external provider."""
+
+        raise AssertionError("invalid OAuth state must not reach the provider")
+
+    monkeypatch.setattr("src.routes.v1.auth.oauth.identity", unexpected_identity)
+
+    # Act
+    response = await client.get(
+        f"/api/v1/auth/oauth/{callback_provider}/callback",
+        params={"code": "provider-code", "state": state},
+        follow_redirects=False,
+    )
+
+    # Assert
+    assert response.status_code == 302
+    assert response.content == b""
+    assert response.headers["location"] == f"{env.PUBLIC_URL}/login?oauth_error=1"
+    assert response.headers["cache-control"] == "no-store"
+    assert client.cookies.get("longlink_oauth") is None
+    assert client.cookies.get("longlink_auth") is None
+
+
+@pytest.mark.no_db
+@pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
+async def test_oauth_callback_rejects_provider_error_and_missing_code_without_exchange(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    provider: oauth.OAuthProvider,
+) -> None:
+    """Reject provider-cancelled and code-less callbacks before any code exchange."""
+
+    # Arrange
+    async def unused_session() -> AsyncIterator[object]:
+        """Supply no database capabilities before callback proof is accepted."""
+
+        yield object()
+
+    monkeypatch.setattr(app, "dependency_overrides", {auth.get_session: unused_session})
+    credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier")
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+
+    async def unexpected_identity(
+        _provider: oauth.OAuthProvider,
+        _code: str,
+        _verifier: str,
+    ) -> oauth.OAuthIdentity | None:
+        """Fail if a cancelled or code-less callback reaches the external provider."""
+
+        raise AssertionError("cancelled OAuth callback must not reach the provider")
+
+    monkeypatch.setattr("src.routes.v1.auth.oauth.identity", unexpected_identity)
+
+    # Act
+    cancelled_response = await client.get(
+        f"/api/v1/auth/oauth/{provider}/callback",
+        params={"code": "provider-code", "state": "expected-state", "error": "access_denied"},
+        follow_redirects=False,
+    )
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+    missing_code_response = await client.get(
+        f"/api/v1/auth/oauth/{provider}/callback",
+        params={"state": "expected-state"},
+        follow_redirects=False,
+    )
+
+    # Assert
+    assert cancelled_response.status_code == 302
+    assert cancelled_response.headers["location"] == f"{env.PUBLIC_URL}/login?oauth_error=1"
+    assert missing_code_response.status_code == 302
+    assert missing_code_response.headers["location"] == f"{env.PUBLIC_URL}/login?oauth_error=1"
+    assert client.cookies.get("longlink_oauth") is None
+    assert client.cookies.get("longlink_auth") is None
+
+
+@pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
+async def test_oauth_callback_rejects_unresolved_identity_without_account_changes(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    oauth_responses: dict[str, object],
+    provider: oauth.OAuthProvider,
+) -> None:
+    """Reject a valid callback when the provider code exchange yields no verified identity."""
+
+    # Arrange
+    oauth_responses[oauth.GOOGLE_TOKEN_URL if provider == "google" else oauth.GITHUB_TOKEN_URL] = {}
+    credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier")
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+
+    # Act
+    response = await client.get(
+        f"/api/v1/auth/oauth/{provider}/callback",
+        params={"code": "provider-code", "state": "expected-state"},
+        follow_redirects=False,
+    )
+
+    # Assert
+    assert response.status_code == 302
+    assert response.headers["location"] == f"{env.PUBLIC_URL}/login?oauth_error=1"
+    assert client.cookies.get("longlink_oauth") is None
+    assert client.cookies.get("longlink_auth") is None
+    async with session_scope() as session:
+        result = await session.execute(select(User))
+        persisted_users = result.scalars().all()
+    assert {(user.id, user.google_id, user.github_id) for user in persisted_users} == {(user.id, None, None) for user in users}
+
+
+@pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
+@pytest.mark.parametrize(
+    ("return_to", "destination"),
+    [
+        ("/user/organizations", "/user/organizations"),
+        ("/mcp/authorize?state=client-state", "/mcp/authorize?state=client-state"),
+        ("https://attacker.example", "/user/organizations"),
+        ("//attacker.example/mcp/authorize", "/user/organizations"),
+    ],
+)
+async def test_oauth_callback_links_existing_email_and_authenticates_browser(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    oauth_responses: dict[str, object],
+    provider: oauth.OAuthProvider,
+    return_to: str,
+    destination: str,
+) -> None:
+    """Link a verified provider identity to its existing canonical account."""
+
+    # Arrange
+    user = users[1]
+    credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier", return_to)
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+
+    # Act
+    response = await client.get(
+        f"/api/v1/auth/oauth/{provider}/callback",
+        params={"code": "provider-code", "state": "expected-state"},
+        follow_redirects=False,
+    )
+    profile_response = await client.get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 302
+    assert response.content == b""
+    assert response.headers["location"] == f"{env.PUBLIC_URL}{destination}"
+    assert response.headers["cache-control"] == "no-store"
+    assert client.cookies.get("longlink_oauth") is None
+    assert client.cookies.get("longlink_auth") is not None
+    assert profile_response.status_code == 200
+    assert profile_response.json()["id"] == str(user.id)
+    async with session_scope() as session:
+        linked_user = await session.get(User, user.id)
+    assert linked_user is not None
+    assert getattr(linked_user, f"{provider}_id") == "12345"
+
+
+@pytest.mark.parametrize(("provider", "verification"), UNVERIFIED_OAUTH_RESPONSES)
+async def test_oauth_callback_rejects_unverified_email_without_account_changes(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    oauth_responses: dict[str, object],
+    provider: oauth.OAuthProvider,
+    verification: dict[str, bool | str] | list[dict[str, bool]],
+) -> None:
+    """Reject unverified provider emails without leaking details or changing accounts."""
+
+    # Arrange
+    override_oauth_email(oauth_responses, users, verification)
+    credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier")
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+
+    # Act
+    response = await client.get(
+        f"/api/v1/auth/oauth/{provider}/callback",
+        params={"code": "provider-code", "state": "expected-state"},
+        follow_redirects=False,
+    )
+
+    # Assert
+    assert response.status_code == 302
+    assert response.content == b""
+    assert response.headers["location"] == f"{env.PUBLIC_URL}/login?oauth_error=1"
+    assert response.headers["cache-control"] == "no-store"
+    assert "Max-Age=0" in response.headers["set-cookie"]
+    assert "longlink_auth=" not in response.headers["set-cookie"]
+    assert client.cookies.get("longlink_oauth") is None
+    assert client.cookies.get("longlink_auth") is None
+    async with session_scope() as session:
+        result = await session.execute(select(User))
+        persisted_users = result.scalars().all()
+    assert {(user.id, user.email, user.google_id, user.github_id) for user in persisted_users} == {
+        (user.id, user.email, None, None) for user in users
+    }
+
+
+@pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
+async def test_oauth_callback_prefers_linked_subject_over_another_accounts_email(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    oauth_responses: dict[str, object],
+    provider: oauth.OAuthProvider,
+) -> None:
+    """Authenticate the subject owner even when the provider returns another account's email."""
+
+    # Arrange
+    account_a, account_b = users[1:]
+    async with session_scope() as session:
+        linked_user = await session.get(User, account_a.id)
+        assert linked_user is not None
+        setattr(linked_user, f"{provider}_id", "12345")
+        await session.commit()
+
+    # Return the existing subject with a different account's verified email.
+    if provider == "google":
+        oauth_responses[oauth.GOOGLE_USERINFO_URL] = {"sub": "12345", "email": account_b.email, "email_verified": True}
+    else:
+        oauth_responses[oauth.GITHUB_USER_URL] = {"id": 12345, "email": account_b.email}
+        oauth_responses[oauth.GITHUB_EMAILS_URL] = [{"email": account_b.email, "primary": True, "verified": True}]
+    credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier")
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+
+    # Act
+    response = await client.get(
+        f"/api/v1/auth/oauth/{provider}/callback",
+        params={"code": "provider-code", "state": "expected-state"},
+        follow_redirects=False,
+    )
+    profile_response = await client.get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 302
+    assert response.headers["location"] == f"{env.PUBLIC_URL}/user/organizations"
+    assert client.cookies.get("longlink_oauth") is None
+    assert client.cookies.get("longlink_auth") is not None
+    assert profile_response.status_code == 200
+    assert profile_response.json()["id"] == str(account_a.id)
+    assert profile_response.json()["email"] == account_a.email
+    async with session_scope() as session:
+        result = await session.execute(select(User))
+        persisted_users = result.scalars().all()
+    assert {(user.id, user.email, getattr(user, f"{provider}_id")) for user in persisted_users} == {
+        (users[0].id, users[0].email, None),
+        (account_a.id, account_a.email, "12345"),
+        (account_b.id, account_b.email, None),
+    }
+
+
+@pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
+async def test_oauth_callback_rejects_deleted_account_without_browser_session(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    oauth_responses: dict[str, object],
+    provider: oauth.OAuthProvider,
+) -> None:
+    """Reject OAuth login for a soft-deleted account without linking its provider identity."""
+
+    # Arrange
+    user = users[1]
+    async with session_scope() as session:
+        deleted_user = await session.get(User, user.id)
+        assert deleted_user is not None
+        deleted_user.deleted_at = datetime.now(UTC)
+        await session.commit()
+    credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier")
+    client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
+
+    # Act
+    response = await client.get(
+        f"/api/v1/auth/oauth/{provider}/callback",
+        params={"code": "provider-code", "state": "expected-state"},
+        follow_redirects=False,
+    )
+
+    # Assert
+    assert response.status_code == 302
+    assert response.content == b""
+    assert response.headers["location"] == f"{env.PUBLIC_URL}/login?oauth_error=1"
+    assert response.headers["cache-control"] == "no-store"
+    assert client.cookies.get("longlink_oauth") is None
+    assert client.cookies.get("longlink_auth") is None
+    async with session_scope() as session:
+        persisted = await session.get(User, user.id)
+    assert persisted is not None
+    assert persisted.google_id is None
+    assert persisted.github_id is None
+
+
+async def test_registration_request_does_not_enumerate_existing_accounts(
+    client: AsyncClient, users: tuple[User, User, User], captured_mail: list[tuple[str, str, str, str | None]]
+) -> None:
+    """Return accepted without sending registration mail for an existing account."""
+
+    # Act
+    response = await client.post("/api/v1/auth/register", json={"email": users[0].email})
+
+    # Assert
+    assert response.status_code == 202
+    assert captured_mail == []
+
+
+@pytest.mark.no_db
+async def test_verify_email_rejects_invalid_token_without_cookie(client: AsyncClient) -> None:
+    """Reject an invalid verification token without creating a browser session."""
+
+    # Act
+    response = await client.post("/api/v1/auth/verify", json={"token": "not-a-valid-token"})
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json() == {"detail": INVALID_REGISTRATION_LINK}
+    assert client.cookies.get("longlink_registration") is None
+
+
+@pytest.mark.no_db
+async def test_malformed_browser_session_is_rejected_before_database_lookup(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject malformed browser credentials without opening an identity lookup."""
+
+    # Arrange
+    async def get_session():
+        """Provide an unused dependency session for the rejected credential."""
+
+        yield object()
+
+    async def unexpected_active(*_args: object) -> object:
+        """Fail if malformed credentials reach the user database query."""
+
+        raise AssertionError("malformed credentials must not query users")
+
+    monkeypatch.setattr(app, "dependency_overrides", {auth.get_session: get_session})
+    monkeypatch.setattr(users, "active", unexpected_active)
+    client.cookies.set("longlink_auth", "invalid", domain="testserver.local", path="/")
+
+    # Act
+    response = await client.get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+@pytest.mark.no_db
+async def test_registration_setup_rejects_missing_verification_cookie(client: AsyncClient) -> None:
+    """Require verified browser registration state before exposing setup details."""
+
+    # Act
+    response = await client.get("/api/v1/auth/register/setup")
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json() == {"detail": INVALID_REGISTRATION_LINK}
+
+
+@pytest.mark.no_db
+async def test_registration_completion_rejects_missing_verification_cookie(client: AsyncClient) -> None:
+    """Prevent account creation without verified browser registration state."""
+
+    # Act
+    response = await client.post(
+        "/api/v1/auth/register/complete",
+        json={"name": "Registered User", "password": TEST_PASSWORD},
+    )
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json() == {"detail": INVALID_REGISTRATION_LINK}
+    assert client.cookies.get("longlink_auth") is None
+
+
+async def test_registration_verification_is_stateless(
+    client: AsyncClient,
+    captured_mail: list[tuple[str, str, str, str | None]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify email ownership without creating an account or browser session."""
+
+    # Arrange
+    email = "registered@example.com"
+
+    # Render the browser credential with its production security policy.
+    monkeypatch.setattr(env, "PUBLIC_URL", "https://platform.example")
+
+    # Request a stateless email link without creating a pending user.
+    register_response = await client.post("/api/v1/auth/register", json={"email": email})
+    session_factory = get_session()
+
+    assert register_response.status_code == 202
+    assert captured_mail[0][0] == email
+    verification_token = registration_verification_token(captured_mail)
+    assert captured_mail[0][3] is not None
+    assert verification_token in captured_mail[0][3]
+    assert "/auth/verify-email#token=" in captured_mail[0][3]
+    assert "email=" not in captured_mail[0][3]
+    assert "code=" not in captured_mail[0][3]
+
+    # Verify email ownership without creating a user or browser session.
+    verify_response = await client.post("/api/v1/auth/verify", json={"token": verification_token})
+    async with session_factory() as session:
+        verified_pending_user = (await session.execute(select(User).where(col(User.email) == email))).scalar_one_or_none()
+
+    assert verify_response.status_code == 200
+    assert verify_response.json() == {"email": email}
+    assert verified_pending_user is None
+    assert client.cookies.get("longlink_auth") is None
+    assert verify_response.headers["cache-control"] == "no-store"
+    cookie = verify_response.headers["set-cookie"]
+    assert "longlink_registration=" in cookie
+    assert "HttpOnly" in cookie
+    assert f"Max-Age={token.EMAIL_TOKEN_LIFETIME_SECONDS}" in cookie
+    assert "Path=/api/v1/auth/register" in cookie
+    assert "SameSite=lax" in cookie
+    assert "Secure" in cookie
+
+
+async def test_registration_completion_creates_authenticated_account(
+    client: AsyncClient, captured_mail: list[tuple[str, str, str, str | None]]
+) -> None:
+    """Create an authenticated account only after verified profile completion."""
+
+    # Arrange
+    email = "registered@example.com"
+    completion_payload = {"name": "Registered User", "password": TEST_PASSWORD}
+    login_payload = {"email": email, "password": TEST_PASSWORD}
+    register_response, verify_response, _ = await register_and_verify(client, captured_mail, email)
+    assert register_response.status_code == 202
+    assert verify_response.status_code == 200
+
+    # Act
+    unauthenticated_login = await client.post("/api/v1/auth/password/login", json=login_payload)
+    restored_setup = await client.get("/api/v1/auth/register/setup")
+    complete_response = await client.post(
+        "/api/v1/auth/register/complete",
+        json=completion_payload,
+        headers={"Origin": env.PUBLIC_URL},
+    )
+    profile_response = await client.get("/api/v1/me")
+    authenticated_login = await client.post("/api/v1/auth/password/login", json=login_payload)
+
+    # Assert
+    assert unauthenticated_login.status_code == 400
+    assert unauthenticated_login.json() == {"detail": "Invalid email or password."}
+    assert restored_setup.status_code == 200
+    assert restored_setup.json() == {"email": email}
+    assert restored_setup.headers["cache-control"] == "no-store"
+    assert complete_response.status_code == 201
+    registered_user = complete_response.json()
+    assert registered_user["name"] == "Registered User"
+    assert registered_user["email"] == email
+    assert client.cookies.get("longlink_auth")
+    assert client.cookies.get("longlink_registration") is None
+    assert profile_response.status_code == 200
+    assert profile_response.json()["id"] == registered_user["id"]
+    assert authenticated_login.status_code == 204
+
+
+async def test_password_login_rejects_wrong_password_and_unknown_email_without_session(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+) -> None:
+    """Keep failed password login responses indistinguishable and unauthenticated."""
+
+    # Arrange
+    email = users[0].email
+
+    # Act
+    wrong_password_response = await client.post(
+        "/api/v1/auth/password/login",
+        json={"email": email, "password": "wrong-password"},
+    )
+    unknown_email_response = await client.post(
+        "/api/v1/auth/password/login",
+        json={"email": "missing@example.com", "password": TEST_PASSWORD},
+    )
+
+    # Assert
+    assert wrong_password_response.status_code == 400
+    assert unknown_email_response.status_code == 400
+    assert wrong_password_response.json() == unknown_email_response.json() == {"detail": "Invalid email or password."}
+    assert "set-cookie" not in wrong_password_response.headers
+    assert "set-cookie" not in unknown_email_response.headers
+    assert client.cookies.get("longlink_auth") is None
+
+
+async def test_password_login_rejects_deleted_account_with_correct_password_without_session(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+) -> None:
+    """Reject a deleted account even when its password remains valid."""
+
+    # Arrange
+    user = users[0]
+    async with session_scope() as session:
+        deleted_user = await session.get(User, user.id)
+        assert deleted_user is not None
+        deleted_user.deleted_at = datetime.now(UTC)
+        await session.commit()
+
+    # Act
+    response = await client.post(
+        "/api/v1/auth/password/login",
+        json={"email": user.email, "password": TEST_PASSWORD},
+    )
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid email or password."}
+    assert "set-cookie" not in response.headers
+    assert client.cookies.get("longlink_auth") is None
+
+
+@pytest.mark.usefixtures("database_runtime")
+async def test_registration_completion_accepts_pending_organization_invitation(
+    client: AsyncClient,
+    captured_mail: list[tuple[str, str, str, str | None]],
+    users: tuple[User, User, User],
+) -> None:
+    """Accept an email-bound Organization role while creating a verified account."""
+
+    # Arrange
+    email = "invited@example.com"
+    organization = await create_organization(users[0])
+    async with session_scope() as session:
+        session.add(OrganizationInvitation(organization_id=organization.id, email=email, role=OrganizationRoles.write))
+        await session.commit()
+
+    register_response, verify_response, _ = await register_and_verify(client, captured_mail, email)
+    assert register_response.status_code == 202
+    assert verify_response.status_code == 200
+
+    # Act
+    response = await client.post(
+        "/api/v1/auth/register/complete",
+        json={"name": "Invited User", "password": TEST_PASSWORD},
+        headers={"Origin": env.PUBLIC_URL},
+    )
+    organizations_response = await client.get("/api/v1/me/organizations")
+    async with session_scope() as session:
+        invitation = await session.scalar(
+            select(OrganizationInvitation).where(col(OrganizationInvitation.organization_id) == organization.id)
+        )
+
+    # Assert
+    assert response.status_code == 201
+    assert organizations_response.status_code == 200
+    assert organizations_response.json() == [
+        {
+            "organization": {
+                "id": str(organization.id),
+                "name": "acme",
+                "slug": "acme",
+                "status": "creating",
+            },
+            "role": "write",
+        }
+    ]
+    assert invitation is None
+    assert client.cookies.get("longlink_auth") is not None
+
+
+@pytest.mark.usefixtures("database_runtime")
+async def test_password_login_accepts_pending_organization_invitation(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    users: tuple[User, User, User],
+) -> None:
+    """Accept pending Organization access when an existing user signs in."""
+
+    # Arrange
+    owner, invited_user, other_user = users
+    organization = await create_organization(owner)
+    other_organization = await create_organization(owner, name="other organization")
+    pending_invitation = OrganizationInvitation(
+        organization_id=organization.id,
+        email=invited_user.email,
+        role=OrganizationRoles.write,
+    )
+    other_pending_invitation = OrganizationInvitation(
+        organization_id=other_organization.id,
+        email=other_user.email,
+        role=OrganizationRoles.write,
+    )
+    async with session_scope() as session:
+        session.add(pending_invitation)
+        session.add(other_pending_invitation)
+        await session.commit()
+
+    # Act
+    response = await clients[1].post(
+        "/api/v1/auth/password/login",
+        json={"email": invited_user.email, "password": TEST_PASSWORD},
+    )
+
+    # Assert
+    assert response.status_code == 204
+    async with session_scope() as session:
+        invitation = await session.scalar(
+            select(OrganizationInvitation).where(col(OrganizationInvitation.organization_id) == organization.id)
+        )
+        membership = await session.scalar(
+            select(UserOrganization).where(
+                col(UserOrganization.organization_id) == organization.id,
+                col(UserOrganization.user_id) == invited_user.id,
+            )
+        )
+        other_invitation = await session.get(OrganizationInvitation, other_pending_invitation.id)
+        other_membership = await session.scalar(
+            select(UserOrganization).where(
+                col(UserOrganization.organization_id) == other_organization.id,
+                col(UserOrganization.user_id) == invited_user.id,
+            )
+        )
+
+    assert invitation is None
+    assert membership is not None
+    assert membership.role == OrganizationRoles.write
+    assert other_invitation is not None
+    assert other_invitation.email == other_user.email
+    assert other_membership is None
+
+
+async def test_registration_completion_rejects_duplicate_account(
+    client: AsyncClient, captured_mail: list[tuple[str, str, str, str | None]]
+) -> None:
+    """Reject a repeated completion for an existing verified email address."""
+
+    # Arrange
+    email = "registered@example.com"
+    completion_payload = {"name": "Registered User", "password": TEST_PASSWORD}
+    register_response, verify_response, verification_token = await register_and_verify(client, captured_mail, email)
+    assert register_response.status_code == 202
+    assert verify_response.status_code == 200
+    first_completion = await client.post(
+        "/api/v1/auth/register/complete",
+        json=completion_payload,
+        headers={"Origin": env.PUBLIC_URL},
+    )
+    assert first_completion.status_code == 201
+
+    # Act
+    async with create_client() as repeat_client:
+        repeat_verify_response = await repeat_client.post("/api/v1/auth/verify", json={"token": verification_token})
+        repeat_response = await repeat_client.post(
+            "/api/v1/auth/register/complete",
+            json=completion_payload,
+            headers={"Origin": env.PUBLIC_URL},
+        )
+
+    assert repeat_verify_response.status_code == 200
+    assert repeat_response.status_code == 409
+    assert repeat_response.json() == {"detail": "An account with this email already exists. Sign in or reset your password to continue."}
+    assert repeat_client.cookies.get("longlink_auth") is None
+
+
+@pytest.mark.no_db
+async def test_password_reset_setup_rejects_missing_reset_cookie(client: AsyncClient) -> None:
+    """Reject reset setup without browser-only reset proof."""
+
+    # Act
+    response = await client.get("/api/v1/auth/reset-password/setup")
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json() == {"detail": "This password reset link is invalid or has expired. Please request a new one."}
+    assert "set-cookie" not in response.headers
+
+
+@pytest.mark.no_db
+async def test_password_reset_verify_rejects_invalid_token_without_cookie(client: AsyncClient) -> None:
+    """Reject invalid reset proof before creating browser-only state."""
+
+    # Act
+    response = await client.post("/api/v1/auth/reset-password/verify", json={"token": "invalid"})
+
+    # Assert
+    assert response.status_code == 400
+    assert response.json() == {"detail": "This password reset link is invalid or has expired. Please request a new one."}
+    assert "set-cookie" not in response.headers
+    assert client.cookies.get("longlink_password_reset") is None
+
+
+@pytest.mark.no_db
+async def test_password_reset_rejects_missing_reset_cookie(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject password replacement without browser-only reset proof."""
+
+    # Arrange
+    async def unused_session() -> AsyncIterator[object]:
+        """Supply no database capabilities before reset proof is accepted."""
+
+        yield object()
+
+    async def unexpected_active(*_args: object) -> object:
+        """Reject account lookup before a reset credential has been validated."""
+
+        raise AssertionError("missing reset proof must not query users")
+
+    monkeypatch.setattr(app, "dependency_overrides", {auth.get_session: unused_session})
+    monkeypatch.setattr(token.users, "active", unexpected_active)
+
+    # Act
+    reset_response = await client.post("/api/v1/auth/reset-password", json={"password": "replacement-password"})
+
+    # Assert
+    assert reset_response.status_code == 400
+    assert reset_response.json() == {"detail": "This password reset link is invalid or has expired. Please request a new one."}
+    assert "set-cookie" not in reset_response.headers
+
+
+async def test_password_reset_verify_sets_secure_browser_only_cookie_in_production(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Set a restricted secure reset cookie when production verifies reset proof."""
+
+    # Arrange
+    user = users[0]
+    reset_token = token.create_password_reset_token(user)
+    monkeypatch.setattr(env, "PUBLIC_URL", "https://platform.example")
+
+    # Act
+    response = await client.post("/api/v1/auth/reset-password/verify", json={"token": reset_token})
+
+    # Assert
+    assert response.status_code == 204
+    assert response.headers["cache-control"] == "no-store"
+    cookie = response.headers["set-cookie"]
+    assert "longlink_password_reset=" in cookie
+    assert "HttpOnly" in cookie
+    assert "Max-Age=900" in cookie
+    assert "Path=/api/v1/auth/reset-password" in cookie
+    assert "SameSite=lax" in cookie
+    assert "Secure" in cookie
+
+
+async def test_forgot_and_reset_password(
+    client: AsyncClient,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    users: tuple[User, User, User],
+    captured_mail: list[tuple[str, str, str, str | None]],
+) -> None:
+    """Reset a local password with the emailed one-time recovery token."""
+
+    # Arrange
+    user = users[0]
+    authenticated_client = clients[0]
+    existing_session = await authenticated_client.get("/api/v1/me")
+    assert existing_session.status_code == 200
+    assert existing_session.json()["id"] == str(user.id)
+
+    # Act: Missing and existing accounts receive the same response, while only the account gets mail.
+    missing_response = await client.post("/api/v1/auth/forgot-password", json={"email": "missing@example.com"})
+    forgot_response = await client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": user.email.upper()},
+    )
+
+    assert missing_response.status_code == 202
+    assert forgot_response.status_code == 202
+    assert len(captured_mail) == 1
+    assert captured_mail[0][0] == user.email
+    reset_url = next(line for line in captured_mail[0][2].splitlines() if line.startswith("http"))
+    parsed_reset_url = urlparse(reset_url)
+    assert parse_qs(parsed_reset_url.query) == {}
+
+    # Exchange fragment proof for an HTTP-only cookie before replacing the credential.
+    reset_token = password_reset_token(captured_mail)
+    verify_response = await client.post("/api/v1/auth/reset-password/verify", json={"token": reset_token})
+    setup_response = await client.get("/api/v1/auth/reset-password/setup")
+    reset_response = await client.post(
+        "/api/v1/auth/reset-password",
+        json={"password": "replacement-password"},
+        headers={"Origin": env.PUBLIC_URL},
+    )
+    reused_token_response = await client.post("/api/v1/auth/reset-password/verify", json={"token": reset_token})
+    revoked_session = await authenticated_client.get("/api/v1/me")
+
+    # Assert
+    assert verify_response.status_code == 204
+    assert setup_response.status_code == 204
+    assert setup_response.headers["cache-control"] == "no-store"
+    assert reset_response.status_code == 204
+    assert reset_response.headers["cache-control"] == "no-store"
+    reset_cookie = reset_response.headers["set-cookie"]
+    assert "longlink_password_reset=" in reset_cookie
+    assert "Max-Age=0" in reset_cookie
+    assert "Path=/api/v1/auth/reset-password" in reset_cookie
+    assert reused_token_response.status_code == 400
+    assert reused_token_response.json() == {"detail": "This password reset link is invalid or has expired. Please request a new one."}
+    assert revoked_session.status_code == 401
+    assert revoked_session.json() == {"detail": "Not authenticated"}
+
+    # Prove only the new password can create a fresh session.
+    old_login = await client.post(
+        "/api/v1/auth/password/login",
+        json={"email": user.email, "password": TEST_PASSWORD},
+    )
+    new_login = await client.post(
+        "/api/v1/auth/password/login",
+        json={"email": user.email, "password": "replacement-password"},
+    )
+
+    assert old_login.status_code == 400
+    assert old_login.json() == {"detail": "Invalid email or password."}
+    assert new_login.status_code == 204
+
+
+@pytest.mark.parametrize("endpoint", ["/api/v1/auth/forgot-password", "/api/v1/auth/register"])
+async def test_password_requests_do_not_send_mail_to_deleted_account(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    captured_mail: list[tuple[str, str, str, str | None]],
+    endpoint: str,
+) -> None:
+    """Keep deleted accounts indistinguishable from missing request recipients."""
+
+    # Arrange
+    user = users[0]
+    async with session_scope() as session:
+        deleted_user = await session.get(User, user.id)
+        assert deleted_user is not None
+        deleted_user.deleted_at = datetime.now(UTC)
+        await session.commit()
+
+    # Act
+    response = await client.post(endpoint, json={"email": user.email})
+
+    # Assert
+    assert response.status_code == 202
+    assert captured_mail == []
+
+
+@pytest.mark.no_db
+async def test_logout_rejects_untrusted_origin_without_browser_session(client: AsyncClient) -> None:
+    """Reject an uncredentialed logout request from an untrusted origin."""
+
+    # Act
+    response = await client.post("/api/v1/auth/logout", headers={"origin": "https://attacker.example"})
+
+    # Assert
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Origin required"}
+    assert "set-cookie" not in response.headers
+
+
+@pytest.mark.parametrize(
+    ("public_origin", "origin"),
+    [
+        pytest.param(None, "https://attacker.example", id="cross-origin"),
+        pytest.param("http://localhost:5173", "http://127.0.0.1:5173", id="localhost-public"),
+        pytest.param("http://127.0.0.1:5173", "http://localhost:5173", id="loopback-public"),
+    ],
+)
+async def test_authenticated_logout_rejects_untrusted_origin(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    monkeypatch: pytest.MonkeyPatch,
+    public_origin: str | None,
+    origin: str,
+) -> None:
+    """Reject untrusted origins without clearing an authenticated browser session."""
+
+    # Arrange
+    if public_origin is not None:
+        monkeypatch.setattr(env, "PUBLIC_URL", public_origin)
+    client = clients[0]
+
+    # Act
+    response = await client.post("/api/v1/auth/logout", headers={"origin": origin})
+    profile_response = await client.get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Origin required"}
+    assert "set-cookie" not in response.headers
+    assert profile_response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("headers", "expected_secure"),
+    [
+        pytest.param({"origin": "http://localhost:5173"}, False, id="localhost"),
+        pytest.param({"origin": "http://127.0.0.1:5173"}, False, id="loopback"),
+        pytest.param({"origin": "https://platform.example"}, True, id="production"),
+    ],
+)
+async def test_authenticated_logout_clears_browser_session_for_trusted_origins(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    headers: dict[str, str],
+    expected_secure: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clear browser sessions requested from the explicitly configured frontend origin."""
+
+    # Arrange
+    client = clients[0]
+    monkeypatch.setattr(env, "PUBLIC_URL", headers["origin"])
+
+    # Act
+    response = await client.post("/api/v1/auth/logout", headers=headers)
+    profile_response = await client.get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 204
+    assert "longlink_auth=" in response.headers["set-cookie"]
+    assert "HttpOnly" in response.headers["set-cookie"]
+    assert "Max-Age=0" in response.headers["set-cookie"]
+    assert "Path=/" in response.headers["set-cookie"]
+    assert "SameSite=lax" in response.headers["set-cookie"]
+    assert ("Secure" in response.headers["set-cookie"]) is expected_secure
+    assert profile_response.status_code == 401
+
+
+async def test_password_login_sets_production_session_security_and_cache_attributes(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+    monkeypatch,
+) -> None:
+    """Issue a production browser session only as a secure, private credential."""
+
+    # Make the route render production cookie attributes.
+    monkeypatch.setattr(env, "PUBLIC_URL", "https://platform.example")
+    user = users[0]
+
+    # Authenticate with the production cookie policy.
+    response = await client.post(
+        "/api/v1/auth/password/login",
+        json={"email": user.email, "password": TEST_PASSWORD},
+    )
+
+    # Verify the credential cannot be read by scripts, sent insecurely, or cached.
+    assert response.status_code == 204
+    assert response.headers["cache-control"] == "no-store"
+    cookie = response.headers["set-cookie"]
+    assert "longlink_auth=" in cookie
+    assert "HttpOnly" in cookie
+    assert "Max-Age=2592000" in cookie
+    assert "Path=/" in cookie
+    assert "SameSite=lax" in cookie
+    assert "Secure" in cookie
+
+
+async def test_deleted_user_cannot_use_existing_browser_session(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    users: tuple[User, User, User],
+) -> None:
+    """Reject an already-issued session after its user is soft-deleted."""
+
+    # Arrange
+    user = users[0]
+    async with session_scope() as session:
+        persisted = await session.get(User, user.id)
+        assert persisted is not None
+        persisted.deleted_at = datetime.now(UTC)
+        await session.commit()
+
+    # Act
+    response = await clients[0].get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+async def test_expired_browser_session_is_rejected_at_http(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+) -> None:
+    """Reject an expired session cookie with the stable authentication error."""
+
+    # Arrange
+    user = users[1]
+    expired = jwt.encode(
+        {
+            "sub": str(user.id),
+            "password_fingerprint": token.password_fingerprint(user.password),
+            "aud": token.AUTH_TOKEN_AUDIENCE,
+            "iat": datetime.now(UTC) - timedelta(seconds=env.AUTH_SESSION_LIFETIME_SECONDS + 60),
+            "exp": datetime.now(UTC) - timedelta(seconds=60),
+        },
+        env.SESSION_KEY,
+        algorithm=token.JWT_ALGORITHM,
+    )
+    client.cookies.set("longlink_auth", expired, domain="testserver.local", path="/")
+
+    # Act
+    response = await client.get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+async def test_wrong_audience_browser_session_is_rejected_at_http(
+    client: AsyncClient,
+    users: tuple[User, User, User],
+) -> None:
+    """Reject valid password-reset proof presented as a browser session."""
+
+    # Arrange
+    reset_token = token.create_password_reset_token(users[1])
+    client.cookies.set("longlink_auth", reset_token, domain="testserver.local", path="/")
+
+    # Act
+    response = await client.get("/api/v1/me")
+
+    # Assert
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}

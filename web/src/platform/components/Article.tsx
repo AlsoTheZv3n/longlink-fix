@@ -3,14 +3,15 @@ import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { documentationPaths } from '@/platform/docs';
-import { Article } from '@/platform/layouts/Article';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Outline } from '@astryxdesign/core/Outline';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
+import { PageContainer } from '@/components/PageContainer';
 import { PathBreadcrumb } from '@/components/breadcrumb/Path';
 import { BreadcrumbItem } from '@astryxdesign/core/Breadcrumbs';
 import { Seo, articleRouteLabels } from '@/platform/components/Seo';
+import { Layout, LayoutContent, LayoutHeader } from '@astryxdesign/core/Layout';
 import { useEffect, useEffectEvent, type ComponentProps, type ReactNode } from 'react';
 
 const dateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -38,7 +39,7 @@ type DocumentationArticleProps = {
 export function DocumentationArticle({
     article,
     children,
-    className = 'documentation-content [--font-family-heading:var(--font-family-handwritten)] [&_.astryx-heading]:uppercase [&_.astryx-heading]:tracking-wide',
+    className = '[--text-body-size:var(--font-size-lg)] [--article-heading-spacing:calc(var(--spacing-9)*2)] [--font-family-heading:var(--font-family-handwritten)] [&_.astryx-heading]:uppercase [&_.astryx-heading]:tracking-wide',
 }: DocumentationArticleProps) {
     // Keep documentation typography and reading order as wrapper-owned policy.
     return (
@@ -80,18 +81,64 @@ function ArticleRenderer({
     paths?: readonly string[];
     root?: ReactNode;
 }) {
-    // Preserve shared metadata, the 720px reading column, 224px outline, and 64px header.
+    // Keep public articles and documentation in the same flat reading columns.
     return (
         <>
             <Seo description={article.description} hasBreadcrumbs title={article.title} />
-            <Article
-                className={className}
-                header={<PathBreadcrumb className="min-w-0 overflow-hidden" labels={articleRouteLabels} root={root} />}
-                footer={<ArticleFooter lastUpdated={article.lastUpdated} editUrl={article.editUrl} paths={paths} />}
-                sidebar={article.toc.length ? <ArticleOutline items={article.toc} /> : undefined}
-            >
-                {children}
-            </Article>
+            <Layout
+                height="auto"
+                header={
+                    <LayoutHeader padding={0}>
+                        <Stack>
+                            <Stack className="relative" height={64} width="100%">
+                                <PageContainer height="100%" justify="center" maxWidth={1064} paddingInline={6}>
+                                    <Stack direction="horizontal" gap={6} width="100%">
+                                        <PageContainer className="min-w-0" maxWidth={720}>
+                                            <PathBreadcrumb
+                                                className="min-w-0 overflow-hidden"
+                                                labels={articleRouteLabels}
+                                                root={root}
+                                            />
+                                        </PageContainer>
+                                        {article.toc.length ? (
+                                            <Stack className="hidden shrink-0 lg:flex" width={224} />
+                                        ) : null}
+                                    </Stack>
+                                </PageContainer>
+                            </Stack>
+                        </Stack>
+                    </LayoutHeader>
+                }
+                content={
+                    <LayoutContent isScrollable={false} padding={6}>
+                        <Stack className="mx-auto" direction="horizontal" gap={6} maxWidth={1016} width="100%">
+                            <PageContainer className="min-w-0" maxWidth={720}>
+                                <article
+                                    className={`space-y-7 [&_:is(h2,h3,h4,h5,h6)]:[margin-block-start:var(--article-heading-spacing,var(--spacing-8))] [&_p]:opacity-90${className ? ` ${className}` : ''}`}
+                                >
+                                    {children}
+                                    <Stack as="footer" gap={3} paddingBlockStart={8}>
+                                        <ArticleFooter
+                                            lastUpdated={article.lastUpdated}
+                                            editUrl={article.editUrl}
+                                            paths={paths}
+                                        />
+                                    </Stack>
+                                </article>
+                            </PageContainer>
+                            {article.toc.length ? (
+                                <Stack
+                                    className="sticky top-20 hidden shrink-0 self-start lg:flex"
+                                    padding={5}
+                                    width={224}
+                                >
+                                    <ArticleOutline items={article.toc} />
+                                </Stack>
+                            ) : null}
+                        </Stack>
+                    </LayoutContent>
+                }
+            />
         </>
     );
 }

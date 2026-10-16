@@ -1,14 +1,15 @@
 import os
 import sys
 import json
+import uuid
 import shlex
-import typer
 import pytest
+import shutil
+import tarfile
 import subprocess
 from pathlib import Path
 from contextlib import chdir
-from longlink.cli import build
-from typer.testing import CliRunner
+from longlink.cli import build, errors
 from collections.abc import Callable
 from longlink.cli.main import main
 
@@ -80,37 +81,36 @@ def docker_commands(monkeypatch: pytest.MonkeyPatch) -> Callable[[tuple[str, int
     return configure
 
 
-def test_build_reports_missing_project_file_before_docker(tmp_path: Path) -> None:
+def test_build_reports_missing_project_file_before_docker(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Report a missing project file instead of blaming the Docker CLI."""
-
-    # Arrange
-    runner = CliRunner()
 
     with chdir(tmp_path):
         # Act
-        result = runner.invoke(main, ["build"])
+        with pytest.raises(SystemExit) as failure:
+            main(["build"])
 
         # Assert
-        assert result.exit_code == 1
-        assert f"Project file not found: {Path.cwd() / 'pyproject.toml'}" in result.output
-        assert "Docker is required" not in result.output
+        assert failure.value.code == 1
+        output = capsys.readouterr().err
+        assert f"Project file not found: {Path.cwd() / 'pyproject.toml'}" in output
+        assert "Docker is required" not in output
 
 
 @pytest.mark.usefixtures("chdir_project")
-def test_build_reports_missing_docker_after_validating_project(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_reports_missing_docker_after_validating_project(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """Require Docker after validating project metadata but before preparing the context."""
 
     # Arrange
-    runner = CliRunner()
     monkeypatch.setattr(build.shutil, "which", lambda _command: None)
     monkeypatch.setattr(build.subprocess, "run", lambda *_args, **_kwargs: pytest.fail("Docker must not run when unavailable"))
 
     # Act
-    result = runner.invoke(main, ["build"])
+    with pytest.raises(SystemExit) as failure:
+        main(["build"])
 
     # Assert
-    assert result.exit_code == 1
-    assert "Docker is required to build images" in result.output
+    assert failure.value.code == 1
+    assert "Docker is required to build images" in capsys.readouterr().err
 
 
 def test_read_pyproject_rejects_invalid_toml(tmp_path: Path) -> None:
@@ -120,7 +120,7 @@ def test_read_pyproject_rejects_invalid_toml(tmp_path: Path) -> None:
     tmp_path.joinpath("pyproject.toml").write_text("[project\nname = 'demo'", encoding="utf-8")
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match="Invalid project file"):
+    with pytest.raises(errors.Error, match="Invalid project file"):
         build.read_pyproject(tmp_path)
 
 
@@ -221,7 +221,7 @@ def test_read_env_spec_rejects_invalid_environment_model_configuration(
         path.write_text(module_source, encoding="utf-8")
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.read_env_spec(tmp_path, build.read_pyproject(tmp_path))
 
 
@@ -255,7 +255,7 @@ def test_read_env_spec_isolates_solution_state_and_preserves_output(
 
     # Act
     if fails:
-        with pytest.raises(typer.TyperException, match="Unable to import environment model longlink.envs:Env: import failed"):
+        with pytest.raises(errors.Error, match="Unable to import environment model longlink.envs:Env: import failed"):
             build.read_env_spec(tmp_path, config)
     else:
         metadata = build.read_env_spec(tmp_path, config)
@@ -306,7 +306,7 @@ def test_read_env_spec_rejects_malformed_child_response(build_project: Path, mon
     config = build.read_pyproject(build_project)
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match="invalid child response"):
+    with pytest.raises(errors.Error, match="invalid child response"):
         build.read_env_spec(build_project, config)
 
 
@@ -378,6 +378,7 @@ def test_build_solution_generates_docker_artifacts_from_project_metadata(
 def test_build_rejects_invalid_project_metadata_before_generating_artifacts(
     chdir_project: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     project_data: str,
     message: str,
 ) -> None:
@@ -385,18 +386,18 @@ def test_build_rejects_invalid_project_metadata_before_generating_artifacts(
 
     # Arrange
     chdir_project.joinpath("pyproject.toml").write_text(project_data, encoding="utf-8")
-    runner = CliRunner()
     monkeypatch.setattr(build.shutil, "which", lambda _command: pytest.fail("Project validation must precede Docker discovery"))
     monkeypatch.setattr(
         build.tempfile, "TemporaryDirectory", lambda **_kwargs: pytest.fail("Invalid project metadata must not create build artifacts")
     )
 
     # Act
-    result = runner.invoke(main, ["build"])
+    with pytest.raises(SystemExit) as failure:
+        main(["build"])
 
     # Assert
-    assert result.exit_code == 1
-    assert message in result.output
+    assert failure.value.code == 1
+    assert message in capsys.readouterr().err
 
 
 def test_build_solution_filters_symlinks_by_resolved_target(chdir_project: Path) -> None:
@@ -536,7 +537,7 @@ def test_resolve_docker_paths_rejects_local_dependencies_outside_workspace(
     )
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=error):
+    with pytest.raises(errors.Error, match=error):
         build.resolve_docker_paths(build_project, build.read_pyproject(build_project))
 
 
@@ -677,7 +678,7 @@ def test_build_solution_requires_workspace_lockfile(build_project: Path) -> None
     context = workspace / "context"
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match="Lockfile not found"):
+    with pytest.raises(errors.Error, match="Lockfile not found"):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.exists()
 
@@ -702,7 +703,7 @@ def test_build_solution_rechecks_lockfile_after_model_import(build_project: Path
     message = "inside the UV workspace" if target_kind == "outside" else "must not reference an ignored path"
 
     # Reject the changed lockfile after inspection and before the explicit metadata copy.
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.joinpath("uv.lock").exists()
 
@@ -732,7 +733,7 @@ def test_build_solution_rejects_unsafe_workspace_paths(build_project: Path, dire
     context = workspace / "context"
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=f"must not contain {message}"):
+    with pytest.raises(errors.Error, match=f"must not contain {message}"):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.exists()
 
@@ -755,7 +756,7 @@ def test_build_solution_rejects_unsafe_metadata_symlinks(build_project: Path, fi
     message = "inside the UV workspace" if target_kind == "outside" else "must not reference an ignored path"
 
     # Act and assert
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
     assert not context.joinpath(filename).exists()
 
@@ -822,7 +823,7 @@ def test_resolve_image_tag_rejects_invalid_image_references(
 ) -> None:
     """Reject image reference values outside the supported Docker boundary."""
 
-    with pytest.raises(typer.TyperException, match=message):
+    with pytest.raises(errors.Error, match=message):
         build.resolve_image_tag(solution_name, version, registry)
 
 
@@ -840,6 +841,7 @@ def test_resolve_image_tag_rejects_invalid_image_references(
 @pytest.mark.usefixtures("chdir_project")
 def test_build_command_reports_built_image(
     docker_commands: Callable[[tuple[str, int] | None], list[list[str]]],
+    capsys: pytest.CaptureFixture[str],
     arguments: list[str],
     expected_commands: list[list[str]],
 ) -> None:
@@ -847,13 +849,11 @@ def test_build_command_reports_built_image(
 
     # Arrange
     commands = docker_commands(None)
-    runner = CliRunner()
 
     # Act
-    result = runner.invoke(main, ["build", "--tag", "dev", "--registry", "localhost:15000", *arguments])
+    main(["build", "--tag", "dev", "--registry", "localhost:15000", *arguments])
 
     # Assert
-    assert result.exit_code == 0
     temporary_context = Path(commands[0][-1])
     assert commands == [
         [
@@ -869,8 +869,9 @@ def test_build_command_reports_built_image(
         ],
         *expected_commands,
     ]
-    assert "- Built image: localhost:15000/demo:dev" in result.output
-    assert ("- Pushed image: localhost:15000/demo:dev" in result.output) is bool(expected_commands)
+    output = capsys.readouterr().out
+    assert "- Built image: localhost:15000/demo:dev" in output
+    assert ("- Pushed image: localhost:15000/demo:dev" in output) is bool(expected_commands)
     assert not temporary_context.exists()
 
 
@@ -884,6 +885,7 @@ def test_build_command_reports_built_image(
 @pytest.mark.usefixtures("chdir_project")
 def test_build_command_reports_docker_failure(
     docker_commands: Callable[[tuple[str, int] | None], list[list[str]]],
+    capsys: pytest.CaptureFixture[str],
     failed_command: str,
     exit_code: int,
     expected_commands: list[str],
@@ -892,13 +894,119 @@ def test_build_command_reports_docker_failure(
 
     # Arrange
     commands = docker_commands((failed_command, exit_code))
-    runner = CliRunner()
 
     # Act
-    result = runner.invoke(main, ["build", "--push"])
+    with pytest.raises(SystemExit) as failure:
+        main(["build", "--push"])
 
     # Assert
-    assert result.exit_code == 1
-    assert f"Docker command failed with exit code {exit_code}" in result.output
+    assert failure.value.code == 1
+    assert f"Docker command failed with exit code {exit_code}" in capsys.readouterr().err
     assert [command[1] for command in commands] == expected_commands
     assert not Path(commands[0][-1]).exists()
+
+
+def run_docker(docker: str, *arguments: str, check: bool = True, timeout: int = 60) -> subprocess.CompletedProcess[str]:
+    """Run bounded Docker commands and report actionable failures when opted in."""
+
+    # Include Docker diagnostics in test failures rather than silently skipping prerequisites.
+    try:
+        result = subprocess.run([docker, *arguments], capture_output=True, text=True, check=False, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        pytest.fail(f"Docker command {arguments!r} could not complete: {error}")
+    if check and result.returncode:
+        pytest.fail(f"Docker command {arguments!r} failed ({result.returncode}):\n{result.stdout}\n{result.stderr}")
+    return result
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(os.environ.get("LONGLINK_DOCKER_TESTS") != "1", reason="Set LONGLINK_DOCKER_TESTS=1 to use real Docker")
+def test_generated_manifest_layer_preserves_literal_workspace_paths(tmp_path: Path) -> None:
+    """Build raw generated COPY and WORKDIR instructions and inspect the stopped image."""
+
+    # Require a functioning Docker installation only after explicit opt-in.
+    docker = shutil.which("docker")
+    if docker is None:
+        pytest.fail("LONGLINK_DOCKER_TESTS=1 requires the Docker CLI and a functioning daemon")
+    run_docker(docker, "info")
+
+    # Create glob-free workspace paths containing each supported quoting hazard.
+    workspace = tmp_path / "workspace"
+    solution_name = "solution spaces 'single' \"double\" $HOME \\backslash"
+    solution = workspace / solution_name
+    shared = workspace / "shared"
+    unrelated = workspace / "unrelated"
+    for project in (solution, shared, unrelated):
+        project.mkdir(parents=True)
+    workspace.joinpath("pyproject.toml").write_text(
+        f"[tool.uv.workspace]\nmembers = {json.dumps([solution_name, 'shared', 'unrelated'])}\n", encoding="utf-8"
+    )
+    workspace.joinpath("uv.lock").write_text("authoritative workspace lock\n", encoding="utf-8")
+    solution.joinpath("uv.lock").write_text("non-authoritative Solution lock\n", encoding="utf-8")
+    solution.joinpath("pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\ndependencies = ["shared"]\n'
+        '[tool.longlink]\nenvironments = "envs:Env"\n'
+        "[tool.uv.sources]\nshared = { workspace = true }\n",
+        encoding="utf-8",
+    )
+    solution.joinpath("envs.py").write_text("from pydantic import BaseModel\n\nclass Env(BaseModel):\n    pass\n", encoding="utf-8")
+    for project in (shared, unrelated):
+        project.joinpath("pyproject.toml").write_text(f'[project]\nname = "{project.name}"\nversion = "0.1.0"\n', encoding="utf-8")
+    shared.joinpath("source.py").write_text("VALUE = 1\n", encoding="utf-8")
+    unrelated.joinpath("private.txt").write_text("private unrelated source\n", encoding="utf-8")
+
+    # Generate the actual context and retain manifest instructions verbatim, not reconstructed arguments.
+    context = tmp_path / "context"
+    metadata = build.read_pyproject(solution)
+    _, _, description = build.read_project_metadata(metadata)
+    build.build_solution(solution, context, pyproject_data=metadata, project_description=description)
+    assert not context.joinpath("unrelated", "private.txt").exists()
+    assert context.joinpath("shared", "source.py").is_file()
+    generated_lines = context.joinpath("Dockerfile").read_text(encoding="utf-8").splitlines()
+    manifest_instructions: list[str] = []
+    for line in generated_lines:
+        if line.startswith(("COPY [", "WORKDIR ")):
+            manifest_instructions.append(line)
+        if line.startswith("WORKDIR "):
+            break
+    assert sum(line.startswith("COPY [") for line in manifest_instructions) == 4
+    assert manifest_instructions[-1].startswith("WORKDIR ")
+    context.joinpath("Dockerfile").write_text("FROM scratch\n" + "\n".join(manifest_instructions) + "\n", encoding="utf-8")
+
+    # Give every resource a unique known name so even failed build/create attempts can be cleaned up.
+    resource_id = uuid.uuid4().hex
+    image_tag = f"longlink-docker-test:{resource_id}"
+    container_name = f"longlink-docker-test-{resource_id}"
+    archive_path = tmp_path / "image.tar"
+    try:
+        run_docker(docker, "build", "--network=none", "--tag", image_tag, str(context), timeout=120)
+        inspection = run_docker(docker, "image", "inspect", "--format", "{{json .Config.WorkingDir}}", image_tag)
+        assert json.loads(inspection.stdout) == f"/workspace/{solution_name}"
+
+        # Export a never-started container: scratch has no shell or executable to run.
+        run_docker(docker, "create", "--name", container_name, image_tag, "/never-run")
+        run_docker(docker, "export", "--output", str(archive_path), container_name)
+        with tarfile.open(archive_path) as archive:
+            exported_files: dict[str, bytes] = {}
+            for member in archive.getmembers():
+                if not member.isfile() or not member.name.startswith("workspace/"):
+                    continue
+                contents = archive.extractfile(member)
+                assert contents is not None
+                with contents:
+                    exported_files[member.name] = contents.read()
+
+        # Compare actual filesystem paths and bytes, without repeating production quoting logic.
+        assert exported_files == {
+            "workspace/pyproject.toml": workspace.joinpath("pyproject.toml").read_bytes(),
+            "workspace/uv.lock": b"authoritative workspace lock\n",
+            f"workspace/{solution_name}/pyproject.toml": solution.joinpath("pyproject.toml").read_bytes(),
+            "workspace/shared/pyproject.toml": shared.joinpath("pyproject.toml").read_bytes(),
+            "workspace/unrelated/pyproject.toml": unrelated.joinpath("pyproject.toml").read_bytes(),
+        }
+    finally:
+        # Remove only this test's resources, including names allocated by unsuccessful Docker commands.
+        try:
+            run_docker(docker, "container", "rm", "--force", container_name, check=False)
+        finally:
+            run_docker(docker, "image", "rm", "--force", image_tag, check=False)

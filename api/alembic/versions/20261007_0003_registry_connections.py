@@ -1,5 +1,3 @@
-"""Add organization-owned registry connections and immutable release references."""
-
 import sqlalchemy as sa
 from alembic import op
 from src.environments import env

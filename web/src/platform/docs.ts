@@ -25,7 +25,7 @@ export { componentCatalog };
 
 // Derive website route identity from names without storing it in the SDK documentation catalog.
 export const componentDocumentation = componentCatalog
-    .filter((component) => !['ButtonGroup', 'StatusDot', 'CodeBlock'].includes(component.name))
+    .filter((component) => !['ButtonGroup', 'CodeBlock'].includes(component.name))
     .map((component) => ({
         ...component,
         label: component.name === 'Button' ? 'Buttons' : component.name,
@@ -41,10 +41,7 @@ export const componentDocumentation = componentCatalog
 export const documentationSections: Array<{ title: string; pages: Array<DocumentationPage> }> = [
     {
         title: 'Introduction',
-        pages: [
-            { path: '/docs', label: 'Documentation', icon: BookOpen },
-            { path: '/docs/introduction', label: 'Why LongLink', icon: BookOpen },
-        ],
+        pages: [{ path: '/docs', label: 'Documentation', icon: BookOpen }],
     },
     {
         title: 'Solutions',
@@ -62,6 +59,10 @@ export const documentationSections: Array<{ title: string; pages: Array<Document
     {
         title: 'Platform',
         pages: [{ path: '/docs/api', label: 'Overview', icon: ShieldCheck }],
+    },
+    {
+        title: 'Alternatives',
+        pages: [],
     },
 ];
 

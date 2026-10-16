@@ -17,6 +17,12 @@ type StackProps = {
     /** Spacing between items. */
     gap?: Spacing;
     padding?: Spacing;
+    /** Horizontal padding, overriding padding on the inline axis. */
+    paddingInline?: Spacing;
+    /** Vertical padding, overriding padding on the block axis. */
+    paddingBlock?: Spacing;
+    /** Optional muted surface background; omitted stacks remain transparent. */
+    background?: 'muted';
     direction?: 'horizontal' | 'vertical';
     justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly';
     align?: 'start' | 'center' | 'end' | 'stretch';
@@ -24,12 +30,12 @@ type StackProps = {
 };
 
 /** Arranges View content using the LongLink spacing scale. */
-export function Stack(props: StackProps) {
+export function Stack({ background, ...props }: StackProps) {
     // Keep hidden content mounted and override the underlying flex display without disabling fields.
     return (
         <AstryxStack
             {...props}
-            className={props.hidden ? 'hidden!' : undefined}
+            className={props.hidden ? 'hidden!' : background === 'muted' ? 'bg-muted' : undefined}
             gap={props.gap ?? 3}
             padding={props.padding ?? 0}
             direction={props.direction ?? 'vertical'}

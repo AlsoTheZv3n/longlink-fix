@@ -3,6 +3,7 @@ import * as React from 'react';
 import { transform } from 'sucrase';
 import { limitAsync } from 'es-toolkit';
 import * as components from './components';
+import { ReportedError } from '@/lib/errors';
 import { createRoot } from 'react-dom/client';
 import { Theme } from '@astryxdesign/core/theme';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -14,7 +15,7 @@ import { FormRequestContext } from '@/components/ui/Form';
 import { IconRequestContext } from '@/components/ui/Icon';
 import { LinkNavigationContext } from '@/components/ui/Link';
 import { MenuNavigationContext } from '@/components/ui/Menu';
-import { FileRequestContext } from '@/components/ui/FileViewer';
+import { FileRequestContext } from '@/components/ui/preview';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import { QueryClient, QueryClientProvider, QueryErrorResetBoundary, useSuspenseQuery } from '@tanstack/react-query';
 import {
@@ -35,7 +36,7 @@ import {
     iconSchema,
     iconDataSchema,
 } from './protocol';
-import './theme.css';
+import '../theme.css';
 
 declare global {
     interface Window {
@@ -72,11 +73,9 @@ function MenuNavigationProvider({ children }: { children: React.ReactNode }) {
                 },
             }}
         >
-            <LinkNavigationContext value={navigate}>
-                <FileRequestContext value={fileRequests}>
-                    <FormRequestContext value={request}>{children}</FormRequestContext>
-                </FileRequestContext>
-            </LinkNavigationContext>
+            <FileRequestContext value={fileRequests}>
+                <FormRequestContext value={request}>{children}</FormRequestContext>
+            </FileRequestContext>
         </MenuNavigationContext>
     );
 }
@@ -88,7 +87,7 @@ const lifetime = new AbortController();
 const pending = new Map<
     number,
     {
-        type: 'icon' | 'request' | 'download';
+        budget: 'icon' | 'operation';
         resolve: (value: ViewData) => void;
         reject: (error: Error) => void;
         timer: ReturnType<typeof setTimeout>;
@@ -134,10 +133,11 @@ async function request(
 async function exchange(command: RequestCommand | DownloadCommand | IconCommand): Promise<ViewData> {
     // Keep icon admission separate from the existing Solution operation budget.
     lifetime.signal.throwIfAborted();
-    const iconRequest = command.type === 'icon';
-    const count = [...pending.values()].filter((entry) => (entry.type === 'icon') === iconRequest).length;
+    const budget = command.type === 'icon' ? 'icon' : 'operation';
+    const count = [...pending.values()].filter((entry) => entry.budget === budget).length;
 
-    if (count >= (iconRequest ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS)) throw new Error('Too many pending requests');
+    if (count >= (budget === 'icon' ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS))
+        throw new Error('Too many pending requests');
     const { id } = command;
 
     return new Promise<ViewData>((resolve, reject) => {
@@ -146,7 +146,7 @@ async function exchange(command: RequestCommand | DownloadCommand | IconCommand)
             reject(new Error('Solution request timed out'));
         }, REQUEST_TIMEOUT);
 
-        pending.set(id, { type: command.type, resolve, reject, timer });
+        pending.set(id, { budget, resolve, reject, timer });
 
         // A failed transfer must release its slot and timer immediately, not at timeout.
         try {
@@ -183,8 +183,8 @@ async function download(path: string, filename: string): Promise<void> {
 }
 
 /** Requests scoped Solution navigation or opens an HTTP(S) URL in a new tab during user activation. */
-function navigate(path: string): void {
-    port.postMessage({ type: 'navigate', path });
+function navigate(path: string, newTab = false): void {
+    port.postMessage({ type: 'navigate', path, newTab });
 }
 
 /** Returns Solution data and an awaitable invalidator scoped to the full request path. */
@@ -203,7 +203,14 @@ function useApi(path: string): readonly [ViewData, () => Promise<void>] {
     return [data, invalidate];
 }
 
-const initialization = z.object({ session: z.string(), source: z.string(), params: parametersSchema }).strict();
+const initialization = z
+    .object({
+        session: z.string(),
+        source: z.string(),
+        params: parametersSchema,
+        navigationBaseUrl: z.url({ protocol: /^https?$/ }),
+    })
+    .strict();
 
 /** Receives source once from the parent, then accepts capabilities only over the transferred port. */
 function initialize(event: MessageEvent<unknown>): void {
@@ -226,7 +233,11 @@ function initialize(event: MessageEvent<unknown>): void {
 
             if (data.success) waiter.resolve(data.data);
             else waiter.reject(new Error('The Solution returned an invalid response.'));
-        } else waiter.reject(Object.assign(new Error(reply.data.error), { status: reply.data.status }));
+        } else {
+            // Preserve host notification ownership when this failure reaches a form or other workflow.
+            const error = reply.data.notified ? new ReportedError(reply.data.error) : new Error(reply.data.error);
+            waiter.reject(Object.assign(error, { status: reply.data.status }));
+        }
     };
 
     const mount = document.getElementById('view');
@@ -239,11 +250,22 @@ function initialize(event: MessageEvent<unknown>): void {
 
     const root = createRoot(mount);
 
+    // Report natural content height, including async data and wrapping, over the private channel.
+    const observer = new ResizeObserver(() => {
+        port.postMessage({
+            type: 'resize',
+            height: Math.min(1_000_000, Math.max(1, Math.ceil(mount.getBoundingClientRect().height))),
+        });
+    });
+
+    observer.observe(mount);
+
     // Release all resources acquired by this initialized sandbox in one teardown.
     window.addEventListener(
         'pagehide',
         () => {
             lifetime.abort();
+            observer.disconnect();
 
             for (const waiter of pending.values()) {
                 clearTimeout(waiter.timer);
@@ -280,7 +302,9 @@ function initialize(event: MessageEvent<unknown>): void {
             useApi,
         };
 
-        type ViewModule = { exports: { default?: React.ComponentType<{ params: Readonly<Record<string, string>> }> } };
+        type ViewComponent = React.ComponentType<{ params: Readonly<Record<string, string>> }>;
+
+        type ViewModule = { exports: { default?: ViewComponent } };
 
         const module: ViewModule = { exports: {} };
 
@@ -293,14 +317,12 @@ function initialize(event: MessageEvent<unknown>): void {
         );
 
         // A callable export is the admission contract; React's error boundary handles invalid component rendering.
-        const component = z
-            .custom<React.ComponentType<{ params: Readonly<Record<string, string>> }>>(
-                (value) => value instanceof Function
-            )
-            .safeParse(evaluate(module, module.exports, ...Object.values(bindings)));
+        const component: unknown = evaluate(module, module.exports, ...Object.values(bindings));
 
-        if (!component.success) throw new Error('A View must export a component as default');
-        const View = component.data;
+        if (!(component instanceof Function)) throw new Error('A View must export a component as default');
+
+        // SAFETY: Callable exports pass admission above; the error boundary handles invalid React rendering.
+        const View = component as ViewComponent;
 
         const params = Object.freeze(parsed.data.params);
         root.render(
@@ -309,12 +331,13 @@ function initialize(event: MessageEvent<unknown>): void {
                     <QueryClientProvider client={client}>
                         <QueryErrorResetBoundary>
                             {({ reset }) => (
-                                <Layout height="fill">
-                                    <LayoutContent padding={0} label="Solution View" role="region">
+                                <Layout height="auto">
+                                    <LayoutContent padding={0} isScrollable={false} label="Solution View" role="region">
                                         <ErrorBoundary
                                             onReset={reset}
                                             fallbackRender={({ error, resetErrorBoundary }) => (
                                                 <Banner
+                                                    role="status"
                                                     status="error"
                                                     title="View could not be loaded"
                                                     description={
@@ -330,9 +353,13 @@ function initialize(event: MessageEvent<unknown>): void {
                                         >
                                             <React.Suspense fallback={<Spinner label="Loading View" />}>
                                                 <IconRequestContext value={loadIcon}>
-                                                    <MenuNavigationProvider>
-                                                        <View params={params} />
-                                                    </MenuNavigationProvider>
+                                                    <LinkNavigationContext
+                                                        value={{ baseUrl: parsed.data.navigationBaseUrl, navigate }}
+                                                    >
+                                                        <MenuNavigationProvider>
+                                                            <View params={params} />
+                                                        </MenuNavigationProvider>
+                                                    </LinkNavigationContext>
                                                 </IconRequestContext>
                                             </React.Suspense>
                                         </ErrorBoundary>
@@ -348,9 +375,10 @@ function initialize(event: MessageEvent<unknown>): void {
         // Compilation diagnostics belong to the authored source, not privileged host state.
         root.render(
             <Theme theme={stoneTheme} mode="dark">
-                <Layout height="fill">
-                    <LayoutContent padding={0} label="Solution View" role="region">
+                <Layout height="auto">
+                    <LayoutContent padding={0} isScrollable={false} label="Solution View" role="region">
                         <Banner
+                            role="status"
                             status="error"
                             title="View compilation failed"
                             description={

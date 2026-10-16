@@ -2,10 +2,12 @@ import { Icon } from './ui/Icon';
 import { Button } from './ui/Button';
 import { FormStep } from './ui/FormStep';
 import { Step, Stepper } from './ui/Stepper';
+import { ReportedError } from '@/lib/errors';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import type { FormValidation } from './ui/FormField';
 import type { ReactElement, ReactNode } from 'react';
+import { useAnnounce } from '@astryxdesign/core/hooks';
 import { Children, isValidElement, useEffect, useRef, useState } from 'react';
 import { Layout, LayoutHeader, LayoutContent } from '@astryxdesign/core/Layout';
 
@@ -25,17 +27,18 @@ export function Form(props: {
     height?: number | string;
     /** Label for the automatic final submit button when using FormStep children; defaults to Save. */
     submitLabel?: string;
-    /** Runs before advancing a validated step; false keeps the current step open. */
-    onNext?: (step: number) => void | boolean | Promise<void | boolean>;
-    /** Overrides Next for steps with an intermediate action, such as image inspection. */
-    nextLabel?: (step: number) => string;
+    /** Selects an intermediate label and action; the action runs after validation, and false prevents advancement. */
+    next?: (step: number) => { label: string; action: () => void | boolean | Promise<void | boolean> } | undefined;
     /** Disables the final submission when domain requirements are not satisfied. */
     submitDisabled?: boolean;
     /** Shows a cancel action beside the automatic navigation controls. */
     onCancel?: () => void;
+    /** Appearance of the wizard's Back action; defaults to secondary. */
+    backVariant?: 'secondary' | 'ghost';
 }) {
     // Guard writes and asynchronous advances independently of React render timing.
     const pending = useRef(false);
+    const announce = useAnnounce();
     const [submission, setSubmission] = useState<{ submitting: boolean; error?: string }>({ submitting: false });
 
     // Recognize direct marker children, retaining other content as shared fields or layout.
@@ -50,6 +53,9 @@ export function Form(props: {
     const [step, setStep] = useState(0);
     const activeStep = Math.min(step, Math.max(steps.length - 1, 0));
     const [failure, setFailure] = useState<{ control: HTMLElement } | null>(null);
+
+    // Resolve the intermediate descriptor once so its label and action stay paired.
+    const next = activeStep < steps.length - 1 ? props.next?.(activeStep) : undefined;
 
     // Reveal an invalid panel before focusing its control and presenting native validation feedback.
     useEffect(() => {
@@ -117,17 +123,24 @@ export function Form(props: {
 
             // Complete intermediate work before advancing; failed inspection retains the current panel and draft.
             if (!final) {
-                const advance = await props.onNext?.(activeStep);
+                const advance = await next?.action();
 
                 if (advance !== false) setStep(activeStep + 1);
             } else if (data) {
                 await props.action(data);
             }
         } catch (failure) {
+            // The host toast already presents Solution request failures, including their accessible announcement.
+            if (failure instanceof ReportedError) return;
+
+            // Announce the failed action once, independently of the banner's visual status.
+            const error = failure instanceof Error ? failure.message : 'Form submission failed';
+
             setSubmission((current) => ({
                 ...current,
-                error: failure instanceof Error ? failure.message : 'Form submission failed',
+                error,
             }));
+            announce(error, 'assertive');
         } finally {
             pending.current = false;
             setSubmission((current) => ({ ...current, submitting: false }));
@@ -144,25 +157,30 @@ export function Form(props: {
     );
 
     // Reuse the same persistent panels and navigation in inline forms and bounded dialogs.
+    let stepIndex = 0;
+
     const content = (
         <Stack gap={steps.length > 0 ? 4 : 3}>
             {steps.length === 0
                 ? props.children
                 : children.map((child) => {
-                      // Keep all step fields mounted and enabled so final serialization remains complete.
-                      const index = steps.findIndex((candidate) => candidate === child);
+                      // Shared children do not consume a step index.
+                      if (!isValidElement<Parameters<typeof FormStep>[0]>(child) || child.type !== FormStep)
+                          return child;
 
-                      if (index < 0) return child;
+                      // Keep all step fields mounted and enabled so final serialization remains complete.
+                      const index = stepIndex++;
 
                       return (
                           <fieldset
-                              key={steps[index].key}
+                              key={child.key}
                               data-form-step={index}
                               hidden={index !== activeStep}
                               className="m-0 min-w-0 border-0 p-0"
-                              aria-label={steps[index].props.label}
+                              aria-label={child.props.label}
                           >
-                              {steps[index].props.children}
+                              {/* Own the default field rhythm while preserving explicit layouts within a step. */}
+                              <Stack gap={3}>{child.props.children}</Stack>
                           </fieldset>
                       );
                   })}
@@ -172,7 +190,7 @@ export function Form(props: {
                         {props.onCancel && <Button label="Cancel" variant="ghost" onClick={props.onCancel} />}
                         <Button
                             label="Back"
-                            variant="secondary"
+                            variant={props.backVariant ?? 'secondary'}
                             hidden={Boolean(props.onCancel) && activeStep === 0}
                             disabled={activeStep === 0}
                             onClick={() => setStep(activeStep - 1)}
@@ -180,9 +198,7 @@ export function Form(props: {
                     </Stack>
                     <Button
                         label={
-                            activeStep === steps.length - 1
-                                ? (props.submitLabel ?? 'Save')
-                                : (props.nextLabel?.(activeStep) ?? 'Next')
+                            activeStep === steps.length - 1 ? (props.submitLabel ?? 'Save') : (next?.label ?? 'Next')
                         }
                         type="submit"
                         variant="primary"
@@ -266,11 +282,13 @@ export function Form(props: {
                                 </LayoutContent>
                             }
                         />
-                    ) : (
+                    ) : steps.length > 0 ? (
                         <Stack gap={4}>
-                            {steps.length > 0 && progress}
+                            {progress}
                             {content}
                         </Stack>
+                    ) : (
+                        content
                     )}
                 </fieldset>
             </form>

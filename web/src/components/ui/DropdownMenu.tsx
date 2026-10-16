@@ -1,5 +1,4 @@
 import * as menus from './menus';
-import { useState } from 'react';
 import type { DropdownMenuOption } from './menus';
 import { DropdownMenu as AstryxDropdownMenu } from '@astryxdesign/core/DropdownMenu';
 
@@ -20,7 +19,7 @@ export function DropdownMenu(props: {
     onOpenChange?: (isOpen: boolean) => void;
 }) {
     // Own uncontrolled visibility so hiding also closes a popup outside the trigger's subtree.
-    const [open, setOpen] = useState(false);
+    const visibility = menus.useVisibility(props.hidden, props.isMenuOpen, props.onOpenChange);
 
     // Supply an accessible trigger while preserving uncontrolled menu state.
     return (
@@ -28,11 +27,7 @@ export function DropdownMenu(props: {
             {...props}
             items={menus.icons(props.items)}
             className={props.hidden ? 'hidden!' : undefined}
-            isMenuOpen={!props.hidden && (props.isMenuOpen ?? open)}
-            onOpenChange={(isOpen) => {
-                if (props.isMenuOpen === undefined) setOpen(isOpen);
-                props.onOpenChange?.(isOpen);
-            }}
+            {...visibility}
             button={{
                 ...(props.button ?? { label: 'Menu', variant: 'secondary', size: 'md', isDisabled: false }),
                 hidden: props.hidden,

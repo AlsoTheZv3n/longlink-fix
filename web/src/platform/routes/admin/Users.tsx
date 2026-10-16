@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@astryxdesign/core/Badge';
 import { Stack } from '@astryxdesign/core/Stack';
+import { useDeferredValue, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
+import { TextInput } from '@/components/ui/TextInput';
 import { Timestamp } from '@astryxdesign/core/Timestamp';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
@@ -13,13 +14,28 @@ import { zPageAdminUserSummary } from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Lists Platform users with server-side pagination. */
 export default function Users() {
-    const [page, setPage] = useState(1);
-    const [users] = useApi(`/api/v1/users?page=${page}&page_size=25`, zPageAdminUserSummary);
+    // Defer list requests so typing remains responsive while a new page loads.
+    const [filters, setFilters] = useState({ search: '', page: 1 });
+    const { search, page } = useDeferredValue(filters);
+
+    const [users] = useApi(
+        `/api/v1/users?page=${page}&page_size=25&search=${encodeURIComponent(search.trim())}`,
+        zPageAdminUserSummary
+    );
 
     return (
-        <Stack gap={4}>
+        <Stack gap={2}>
             <NoIndex title="Users | LongLink" />
             <Heading level={1}>Users</Heading>
+            <TextInput
+                label="Search users"
+                isLabelHidden
+                placeholder="Search by name or email"
+                value={filters.search}
+                startIcon={<Search />}
+                hasClear
+                onChange={(search) => setFilters({ search, page: 1 })}
+            />
             <Stack gap={1}>
                 <Table
                     data={users.items}
@@ -37,7 +53,9 @@ export default function Users() {
                                     <Stack align="start">
                                         <Stack direction="horizontal" gap={1} align="center">
                                             <Text>{row.name}</Text>
-                                            <Badge label={row.administrator ? 'Administrator' : 'User'} />
+                                            <Text type="supporting">
+                                                {row.administrator ? 'Administrator' : 'User'}
+                                            </Text>
                                         </Stack>
                                         <Text type="supporting">{row.email}</Text>
                                     </Stack>
@@ -59,7 +77,15 @@ export default function Users() {
                         },
                     ]}
                 />
-                <Pagination page={page} onChange={setPage} totalItems={users.total} pageSize={25} variant="none" />
+                <Stack as="footer" align="center" paddingBlock={2}>
+                    <Pagination
+                        page={page}
+                        onChange={(page) => setFilters({ ...filters, page })}
+                        totalItems={users.total}
+                        pageSize={25}
+                        variant="pages"
+                    />
+                </Stack>
             </Stack>
         </Stack>
     );

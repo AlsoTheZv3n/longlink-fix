@@ -2,14 +2,14 @@ import re
 import sys
 import json
 import shlex
-import typer
 import shutil
 import tomllib
 import tempfile
 import subprocess  # noqa: S404
-from typing import Annotated
+from typing import TypedDict, NotRequired
 from pathlib import Path
 from pydantic import TypeAdapter, ValidationError
+from longlink.cli import errors
 from collections.abc import Mapping
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
@@ -115,7 +115,16 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level"
 """
 
 
-def read_env_spec(root: Path, pyproject_data: Mapping[str, object]) -> list[dict[str, object]]:
+class EnvironmentEntry(TypedDict):
+    """Validate the environment requirements returned by the isolated inspector."""
+
+    # Runtime environment metadata, without defaults or secret values.
+    name: str
+    required: bool
+    description: NotRequired[str]
+
+
+def read_env_spec(root: Path, pyproject_data: Mapping[str, object]) -> list[EnvironmentEntry]:
     """Parse the configured Solution environment model."""
 
     # Require the project configuration that selects the environment model.
@@ -123,18 +132,18 @@ def read_env_spec(root: Path, pyproject_data: Mapping[str, object]) -> list[dict
     longlink_data = tool_data.get("longlink") if isinstance(tool_data, dict) else None
     environment_import = longlink_data.get("environments") if isinstance(longlink_data, dict) else None
     if not isinstance(environment_import, str):
-        raise typer.TyperException("[tool.longlink].environments must be a module:Class import string")
+        raise errors.Error("[tool.longlink].environments must be a module:Class import string")
 
     # Parse the configured module and class names without importing Solution code.
     module_name, separator, class_name = environment_import.strip().partition(":")
     module_parts = module_name.split(".")
     if separator != ":" or not all(part.isidentifier() for part in module_parts) or not class_name.isidentifier():
-        raise typer.TyperException("[tool.longlink].environments must be a module:Class import string")
+        raise errors.Error("[tool.longlink].environments must be a module:Class import string")
 
     # Resolve the configured environment module before importing Solution code.
     envs_path = root.joinpath(*module_parts).with_suffix(".py")
     if not envs_path.is_file():
-        raise typer.TyperException(f"Environment model not found: {envs_path}")
+        raise errors.Error(f"Environment model not found: {envs_path}")
 
     # Let a child process own Solution imports and their global state until it exits.
     with tempfile.TemporaryDirectory(prefix="longlink-env-") as directory:
@@ -155,22 +164,22 @@ def read_env_spec(root: Path, pyproject_data: Mapping[str, object]) -> list[dict
 
         # Keep import-time output separate from the metadata transport.
         if result.stdout:
-            typer.echo(result.stdout, nl=False)
+            print(result.stdout, end="")
         if result.stderr:
-            typer.echo(result.stderr, nl=False, err=True)
+            print(result.stderr, end="", file=sys.stderr)
         if result.returncode:
-            raise typer.TyperException(
+            raise errors.Error(
                 f"Unable to inspect environment model {environment_import}: child process exited with code {result.returncode}"
             )
 
         # Validate the child response before using it as image metadata or a CLI error.
-        adapter = TypeAdapter(list[dict[str, object]] | str)
+        adapter = TypeAdapter(list[EnvironmentEntry] | str)
         try:
-            environments = adapter.validate_json(result_path.read_bytes())
+            environments = adapter.validate_json(result_path.read_bytes(), strict=True)
         except (OSError, ValidationError) as error:
-            raise typer.TyperException(f"Unable to inspect environment model {environment_import}: invalid child response") from error
+            raise errors.Error(f"Unable to inspect environment model {environment_import}: invalid child response") from error
         if isinstance(environments, str):
-            raise typer.TyperException(environments)
+            raise errors.Error(environments)
         return environments
 
 
@@ -180,13 +189,13 @@ def read_pyproject(root: Path) -> dict[str, object]:
     # Resolve and require the project file before parsing metadata.
     pyproject = root / "pyproject.toml"
     if not pyproject.is_file():
-        raise typer.TyperException(f"Project file not found: {pyproject}")
+        raise errors.Error(f"Project file not found: {pyproject}")
 
     # Parse TOML into project metadata.
     try:
         return tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as error:
-        raise typer.TyperException(f"Invalid project file {pyproject}: {error}") from error
+        raise errors.Error(f"Invalid project file {pyproject}: {error}") from error
 
 
 def read_project_metadata(pyproject_data: Mapping[str, object]) -> tuple[str, str, str | None]:
@@ -195,16 +204,16 @@ def read_project_metadata(pyproject_data: Mapping[str, object]) -> tuple[str, st
     # Require the image metadata before creating any build artifacts.
     project_data = pyproject_data.get("project")
     if not isinstance(project_data, dict):
-        raise typer.TyperException("[project] metadata is required")
+        raise errors.Error("[project] metadata is required")
     project_name = project_data.get("name")
     project_version = project_data.get("version")
     project_description = project_data.get("description")
     if not isinstance(project_name, str) or not project_name.strip():
-        raise typer.TyperException("[project].name is required")
+        raise errors.Error("[project].name is required")
     if not isinstance(project_version, str) or not project_version.strip():
-        raise typer.TyperException("[project].version is required")
+        raise errors.Error("[project].version is required")
     if project_description is not None and not isinstance(project_description, str):
-        raise typer.TyperException("[project].description must be a string")
+        raise errors.Error("[project].description must be a string")
 
     return project_name, project_version, project_description
 
@@ -243,11 +252,11 @@ def resolve_docker_paths(root: Path, pyproject_data: Mapping[str, object]) -> tu
         for field in ("members", "exclude"):
             patterns = workspace_data.get(field, [])
             if not isinstance(patterns, list) or not all(isinstance(pattern, str) for pattern in patterns):
-                raise typer.TyperException(f"[tool.uv.workspace].{field} must be a list of path patterns")
+                raise errors.Error(f"[tool.uv.workspace].{field} must be a list of path patterns")
             declared_paths[field] = set()
             for pattern in patterns:
                 if not pattern or Path(pattern).is_absolute() or ".." in Path(pattern).parts:
-                    raise typer.TyperException(f"UV workspace path pattern must stay inside the workspace: {pattern}")
+                    raise errors.Error(f"UV workspace path pattern must stay inside the workspace: {pattern}")
                 for member in candidate.glob(pattern):
                     resolved_member = member.resolve()
                     if resolved_member.is_dir():
@@ -257,11 +266,11 @@ def resolve_docker_paths(root: Path, pyproject_data: Mapping[str, object]) -> tu
         workspace_paths = {workspace_root} | (declared_paths["members"] - declared_paths["exclude"])
         for member in workspace_paths:
             if not member.is_relative_to(workspace_root):
-                raise typer.TyperException(f"UV workspace member must be inside the UV workspace: {member}")
+                raise errors.Error(f"UV workspace member must be inside the UV workspace: {member}")
 
         # Require the Solution to belong to the discovered workspace, including its implicit root project.
         if root not in workspace_paths:
-            raise typer.TyperException(f"Solution must be a member of the UV workspace: {root}")
+            raise errors.Error(f"Solution must be a member of the UV workspace: {root}")
         break
 
     # Retain inherited workspace sources without installing every configured root source.
@@ -298,9 +307,9 @@ def resolve_docker_paths(root: Path, pyproject_data: Mapping[str, object]) -> tu
         # Prevent manifest-only copying from following links outside the approved workspace.
         manifest_target = pyproject_path.resolve()
         if not manifest_target.is_relative_to(workspace_root):
-            raise typer.TyperException(f"Project manifest must be inside the UV workspace: {pyproject_path}")
+            raise errors.Error(f"Project manifest must be inside the UV workspace: {pyproject_path}")
         if pyproject_path.is_symlink() and ignore_patterns(str(workspace_root), list(manifest_target.relative_to(workspace_root).parts)):
-            raise typer.TyperException(f"Project manifest must not reference an ignored path: {pyproject_path}")
+            raise errors.Error(f"Project manifest must not reference an ignored path: {pyproject_path}")
         manifest_paths.add(pyproject_path)
         source_pyproject_data = project_data_by_path.get(source_root)
         if source_pyproject_data is None:
@@ -398,7 +407,7 @@ def resolve_docker_paths(root: Path, pyproject_data: Mapping[str, object]) -> tu
                             resolved_source_path = member
                             break
                 if resolved_source_path is None:
-                    raise typer.TyperException(f"Local dependency must be a member of the UV workspace: {source_name}")
+                    raise errors.Error(f"Local dependency must be a member of the UV workspace: {source_name}")
             else:
                 continue
 
@@ -408,15 +417,15 @@ def resolve_docker_paths(root: Path, pyproject_data: Mapping[str, object]) -> tu
 
             # Reject dependencies outside the permitted workspace boundary.
             if not resolved_source_path.is_relative_to(workspace_root):
-                raise typer.TyperException(f"Local dependency must be inside the UV workspace: {resolved_source_path}")
+                raise errors.Error(f"Local dependency must be inside the UV workspace: {resolved_source_path}")
 
             # Never recursively copy a dependency that encloses the Solution.
             if include_source and resolved_source_path != root and root.is_relative_to(resolved_source_path):
-                raise typer.TyperException(f"Local dependency must not be an ancestor of the Solution: {resolved_source_path}")
+                raise errors.Error(f"Local dependency must not be an ancestor of the Solution: {resolved_source_path}")
 
             # Admit contained Solution dependencies or declared workspace members, not arbitrary sibling projects.
             if include_source and not resolved_source_path.is_relative_to(root) and resolved_source_path not in workspace_paths:
-                raise typer.TyperException(f"Local dependency must be a member of the UV workspace: {resolved_source_path}")
+                raise errors.Error(f"Local dependency must be a member of the UV workspace: {resolved_source_path}")
             pending_paths.append((resolved_source_path, include_source))
 
     # Use a shared build context so relative source paths remain valid in container.
@@ -429,15 +438,15 @@ def validate_lockfile(lockfile: Path, workspace_root: Path) -> None:
 
     # Require the actual file before following its resolved target.
     if not lockfile.is_file():
-        raise typer.TyperException(f"Lockfile not found: {lockfile}")
+        raise errors.Error(f"Lockfile not found: {lockfile}")
     lockfile_target = lockfile.resolve()
     if not lockfile_target.is_relative_to(workspace_root):
-        raise typer.TyperException(f"Lockfile must be inside the UV workspace: {lockfile}")
+        raise errors.Error(f"Lockfile must be inside the UV workspace: {lockfile}")
 
     # Keep symbolic lockfiles from bypassing the sensitive-path exclusion policy.
     ignore_patterns = shutil.ignore_patterns(*CONTEXT_IGNORE_PATTERNS)
     if lockfile.is_symlink() and ignore_patterns(str(workspace_root), list(lockfile_target.relative_to(workspace_root).parts)):
-        raise typer.TyperException(f"Lockfile must not reference an ignored path: {lockfile}")
+        raise errors.Error(f"Lockfile must not reference an ignored path: {lockfile}")
 
 
 def build_solution(root: Path, build_context: Path, *, pyproject_data: Mapping[str, object], project_description: str | None) -> None:
@@ -454,9 +463,9 @@ def build_solution(root: Path, build_context: Path, *, pyproject_data: Mapping[s
     for path in (root, *project_manifests):
         relative_path = path.relative_to(source_root).as_posix()
         if "\r" in relative_path or "\n" in relative_path:
-            raise typer.TyperException(f"Docker build paths must not contain line breaks: {relative_path!r}")
+            raise errors.Error(f"Docker build paths must not contain line breaks: {relative_path!r}")
         if any(character in relative_path for character in "*?["):
-            raise typer.TyperException(f"Docker build paths must not contain glob characters: {relative_path!r}")
+            raise errors.Error(f"Docker build paths must not contain glob characters: {relative_path!r}")
 
     # Use the installed package version when available, falling back for editable source trees.
     try:
@@ -465,7 +474,8 @@ def build_solution(root: Path, build_context: Path, *, pyproject_data: Mapping[s
         sdk_version = "0.0.0"
 
     # Render standard OCI metadata and LongLink-specific runtime metadata.
-    labels: list[str] = []
+    _, project_version, _ = read_project_metadata(pyproject_data)
+    labels = [f"LABEL org.opencontainers.image.version={json.dumps(project_version)}"]
     if project_description is not None:
         labels.append(f"LABEL org.opencontainers.image.description={json.dumps(project_description)}")
     environments = read_env_spec(root, pyproject_data)
@@ -489,8 +499,13 @@ def build_solution(root: Path, build_context: Path, *, pyproject_data: Mapping[s
             if name in ignored:
                 continue
 
-            # Prune unrelated projects even when the Solution is the workspace root.
+            # Leave separately selected directories to their own copy traversal.
             path = Path(directory, name)
+            if path in selected_paths:
+                ignored.add(name)
+                continue
+
+            # Prune unrelated projects even when the Solution is the workspace root.
             if path in manifest_only_paths and not any(selected.is_relative_to(path) for selected in selected_paths):
                 ignored.add(name)
                 continue
@@ -580,11 +595,11 @@ def resolve_image_tag(solution_name: str, version: str, registry: str | None = N
 
     # Reject generated names Docker cannot accept.
     if not DOCKER_NAME_COMPONENT_PATTERN.fullmatch(image_name):
-        raise typer.TyperException(f"Invalid Docker image name '{image_name}' generated from project name '{solution_name}'")
+        raise errors.Error(f"Invalid Docker image name '{image_name}' generated from project name '{solution_name}'")
 
     # Reject invalid Docker tags.
     if not DOCKER_TAG_PATTERN.fullmatch(version):
-        raise typer.TyperException(f"Invalid Docker image tag '{version}'")
+        raise errors.Error(f"Invalid Docker image tag '{version}'")
 
     # Add a registry prefix when requested.
     if registry_prefix:
@@ -593,28 +608,39 @@ def resolve_image_tag(solution_name: str, version: str, registry: str | None = N
         registry_host = registry_parts[0]
         host, separator, port = registry_host.partition(":")
         if separator and (not port.isdecimal() or not 1 <= int(port) <= 65535):
-            raise typer.TyperException("Docker registry port is invalid")
+            raise errors.Error("Docker registry port is invalid")
         if host != "localhost" and (host != "ghcr.io" or separator or len(registry_parts) != 2):
-            raise typer.TyperException("Docker registry must be ghcr.io/<owner> or localhost")
+            raise errors.Error("Docker registry must be ghcr.io/<owner> or localhost")
 
         # Validate registry namespace components.
         if any(not DOCKER_NAME_COMPONENT_PATTERN.fullmatch(component) for component in registry_parts[1:]):
-            raise typer.TyperException(f"Invalid Docker image path '{registry_prefix}/{image_name}'")
+            raise errors.Error(f"Invalid Docker image path '{registry_prefix}/{image_name}'")
         return f"{registry_prefix}/{image_name}:{version}"
 
     return f"{image_name}:{version}"
 
 
 def build_command(
-    tag: Annotated[str | None, typer.Option(help="Override the project version used as the image tag, for example dev.")] = None,
-    registry: Annotated[
-        str | None,
-        typer.Option(help="Registry prefix: ghcr.io/<owner> for releases or localhost:15000 for development."),
-    ] = None,
-    push: Annotated[bool, typer.Option(help="Push the built image tag after building.")] = False,
-    latest: Annotated[bool, typer.Option(help="Also tag the built image as latest.")] = False,
+    *,
+    tag: str | None = None,
+    registry: str | None = None,
+    push: bool = False,
+    latest: bool = False,
 ) -> None:
-    """Create temporary Docker build artifacts and build the image locally."""
+    """Create temporary Docker build artifacts and build the image locally.
+
+    Parameters
+    ----------
+    tag
+        Override the project version used as the image tag, for example dev.
+    registry
+        Registry prefix: ghcr.io/<owner> for releases or localhost:15000 for development.
+    push
+        Push the built image tag after building.
+    latest
+        Also tag the built image as latest.
+
+    """
 
     # Validate the project and Docker prerequisites before copying source files.
     root = Path.cwd().resolve()
@@ -632,7 +658,7 @@ def build_command(
     # Require Docker before preparing the build context.
     docker_command = shutil.which("docker")
     if docker_command is None:
-        raise typer.TyperException("Docker is required to build images")
+        raise errors.Error("Docker is required to build images")
 
     # Build inside a temporary context.
     with tempfile.TemporaryDirectory(prefix="longlink-build-") as temp_dir:
@@ -652,13 +678,13 @@ def build_command(
                 for image_tag in image_tags:
                     subprocess.run([docker_command, "push", image_tag], check=True)  # noqa: S603
         except subprocess.CalledProcessError as error:
-            raise typer.TyperException(f"Docker command failed with exit code {error.returncode}") from error
+            raise errors.Error(f"Docker command failed with exit code {error.returncode}") from error
 
     # Report every tag attached to the built image.
     for image_tag in image_tags:
-        typer.echo(f"- Built image: {image_tag}")
+        print(f"- Built image: {image_tag}")
 
     # Report pushed images only when requested.
     if push:
         for image_tag in image_tags:
-            typer.echo(f"- Pushed image: {image_tag}")
+            print(f"- Pushed image: {image_tag}")

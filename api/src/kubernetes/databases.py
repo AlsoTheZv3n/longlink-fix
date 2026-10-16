@@ -1,30 +1,13 @@
-"""Reconcile, connect to, and delete isolated Organization CNPG clusters.
-
-An Organization database lives in ``longlink-database-{organization UUID hex}``
-with its Cluster, credentials, quota, and network policy. ``apply`` renders that
-boundary before creating CNPG resources. ``resume`` confirms both CNPG
-status and ready instance Pods before callers connect.
-
-    Structure::
-
-    Organization
-    └── Namespace longlink-database-{organization UUID hex}
-        ├── Cluster database
-        ├── Secret database-superuser
-        ├── ResourceQuota database
-        └── NetworkPolicy database
-"""
-
-import ssl
 import json
-import base64
 import asyncio
 from uuid import UUID
 from typing import TYPE_CHECKING
-from src.utils import templates
-from src.kubernetes import utils, namespace
+from src.utils import postgres, templates
+from src.kubernetes import tls, utils, databases, namespace
+from src.models.types import DatabaseSSLMode
 from importlib.resources import files
 from kr8s.asyncio.objects import Pod, Secret, ResourceQuota, new_class, object_from_spec
+from src.database.models.organizations import Organization
 
 if TYPE_CHECKING:
     from src.kubernetes.client import Kubernetes
@@ -142,19 +125,36 @@ async def resume(client: "Kubernetes", organization_id: UUID) -> None:
             await asyncio.sleep(1)
 
 
+async def connection(
+    organization: Organization,
+    cluster: "Kubernetes",
+    *,
+    certificate: str | None = None,
+) -> postgres.Postgres:
+    """Build a private PostgreSQL connection using the caller's CA snapshot or a fresh cluster lookup."""
+
+    # Platform workers can run outside the compute cluster and its private DNS/network.
+    port = await cluster.forward_database(organization.id)
+
+    # Preserve the cluster DNS hostname for certificate verification even through a local tunnel.
+    if certificate is None:
+        certificate = await databases.certificate(cluster, organization.id)
+    return postgres.Postgres(
+        host=namespace.database_hostname(organization.id),
+        port=port,
+        username="postgres",
+        password=organization.database_password,
+        sslmode=DatabaseSSLMode.require,
+        certificate=certificate,
+        hostaddr="127.0.0.1",
+    )
+
+
 async def certificate(client: "Kubernetes", organization_id: UUID) -> str:
     """Read the CNPG-generated server CA as PEM text, not a filesystem path."""
 
     # CNPG's default server CA Secret is named after its Cluster.
-    secret = Secret(
-        "database-ca",
-        namespace=namespace.database(organization_id),
-        api=await client.api(),
-    )
-    await secret.refresh()
-    certificate = base64.b64decode(secret.raw["data"]["ca.crt"], validate=True).decode("ascii")
-    ssl.create_default_context(cadata=certificate)
-    return certificate
+    return await tls.certificate(client, namespace.database(organization_id), "database-ca", entry="ca.crt")
 
 
 async def delete(client: "Kubernetes", organization_id: UUID) -> None:

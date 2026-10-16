@@ -11,8 +11,9 @@ const article = {
     toc: [
         { id: 'routes', label: 'Routes', level: 1 },
         { id: 'example', label: 'Example', level: 2 },
+        { id: 'exceptions', label: 'Exceptions', level: 2 },
     ],
-    lastUpdated: '2026-09-28',
+    lastUpdated: '2026-10-15',
     editUrl: 'https://github.com/xLongLink/longlink/edit/main/web/src/platform/routes/docs/sdk/Routes.tsx',
     title: 'Routes | LongLink Documentation',
 };
@@ -59,6 +60,21 @@ async def current_user_name(ctx: Context) -> str:
     return ctx.user.name`}
                     language="python"
                     title="main.py"
+                />
+                <Heading id="exceptions" level={2}>
+                    Exceptions
+                </Heading>
+                <Text as="p">
+                    Invalid input returns <Code>422</Code>. Unhandled exceptions return a generic <Code>500</Code>{' '}
+                    response without exposing the original message. Raise <Code>HTTPException</Code> to return a status
+                    code and a public error message:
+                </Text>
+                <CodeBlock
+                    code={`from fastapi import HTTPException
+
+
+raise HTTPException(status_code=404, detail="Project not found")`}
+                    language="python"
                 />
             </Stack>
         </DocumentationArticle>

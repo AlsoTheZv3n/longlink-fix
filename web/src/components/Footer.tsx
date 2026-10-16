@@ -1,11 +1,9 @@
 import type { SVGProps } from 'react';
 import { Package } from 'lucide-react';
-import { Card } from '@astryxdesign/core/Card';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Wordmark } from '@/components/Wordmark';
 import { Stack } from '@astryxdesign/core/Stack';
-import { Center } from '@astryxdesign/core/Center';
 import { Divider } from '@astryxdesign/core/Divider';
 
 /** Renders the GitHub brand glyph for the public footer. */
@@ -35,123 +33,127 @@ function LinkedInIcon(props: SVGProps<SVGSVGElement>) {
     );
 }
 
-/** Renders the public landing page footer. */
-export function Footer() {
+/** Renders the public footer at the page's content width. */
+export function Footer({ maxWidth = 1000 }: { maxWidth?: number }) {
     return (
-        <Stack as="footer" className="relative z-10" padding={4} paddingBlock={6}>
-            <Center axis="horizontal">
-                <Card className="max-sm:text-center" maxWidth={720} padding={4} width="100%">
-                    <Stack gap={3}>
-                        <Stack
-                            className="max-sm:flex-col max-sm:justify-center"
-                            direction="horizontal"
-                            gap={4}
-                            hAlign="between"
-                            vAlign="center"
-                            wrap="wrap"
-                        >
-                            <Stack className="max-sm:flex-col" direction="horizontal" gap={4} vAlign="center">
-                                <Link href="/" label="LongLink home" color="inherit">
-                                    <Wordmark />
+        <Stack as="footer" className="border-t border-border" paddingInline={6} paddingBlock={10}>
+            <Stack className="mx-auto max-sm:text-center" maxWidth={maxWidth} width="100%" gap={6}>
+                <Stack
+                    className="max-sm:flex-col max-sm:justify-center"
+                    direction="horizontal"
+                    gap={4}
+                    hAlign="between"
+                    vAlign="center"
+                    wrap="wrap"
+                >
+                    <Stack className="max-sm:flex-col" direction="horizontal" gap={4} vAlign="center">
+                        <Link href="/" label="LongLink home" color="inherit">
+                            <Wordmark size="heading" />
+                        </Link>
+                        <Stack as="ul" direction="horizontal" gap={3} vAlign="center">
+                            <li>
+                                <Link
+                                    as="a"
+                                    color="secondary"
+                                    href="https://www.linkedin.com/company/longlink"
+                                    label="LinkedIn"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    <LinkedInIcon aria-hidden="true" className="size-4" />
                                 </Link>
-                                <Stack as="ul" direction="horizontal" gap={3} vAlign="center">
-                                    <li>
-                                        <Link
-                                            as="a"
-                                            color="secondary"
-                                            href="https://www.linkedin.com/company/longlink"
-                                            label="LinkedIn"
-                                            target="_blank"
-                                        >
-                                            <LinkedInIcon aria-hidden="true" className="size-4" />
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link
-                                            as="a"
-                                            color="secondary"
-                                            href="https://github.com/xLongLink/longlink"
-                                            label="GitHub"
-                                            target="_blank"
-                                        >
-                                            <GitHubIcon aria-hidden="true" className="size-4" />
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link
-                                            as="a"
-                                            color="secondary"
-                                            href="https://pypi.org/project/longlink/"
-                                            label="PyPI"
-                                            target="_blank"
-                                        >
-                                            <Package aria-hidden="true" size={16} />
-                                        </Link>
-                                    </li>
-                                </Stack>
-                            </Stack>
+                            </li>
+                            <li>
+                                <Link
+                                    as="a"
+                                    color="secondary"
+                                    href="https://github.com/xLongLink/longlink"
+                                    label="GitHub"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    <GitHubIcon aria-hidden="true" className="size-4" />
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    as="a"
+                                    color="secondary"
+                                    href="https://pypi.org/project/longlink/"
+                                    label="PyPI"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    <Package aria-hidden="true" size={16} />
+                                </Link>
+                            </li>
+                        </Stack>
+                    </Stack>
 
-                            <Stack
-                                as="nav"
-                                direction="horizontal"
-                                gap={4}
-                                hAlign="center"
-                                wrap="wrap"
-                                aria-label="Footer navigation"
-                            >
-                                {/* Use cases are a work in progress; keep hidden until ready.
+                    <Stack
+                        as="nav"
+                        direction="horizontal"
+                        gap={4}
+                        hAlign="center"
+                        wrap="wrap"
+                        aria-label="Footer navigation"
+                    >
+                        {/* Use cases are a work in progress; keep hidden until ready.
                                 <Link href="/use-cases/" color="secondary" type="supporting" weight="medium">
                                     Use cases
                                 </Link>
                                 */}
-                                <Link href="/docs/" color="secondary" type="supporting" weight="medium">
-                                    Documentation
-                                </Link>
-                                <Link href="/pricing/" color="secondary" type="supporting" weight="medium">
-                                    Pricing
-                                </Link>
-                                <Link href="/login/" color="secondary" type="supporting" weight="medium">
-                                    Sign In
-                                </Link>
-                            </Stack>
-                        </Stack>
-
-                        <Divider />
-
-                        <Stack
-                            className="max-sm:flex-col max-sm:justify-center"
-                            direction="horizontal"
-                            gap={3}
-                            hAlign="between"
-                            vAlign="center"
-                            wrap="wrap"
-                        >
-                            <Text className="max-sm:order-last" type="supporting">
-                                LongLink LLC - 2026 - {import.meta.env.VERSION ?? 'v0.0.0'}
-                            </Text>
-                            <Stack as="nav" direction="horizontal" gap={4} aria-label="Legal navigation">
-                                <Link
-                                    href="mailto:info@longlink.dev"
-                                    color="secondary"
-                                    type="supporting"
-                                    weight="medium"
-                                >
-                                    Contact
-                                </Link>
-                                <Link href="/impressum/" color="secondary" type="supporting" weight="medium">
-                                    Impressum
-                                </Link>
-                                <Link href="/terms/" color="secondary" type="supporting" weight="medium">
-                                    Terms
-                                </Link>
-                                <Link href="/privacy/" color="secondary" type="supporting" weight="medium">
-                                    Privacy
-                                </Link>
-                            </Stack>
-                        </Stack>
+                        <Link href="/docs/" color="secondary" type="supporting" weight="medium">
+                            Documentation
+                        </Link>
+                        <Link href="/blog/" color="secondary" type="supporting" weight="medium">
+                            Blog
+                        </Link>
+                        <Link href="/pricing/" color="secondary" type="supporting" weight="medium">
+                            Pricing
+                        </Link>
+                        <Link href="/login/" color="secondary" type="supporting" weight="medium">
+                            Sign In
+                        </Link>
                     </Stack>
-                </Card>
-            </Center>
+                </Stack>
+
+                <Divider />
+
+                <Stack
+                    className="max-sm:flex-col max-sm:justify-center"
+                    direction="horizontal"
+                    gap={3}
+                    hAlign="between"
+                    vAlign="center"
+                    wrap="wrap"
+                >
+                    <Text className="max-sm:order-last" type="supporting">
+                        LongLink LLC - 2026 - {import.meta.env.VERSION ?? 'v0.0.0'}
+                    </Text>
+                    <Stack
+                        as="nav"
+                        direction="horizontal"
+                        gap={4}
+                        hAlign="center"
+                        wrap="wrap"
+                        aria-label="Legal navigation"
+                    >
+                        <Link href="mailto:info@longlink.dev" color="secondary" type="supporting" weight="medium">
+                            Contact
+                        </Link>
+                        <Link href="/impressum/" color="secondary" type="supporting" weight="medium">
+                            Impressum
+                        </Link>
+                        <Link href="/terms/" color="secondary" type="supporting" weight="medium">
+                            Terms
+                        </Link>
+                        <Link href="/privacy/" color="secondary" type="supporting" weight="medium">
+                            Privacy
+                        </Link>
+                    </Stack>
+                </Stack>
+            </Stack>
         </Stack>
     );
 }

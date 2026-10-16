@@ -1,5 +1,3 @@
-"""Load every Platform ORM model and expose their shared metadata."""
-
 from src.database.models import mcp as mcp
 from src.database.models import users as users
 from src.database.models import billing as billing

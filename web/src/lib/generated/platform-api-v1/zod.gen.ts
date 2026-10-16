@@ -101,10 +101,10 @@ export const zCheckoutRequest = z.object({
  */
 export const zClientRegistration = z.object({
     client_name: z.string().min(1).max(128).optional().default('MCP client'),
-    grant_types: z.array(z.enum(['authorization_code', 'refresh_token'])).min(1).max(2).optional().default(['authorization_code']),
     redirect_uris: z.array(z.string()).min(1).max(10),
     response_types: z.tuple([z.literal('code')]).optional().default(['code']),
-    token_endpoint_auth_method: z.literal('none').optional().default('none')
+    token_endpoint_auth_method: z.literal('none').optional().default('none'),
+    grant_types: z.array(z.enum(['authorization_code', 'refresh_token'])).min(1).max(2).optional().default(['authorization_code'])
 });
 
 /**
@@ -405,10 +405,10 @@ export const zBillingResponse = z.object({
  */
 export const zRegisteredClient = z.object({
     client_name: z.string().min(1).max(128).optional().default('MCP client'),
-    grant_types: z.tuple([z.literal('authorization_code')]).optional().default(['authorization_code']),
     redirect_uris: z.array(z.string()).min(1).max(10),
     response_types: z.tuple([z.literal('code')]).optional().default(['code']),
     token_endpoint_auth_method: z.literal('none').optional().default('none'),
+    grant_types: z.tuple([z.literal('authorization_code')]).optional().default(['authorization_code']),
     client_id: z.uuid()
 });
 
@@ -549,7 +549,8 @@ export const zOrganizationSolutionSummary = z.object({
     description: z.string().nullish(),
     status: zStatus,
     deployment_pending: z.boolean(),
-    desired_revision_id: z.uuid().nullable()
+    desired_revision_id: z.uuid().nullable(),
+    deployed_version: z.string().nullish()
 });
 
 /**
@@ -573,6 +574,7 @@ export const zSolutionResponse = z.object({
     status: zStatus,
     deployment_pending: z.boolean(),
     desired_revision_id: z.uuid().nullable(),
+    deployed_version: z.string().nullish(),
     organization: zOrganizationIdentity,
     image_desired: z.string(),
     deployed_revision_id: z.uuid().nullable(),

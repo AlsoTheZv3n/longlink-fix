@@ -31,29 +31,33 @@ function isRangeSlider(props: SliderProps): props is Extract<SliderProps, { valu
 /** Edits a number or range using a standard horizontal slider. */
 export function Slider(props: SliderProps) {
     // Slider carriers already preserve repeated names; local state only adapts uncontrolled editing.
-    const field = useValue<number | [number, number]>(props.value, props.defaultValue ?? props.min ?? 0, (value) => {
-        if (isRangeSlider(props)) {
-            if (Array.isArray(value)) props.onChange?.(value);
-        } else if (!Array.isArray(value)) {
-            props.onChange?.(value);
+    const { ref, value, onChange } = useValue<number | [number, number]>(
+        props.value,
+        props.defaultValue ?? props.min ?? 0,
+        (value) => {
+            if (isRangeSlider(props)) {
+                if (Array.isArray(value)) props.onChange?.(value);
+            } else if (!Array.isArray(value)) {
+                props.onChange?.(value);
+            }
         }
-    });
+    );
 
     // Use a percentage-scale slider unless the Solution supplies its own range.
     return (
         <AstryxSlider
             {...props}
-            {...field}
-            className={props.hidden ? 'hidden!' : undefined}
-            {...(Array.isArray(field.value)
+            ref={ref}
+            containerClassName={props.hidden ? 'hidden!' : undefined}
+            {...(Array.isArray(value)
                 ? {
-                      value: field.value,
-                      onChange: (value: [number, number]) => field.onChange(value),
+                      value,
+                      onChange,
                       onChangeEnd: isRangeSlider(props) ? props.onChangeEnd : undefined,
                   }
                 : {
-                      value: field.value,
-                      onChange: (value: number) => field.onChange(value),
+                      value,
+                      onChange,
                       onChangeEnd: !isRangeSlider(props) ? props.onChangeEnd : undefined,
                   })}
             htmlName={props.name}

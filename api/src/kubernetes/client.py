@@ -3,9 +3,10 @@ import asyncio
 from uuid import UUID
 from types import TracebackType
 from typing import Self, cast
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 from kr8s.asyncio import Api
 from src.kubernetes import namespace
+from collections.abc import AsyncGenerator
 from kr8s.asyncio.objects import Service, Namespace
 
 # Retain each loop's borrowed clients until the Platform lifespan stops their consumers.
@@ -30,7 +31,8 @@ class Kubernetes:
 
     Database resources have dedicated Organization namespaces; Solutions run in
     the Organization compute namespace. Resource operations borrow this client's
-    lazy kr8s connection and its port-forward lifetime.
+    lazy kr8s connection. Database tunnels last until this client closes; storage
+    workflows own their tunnel scopes.
     """
 
     def __init__(self, kubeconfig: dict[str, object]) -> None:
@@ -95,10 +97,12 @@ class Kubernetes:
         await service.refresh()
         return await self._connections.enter_async_context(service.portforward(5432, local_port="auto"))
 
-    async def forward_storage(self) -> int:
-        """Keep the private RustFS administration tunnel alive until this client closes."""
+    @asynccontextmanager
+    async def forward_storage(self) -> AsyncGenerator[int, None]:
+        """Own the private RustFS administration tunnel for one storage workflow."""
 
         # Forward the cluster service directly so administrator requests never traverse the public storage proxy.
         service = Service("rustfs-svc", namespace="rustfs", api=await self.api())
         await service.refresh()
-        return await self._connections.enter_async_context(service.portforward(9000, local_port="auto"))
+        async with service.portforward(9000, local_port="auto") as port:
+            yield port

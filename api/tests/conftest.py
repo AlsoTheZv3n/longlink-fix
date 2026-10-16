@@ -5,15 +5,14 @@ import shutil
 import subprocess
 import pytest_asyncio
 from uuid import UUID, uuid4
-from types import TracebackType
 from httpx2 import Cookies, Response, AsyncClient, ASGITransport
 from pwdlib import PasswordHash
-from typing import TYPE_CHECKING, Self, cast
+from typing import cast
 from pathlib import Path
 from contextlib import AsyncExitStack, asynccontextmanager
 from sqlalchemy import create_engine
 from kr8s.asyncio import Api
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, AsyncGenerator
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 TEST_PASSWORD = "longlink-test-password"
@@ -46,35 +45,10 @@ from src.database import session
 from src.utils.s3 import Credentials
 from src.kubernetes import storage
 from src.kubernetes import databases as database_resources
-from src.kubernetes import solutions as solution_resources
 from src.environments import env
 from src.database.models import registry
+from src.kubernetes.client import Kubernetes
 from src.database.models.users import User
-
-if TYPE_CHECKING:
-    from src.kubernetes.client import Kubernetes
-
-
-class AsyncKubernetes:
-    """Provide Kubernetes resource-scope cleanup for test doubles."""
-
-    async def __aenter__(self) -> Self:
-        """Return this test double for an async resource scope."""
-
-        return self
-
-    async def __aexit__(
-        self,
-        _exc_type: type[BaseException] | None,
-        _exc_value: BaseException | None,
-        _traceback: TracebackType | None,
-    ) -> None:
-        """Close this test double when its async resource scope ends."""
-
-        await self.aclose()
-
-    async def aclose(self) -> None:
-        """Close this test double without external resources."""
 
 
 class StorageKubernetes:
@@ -103,14 +77,14 @@ class StorageKubernetes:
 
         return Credentials("solution", "generated-secret")
 
+    async def delete_solution(self, organization: UUID, solution: UUID) -> None:
+        """Accept revocation and private-object cleanup without storage I/O."""
 
-class DatabaseKubernetes(AsyncKubernetes):
+
+class DatabaseKubernetes(Kubernetes):
     """Provide the CNPG provider boundary without opening Kubernetes connections."""
 
-    def __init__(self, *_args: object) -> None:
-        """Accept cluster configuration without opening connections."""
-
-    async def forward_database(self, organization: UUID) -> int:
+    async def forward_database(self, organization_id: UUID) -> int:
         """Supply a local transport port consumed only by the SQL fake."""
 
         return 15432
@@ -123,7 +97,7 @@ class DatabasePostgres:
         """Accept the private Organization connection settings."""
 
     @asynccontextmanager
-    async def connection(self, database: str, *, search_path: str | None = None) -> AsyncIterator["DatabasePostgres"]:
+    async def connection(self, database: str, *, search_path: str | None = None) -> AsyncGenerator["DatabasePostgres"]:
         """Scope SQL projection and readiness probes to their Organization database."""
 
         # Record the connection target forwarded by the projection service.
@@ -138,24 +112,6 @@ class DatabasePostgres:
 
     async def prepare_organization_database(self, organization: UUID) -> None:
         """Accept shared schema provisioning."""
-
-
-class SeedKubernetes(DatabaseKubernetes):
-    """Expose every seed lifecycle provider boundary without external I/O."""
-
-    async def cluster_uid(self) -> str:
-        """Return the identity submitted by the test Compute."""
-
-        return "https://kubernetes.example"
-
-
-class SeedPostgres(DatabasePostgres):
-    """Provide the Solution schema operation used during deployment."""
-
-    async def solution_schema(self, _organization_id: UUID, solution_id: UUID, _password: str) -> str:
-        """Return the scoped database username for the Solution."""
-
-        return solution_id.hex
 
 
 @pytest.fixture(scope="session")
@@ -191,7 +147,6 @@ def database_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace only external CNPG and SQL I/O for request and lifecycle tests."""
 
     from src.operations import databases
-    from src.database.services import organizations
 
     async def sync(*args: object, **kwargs: object) -> None:
         """Accept the real shared-user snapshot at its database transport boundary."""
@@ -213,32 +168,8 @@ def database_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(database_resources, "apply", apply)
     monkeypatch.setattr(database_resources, "resume", resume)
     monkeypatch.setattr(database_resources, "certificate", certificate)
-    monkeypatch.setattr(databases.postgres, "Postgres", DatabasePostgres)
-    monkeypatch.setattr(organizations.shared_audit, "sync", sync)
-
-
-@pytest.fixture
-def seed_runtime(monkeypatch: pytest.MonkeyPatch, database_runtime: None, compute_runtime: None) -> None:
-    """Replace every seed lifecycle provider boundary without external I/O."""
-
-    from src.operations import databases, solutions, organizations
-
-    async def apply(client: object, organization_id: UUID) -> None:
-        """Accept Organization boundary provisioning without external I/O."""
-
-    async def apply_solution(client: object, *_args: object, **_kwargs: object) -> None:
-        """Accept Solution workload provisioning without external I/O."""
-
-    # Preserve the seed-specific client after installing the Compute verification boundary.
-    monkeypatch.setattr("src.routes.v1.computes.Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(databases, "Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(organizations, "Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(organizations, "Storage", StorageKubernetes)
-    monkeypatch.setattr(organizations.organizations, "apply", apply)
-    monkeypatch.setattr(solutions, "Kubernetes", SeedKubernetes)
-    monkeypatch.setattr(solutions, "Storage", StorageKubernetes)
-    monkeypatch.setattr(solution_resources, "apply", apply_solution)
-    monkeypatch.setattr(databases.postgres, "Postgres", SeedPostgres)
+    monkeypatch.setattr(database_resources.postgres, "Postgres", DatabasePostgres)
+    monkeypatch.setattr(databases.shared_audit, "sync", sync)
 
 
 UNTRUSTED_ORIGINS: list[str | None] = [None, "", "https://attacker.example"]
@@ -275,7 +206,7 @@ def reject_provider_construction(monkeypatch: pytest.MonkeyPatch, *targets: tupl
         monkeypatch.setattr(holder, name, unexpected_provider)
 
 
-class FakeKubernetes(AsyncKubernetes):
+class FakeKubernetes(Kubernetes):
     """Provide an opaque Kubernetes API client."""
 
     async def api(self) -> Api:
@@ -284,18 +215,15 @@ class FakeKubernetes(AsyncKubernetes):
         return cast(Api, object())
 
 
-def kubernetes_client() -> "Kubernetes":
-    """Return the Kubernetes test double typed as its production client."""
+def kubernetes_client() -> Kubernetes:
+    """Return a lazy Kubernetes client with an opaque external API boundary."""
 
-    # Centralize the intentional test-double substitution so call sites need no suppressions.
-    return cast("Kubernetes", FakeKubernetes())
+    # Initialize the real lifecycle without opening a cluster connection.
+    return FakeKubernetes({})
 
 
-class RegistryKubernetes(AsyncKubernetes):
+class RegistryKubernetes(Kubernetes):
     """Supply independent synthetic cluster identities without Kubernetes I/O."""
-
-    def __init__(self, kubeconfig: dict[str, object]) -> None:
-        """Accept cluster configuration without retaining unused state."""
 
     async def cluster_uid(self) -> str:
         """Return an independent identity for each registered test cluster."""

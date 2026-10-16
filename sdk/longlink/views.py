@@ -1,8 +1,16 @@
 import re
 from pathlib import Path
+from pydantic import Field, BaseModel
 from dataclasses import dataclass
 
 STATIC_ROUTE_SEGMENT_PATTERN = re.compile(r"[A-Za-z0-9._~-]+")
+
+
+class ViewRuntime(BaseModel):
+    """Identify the complete UI runtime packaged with this SDK release."""
+
+    # Content identity for the conventional packaged runtime assets.
+    version: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
 @dataclass(slots=True)
@@ -11,6 +19,14 @@ class ViewDefinition:
 
     path: str
     route: str
+
+
+@dataclass(slots=True)
+class ViewManifest:
+    """Declare the Solution's complete View catalog and its shared runtime."""
+
+    views: list[ViewDefinition]
+    runtime: ViewRuntime
 
 
 def view_stem_route(view_stem: str) -> str:

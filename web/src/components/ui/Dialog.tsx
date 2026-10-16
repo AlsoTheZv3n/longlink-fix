@@ -1,5 +1,6 @@
 import type { Spacing } from './types';
 import type { ReactNode } from 'react';
+import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
@@ -11,6 +12,8 @@ export function Dialog(props: {
     hidden?: boolean;
     children?: ReactNode;
     'aria-label': string;
+    /** Shows the accessible dialog name as a visible header title; defaults to true. */
+    showTitle?: boolean;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     purpose?: 'form' | 'info' | 'required';
@@ -41,18 +44,28 @@ export function Dialog(props: {
             <Stack gap={0} height={props.height ?? 'min(560px, calc(100dvh - var(--spacing-10) * 4))'}>
                 <Layout
                     height="fill"
-                    padding={0}
-                    header={<DialogHeader title={props['aria-label']} onOpenChange={props.onOpenChange} />}
+                    padding={4}
+                    header={
+                        <DialogHeader
+                            title={
+                                props.showTitle === false ? (
+                                    <Text className="sr-only">{props['aria-label']}</Text>
+                                ) : (
+                                    props['aria-label']
+                                )
+                            }
+                            onOpenChange={props.onOpenChange}
+                        />
+                    }
                 >
                     <LayoutContent padding={props.padding ?? 4}>
-                        {/* Grow beyond the scrollport rather than clipping tall, centered forms. */}
+                        {/* Resolve full-height forms and keep oversized content scrollable from its top. */}
                         <Stack
                             gap={0}
-                            minHeight="100%"
-                            justify="center"
+                            height="100%"
                             width="100%"
                             maxWidth={props.contentWidth}
-                            className="mx-auto"
+                            className="mx-auto justify-center-safe [&>*]:shrink-0"
                         >
                             {props.children}
                         </Stack>

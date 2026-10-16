@@ -4,7 +4,7 @@ from uuid import UUID
 from typing import TYPE_CHECKING
 from src.utils import s3, rustfs
 from contextlib import asynccontextmanager
-from collections.abc import Sequence, AsyncIterator
+from collections.abc import Sequence, AsyncGenerator
 from kr8s.asyncio.objects import Secret
 
 if TYPE_CHECKING:
@@ -29,25 +29,24 @@ class Storage:
         self._cluster = cluster
 
     @asynccontextmanager
-    async def _admin(self) -> AsyncIterator[rustfs.RustFS]:
+    async def _admin(self) -> AsyncGenerator[rustfs.RustFS, None]:
         """Own one administrative HTTP client inside the authenticated cluster tunnel's lifetime."""
 
         # Route administrator requests through the bound Kubernetes connection.
-        port = await self._cluster.forward_storage()
-
-        # Close the workflow's HTTP transport before the Kubernetes tunnel is released.
-        client = httpx2.AsyncClient(
-            trust_env=False,
-            timeout=30,
-            follow_redirects=False,
-        )
-        async with client:
-            admin = rustfs.RustFS(
-                f"http://127.0.0.1:{port}",
-                self._credentials,
-                client,
+        async with self._cluster.forward_storage() as port:
+            # Close the workflow's HTTP transport before the Kubernetes tunnel is released.
+            client = httpx2.AsyncClient(
+                trust_env=False,
+                timeout=30,
+                follow_redirects=False,
             )
-            yield admin
+            async with client:
+                admin = rustfs.RustFS(
+                    f"http://127.0.0.1:{port}",
+                    self._credentials,
+                    client,
+                )
+                yield admin
 
     @staticmethod
     async def controller_credentials(cluster: "Kubernetes") -> s3.Credentials:
@@ -78,10 +77,16 @@ class Storage:
             await client.list_buckets()
 
         # kr8s starts the remote port-forward only when a request enters its local listener.
-        port = await self._cluster.forward_storage()
-        async with httpx2.AsyncClient(trust_env=False, timeout=5.0, follow_redirects=False) as client:
-            response = await client.get(f"http://127.0.0.1:{port}/health/ready")
-            response.raise_for_status()
+        async with self._cluster.forward_storage() as port:
+            # Release the readiness HTTP client before closing its tunnel.
+            client = httpx2.AsyncClient(
+                trust_env=False,
+                timeout=5.0,
+                follow_redirects=False,
+            )
+            async with client:
+                response = await client.get(f"http://127.0.0.1:{port}/health/ready")
+                response.raise_for_status()
 
     @staticmethod
     def bucket_name(organization: UUID) -> str:
@@ -96,17 +101,15 @@ class Storage:
         async with self._admin() as admin:
             return await admin.service_account(self.bucket_name(organization), solution)
 
-    async def revoke(self, solution: UUID) -> None:
-        """Revoke one Solution service account."""
+    async def delete_solution(self, organization: UUID, solution: UUID) -> None:
+        """Revoke one Solution service account before removing its private objects."""
 
         # Release the transport after the account revocation attempt.
         async with self._admin() as admin:
             await admin.revoke(solution)
 
-    async def delete_prefix(self, organization: UUID, prefix: str) -> None:
-        """Remove one Solution prefix from the Organization bucket."""
-
-        await self._storage.delete_prefix(self.bucket_name(organization), prefix)
+        # Remove data only after revocation succeeds and its transport closes.
+        await self._storage.delete_prefix(self.bucket_name(organization), f"solutions/{solution.hex}/")
 
     async def apply(self, organization: UUID, *, quota_bytes: int) -> None:
         """Create an Organization bucket and apply its RustFS hard byte quota."""

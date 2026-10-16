@@ -20,15 +20,13 @@ export default function RadioListPage() {
 export default function PlanForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <RadioList name="plan" label="Plan" defaultValue="team" orientation="horizontal" required>
-          <RadioListItem label="Solo" value="solo" />
-          <RadioListItem label="Team" value="team" />
-        </RadioList>
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <RadioList name="plan" label="Plan" defaultValue="team" orientation="horizontal" required>
+        <RadioListItem label="Solo" value="solo" />
+        <RadioListItem label="Team" value="team" />
+      </RadioList>
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

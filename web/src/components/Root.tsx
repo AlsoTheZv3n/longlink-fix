@@ -1,6 +1,7 @@
 import * as icons from '@/lib/icons';
 import { Outlet } from 'react-router';
 import { ApiErrorContext } from '@/lib/errors';
+import { PageLoading } from '@/components/Utils';
 import { Theme } from '@astryxdesign/core/theme';
 import { useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router';
@@ -13,6 +14,16 @@ import { LayerProvider } from '@astryxdesign/core/Layer';
 import { IconRequestContext } from '@/components/ui/Icon';
 import { QueryClientProvider } from '@tanstack/react-query';
 import '@/index.css';
+
+/** Shows the existing themed loading state while the initial route modules load. */
+export function HydrateFallback() {
+    // The route provider has not mounted yet, so the fallback owns only its theme.
+    return (
+        <Theme theme={stoneTheme} mode="dark">
+            <PageLoading label="Loading" />
+        </Theme>
+    );
+}
 
 /** Provides isolated runtime state around the active framework route. */
 export function Root() {
@@ -42,21 +53,6 @@ function ApiProvider({ children }: { children: ReactNode }) {
         createQueryRuntime(
             (body) => {
                 toast({ body, type: 'error', isAutoHide: true });
-
-                // Re-promote the shared viewport after React renders the toast so it remains above an open dialog.
-                requestAnimationFrame(() => {
-                    for (const viewport of document.querySelectorAll<HTMLElement>('[popover="manual"]')) {
-                        if (!viewport.querySelector('[data-toast-id]')) continue;
-
-                        // Older browsers may not implement the native popover capability.
-                        if (!('hidePopover' in viewport) || !('showPopover' in viewport)) return;
-
-                        if (viewport.matches(':popover-open')) viewport.hidePopover();
-                        viewport.showPopover();
-
-                        return;
-                    }
-                });
             },
             import.meta.env.MODE !== 'sdk'
         )

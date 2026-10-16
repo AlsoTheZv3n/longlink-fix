@@ -5,7 +5,6 @@ import { legalPaths } from './src/platform/legal';
 // import { useCasePaths } from './src/platform/usecases';
 import type { Config } from '@react-router/dev/config';
 import { brandingPaths } from './src/platform/branding';
-import { documentationPaths } from './src/platform/docs';
 import { cp, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 
 const requestedMode = import.meta.env.MODE;
@@ -17,40 +16,20 @@ if (requestedMode === 'api' || requestedMode === 'sdk') {
 
 const isSolution = process.env.LONGLINK_WEB_TARGET === 'sdk';
 
+// Only Platform builds need the documentation catalog for publication paths.
+const documentationPaths = isSolution ? [] : (await import('./src/platform/docs')).documentationPaths;
+
 const publicPagePaths = [
     '/',
     '/login',
     '/pricing',
+    '/blog',
+    '/blog/why-longlink',
     // ...useCasePaths,
     ...legalPaths,
     ...brandingPaths,
     ...documentationPaths,
 ];
-
-/** Sitemap priorities signal the important pages to search engines. */
-const publicPagePriorities = new Map([
-    ['/', 1.0],
-    ['/docs', 0.9],
-    // ['/use-cases', 0.9],
-    ['/pricing', 0.6],
-]);
-
-/** Returns the sitemap priority for a public page, defaulting by section depth. */
-function sitemapPriority(pagePath: string): number {
-    // Prioritized marketing and documentation entry points keep their explicit weight.
-    const priority = publicPagePriorities.get(pagePath);
-
-    if (priority !== undefined) return priority;
-
-    // Legal pages stay discoverable without competing with acquisition content.
-    if (legalPaths.includes(pagePath)) return 0.3;
-
-    // Generated component references are numerous, so keep them below curated guides.
-    if (pagePath.startsWith('/docs/sdk/views/')) return 0.4;
-
-    // Everything else stays below the prioritized pages.
-    return 0.5;
-}
 
 const outputDirectory = path.resolve(
     import.meta.dirname,
@@ -61,7 +40,12 @@ export default {
     appDirectory: isSolution ? 'src/solution' : 'src/platform',
     buildDirectory: path.resolve(import.meta.dirname, 'build', isSolution ? 'sdk' : 'api'),
     ssr: false,
-    prerender: isSolution ? undefined : publicPagePaths.map((pagePath) => (pagePath === '/' ? '/' : `${pagePath}/`)),
+
+    // Discover route dependencies before serving modules instead of re-optimizing them during page loading.
+    future: { unstable_optimizeDeps: true },
+    prerender: isSolution
+        ? undefined
+        : [...publicPagePaths, '/404'].map((pagePath) => (pagePath === '/' ? '/' : `${pagePath}/`)),
 
     /** Adapts Framework Mode's output to the embedded FastAPI frontend contract. */
     async buildEnd({ reactRouterConfig }) {
@@ -83,11 +67,43 @@ export default {
                 );
             }
         } else {
-            // Generate crawler configuration from the same inventory used for prerendering.
+            // Publish valid SPA paths from React Router so the server can reject unknown URLs.
+            const routes = Object.values(reactRouterConfig.routes);
+            const parentIds = new Set(routes.map((route) => route.parentId));
+
+            // Exclude layouts and error routes from the application's valid page inventory.
+            const spaPaths = routes.flatMap((route) => {
+                if (parentIds.has(route.id) || route.file.endsWith('/NotFound.tsx')) return [];
+
+                // Resolve layout and prefix segments before translating parameters for FastAPI.
+                const segments = [];
+                let currentRoute: typeof route | undefined = route;
+
+                while (currentRoute) {
+                    if (currentRoute.path) segments.unshift(currentRoute.path);
+                    currentRoute = currentRoute.parentId ? reactRouterConfig.routes[currentRoute.parentId] : undefined;
+                }
+
+                const pagePath = `/${segments.join('/')}`;
+
+                if (publicPagePaths.includes(pagePath)) return [];
+
+                // React Router splats also match the Solution root without a trailing slash.
+                const paths = pagePath.endsWith('/*') ? [pagePath.slice(0, -2), pagePath] : [pagePath];
+
+                return paths.map((routePath) => routePath.replace(/:([^/]+)/g, '{$1}').replace(/\*/g, '{path:path}'));
+            });
+
+            await writeFile(path.join(clientDirectory, 'spa.json'), JSON.stringify(spaPaths));
+
+            // Generate crawler configuration from prerendered pages, excluding login.
             const urls = publicPagePaths
-                .map(
-                    (pagePath) =>
-                        `    <url><loc>${new URL(pagePath === '/' ? '/' : `${pagePath}/`, siteUrl).href}</loc><priority>${sitemapPriority(pagePath).toFixed(1)}</priority></url>`
+                .flatMap((pagePath) =>
+                    pagePath === '/login'
+                        ? []
+                        : [
+                              `    <url><loc>${new URL(pagePath === '/' ? '/' : `${pagePath}/`, siteUrl).href}</loc></url>`,
+                          ]
                 )
                 .join('\n');
 
@@ -100,9 +116,12 @@ export default {
                 `User-agent: *\nAllow: /\n\nSitemap: ${new URL('/sitemap.xml', siteUrl).href}\n`
             );
 
-            // Keep the prerendered home page while making the generic SPA document FastAPI's fallback.
+            // Keep the prerendered home page and the generic document for known SPA routes.
             await rename(path.join(clientDirectory, 'index.html'), path.join(clientDirectory, '__root.html'));
             await rename(path.join(clientDirectory, '__spa-fallback.html'), path.join(clientDirectory, 'index.html'));
+
+            // FastAPI's static frontend serves this prerendered document with HTTP 404.
+            await rename(path.join(clientDirectory, '404', 'index.html'), path.join(clientDirectory, '404.html'));
         }
 
         // Publish only browser assets into the Python package tree.

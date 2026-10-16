@@ -14,13 +14,13 @@ from collections.abc import Sequence
 from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
-from src.database.services import users, organizations
+from src.database.services import organizations
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.mcp import MCPCode, MCPToken, MCPClient
 from src.database.models.users import User
 from src.database.models.solutions import Solution
 
-ACCESS_LIFETIME_SECONDS = 3600
+ACCESS_LIFETIME_SECONDS = 30 * 24 * 60 * 60
 CODE_LIFETIME_SECONDS = 300
 
 
@@ -105,15 +105,6 @@ async def _permitted_solution(session: AsyncSession, user: User, solution_id: UU
     return solution
 
 
-async def _credential_user(session: AsyncSession, user_id: UUID, fingerprint: str) -> User | None:
-    """Invalidate granted access when the user is deleted or their password changes."""
-
-    user = await users.active(session, user_id)
-    if user is None or not hmac.compare_digest(fingerprint, token.password_fingerprint(user.password)):
-        return None
-    return user
-
-
 async def authenticate(session: AsyncSession, credential: str, solution_id: UUID) -> User | None:
     """Resolve only an unexpired token issued for this exact Solution resource."""
 
@@ -138,7 +129,7 @@ async def authenticate(session: AsyncSession, credential: str, solution_id: UUID
         or grant.expires_at <= datetime.now(UTC)
     ):
         return None
-    return await _credential_user(session, grant.user_id, grant.fingerprint)
+    return await token.credential_user(session, grant.user_id, grant.fingerprint)
 
 
 async def register(session: AsyncSession, payload: mcp.ClientRegistration) -> UUID:
@@ -150,7 +141,6 @@ async def register(session: AsyncSession, payload: mcp.ClientRegistration) -> UU
         redirects=payload.redirect_uris,
     )
     session.add(client)
-    await session.commit()
     return client.id
 
 
@@ -187,7 +177,6 @@ async def approve(session: AsyncSession, user: User, payload: mcp.Approval) -> s
         expires_at=datetime.now(UTC) + timedelta(seconds=CODE_LIFETIME_SECONDS),
     )
     session.add(proof)
-    await session.commit()
     return redirect(payload.redirect_uri, {"code": code, "state": payload.state})
 
 
@@ -213,7 +202,7 @@ async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[st
         raise OAuthError("invalid_grant", "Invalid or expired authorization code")
 
     # Previous approval cannot outlive the user's account, credential, or Organization permissions.
-    user = await _credential_user(session, proof.user_id, proof.fingerprint)
+    user = await token.credential_user(session, proof.user_id, proof.fingerprint)
     if user is None:
         raise OAuthError("invalid_grant", "Authorization is no longer valid")
     try:
@@ -236,7 +225,6 @@ async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[st
         expires_at=datetime.now(UTC) + timedelta(seconds=ACCESS_LIFETIME_SECONDS),
     )
     session.add(access)
-    await session.commit()
     return {"access_token": credential, "expires_in": ACCESS_LIFETIME_SECONDS}
 
 
@@ -244,7 +232,6 @@ async def revoke(session: AsyncSession, credential: str, client_id: UUID) -> Non
     """Revoke the presented client credential without revealing whether it exists."""
 
     await session.execute(delete(MCPToken).where(MCPToken.hash == digest(credential), MCPToken.client_id == client_id))
-    await session.commit()
 
 
 async def tokens(session: AsyncSession, user_id: UUID) -> Sequence[MCPToken]:
@@ -269,4 +256,3 @@ async def delete_token(session: AsyncSession, user_id: UUID, token_id: UUID) -> 
     """Revoke only a grant owned by the requesting browser user."""
 
     await session.execute(delete(MCPToken).where(MCPToken.id == token_id, MCPToken.user_id == user_id))
-    await session.commit()

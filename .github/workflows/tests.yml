@@ -31,7 +31,7 @@ jobs:
             - name: Detect Compute changes
               if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
               id: changes
-              uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+              uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
               with:
                   token: ''
                   base: ${{ github.event.merge_group.base_sha }}
@@ -76,14 +76,20 @@ jobs:
               working-directory: web
               run: vp run check:platform-api
 
+            - name: Build shared View runtime
+              working-directory: web
+              run: vp run build:views
+
             - name: Build API web bundle
               working-directory: web
-              run: vp run build:api:bundle --logLevel warn
+              run: |
+                  vp run check:docs
+                  vp exec react-router build --mode api --logLevel warn
 
             # API MCP tests start a real Solution runtime with its embedded frontend.
             - name: Build SDK web bundle
               working-directory: web
-              run: vp run build:sdk:bundle --logLevel warn
+              run: vp exec react-router build --mode sdk --logLevel warn
 
             - name: Run tests
               working-directory: api
@@ -247,7 +253,7 @@ jobs:
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
             - name: Setup kubectl
-              uses: azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5.1.0
+              uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5.2.0
               with:
                   version: v1.34.3
 

@@ -2,13 +2,13 @@ from uuid import UUID
 from datetime import UTC, datetime
 from sqlmodel import col
 from src.utils import names, roles, images
-from sqlalchemy import func, select, update
+from sqlalchemy import or_, func, select, update
 from src.errors import InvalidError, ConflictError, NotFoundError, ForbiddenError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer, selectinload, contains_eager
 from collections.abc import Mapping, Sequence
 from src.models.roles import OrganizationRoles
-from src.models.types import Image, MinScale
+from src.models.types import MinScale
 from src.database.types import attr
 from src.models.metadata import LongLinkMetadata
 from src.models.solutions import SolutionCreate, validate_idle_seconds, validate_environment_variables
@@ -21,27 +21,44 @@ from src.database.models.association import UserOrganization
 from src.database.models.organizations import Organization
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[Solution], int]:
-    """Return one ordered page of active solutions for administrator views."""
+async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Solution], int]:
+    """Return one newest-first page of active solutions for administrator views."""
+
+    # Match literal Solution details and owning Organization names before pagination.
+    query = (
+        select(Solution).join(Organization, col(Organization.id) == col(Solution.organization_id)).where(col(Solution.deleted_at).is_(None))
+    )
+    if search:
+        query = query.where(
+            or_(
+                col(Solution.name).icontains(search, autoescape=True),
+                col(Solution.slug).icontains(search, autoescape=True),
+                col(Solution.description).icontains(search, autoescape=True),
+                col(Organization.name).icontains(search, autoescape=True),
+            )
+        )
 
     # Load response image and deployment state without decrypting secrets or revision environments.
     statement = (
-        select(Solution)
-        .join(Organization, col(Organization.id) == col(Solution.organization_id))
-        .options(
-            contains_eager(attr(Solution.organization)),
+        query.options(
+            contains_eager(attr(Solution.organization)).load_only(
+                attr(Organization.id),
+                attr(Organization.name),
+                attr(Organization.slug),
+                attr(Organization.status),
+            ),
             defer(attr(Solution.secrets)),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.image), attr(Revision.failed), raiseload=True),
+            selectinload(attr(Solution.deployed_revision)).load_only(attr(Revision.version), raiseload=True),
         )
-        .where(col(Solution.deleted_at).is_(None))
-        .order_by(col(Organization.name), col(Solution.name), col(Solution.id))
+        .order_by(col(Solution.created_at).desc(), col(Solution.id).desc())
         .offset(pagination.offset)
         .limit(pagination.page_size)
     )
     result = await session.scalars(statement)
 
-    # Count only rows eligible for the administrator listing.
-    count_result = await session.execute(select(func.count()).select_from(Solution).where(col(Solution.deleted_at).is_(None)))
+    # Count matches before pagination using the same visibility and search filters.
+    count_result = await session.execute(select(func.count()).select_from(query.subquery()))
     return result.all(), count_result.scalar_one()
 
 
@@ -108,7 +125,6 @@ async def create(
         user_id,
         metadata,
         payload.envs,
-        source=payload.image,
         min_scale=payload.min_scale,
         idle_seconds=payload.idle_seconds,
         registry_connection_id=registry_connection_id,
@@ -157,7 +173,6 @@ async def deploy(
     metadata: LongLinkMetadata,
     envs: Mapping[str, str | None],
     *,
-    source: Image,
     min_scale: MinScale | None = None,
     idle_seconds: int | None = None,
     registry_connection_id: UUID | None = None,
@@ -176,7 +191,7 @@ async def deploy(
         registry_connection_id = current.registry_connection_id
     if registry_connection_id is not None:
         await registries.lock(session, solution.organization_id)
-        await registries.resolve(session, solution.organization_id, registry_connection_id, source)
+        await registries.resolve(session, solution.organization_id, registry_connection_id, metadata.image)
 
     # Apply explicit environment edits while preserving untouched secrets.
     merged = dict(current.envs) if current is not None else {}
@@ -193,7 +208,7 @@ async def deploy(
     if missing:
         raise InvalidError(f"Solution environment does not satisfy required image variables: {', '.join(missing)}")
 
-    # Preserve omitted scaling and reject identical snapshots before queuing work.
+    # Preserve omitted scaling and validate it before queuing work.
     if min_scale is None:
         min_scale = current.min_scale if current is not None else 0
     if idle_seconds is None:
@@ -202,22 +217,12 @@ async def deploy(
         validate_idle_seconds(idle_seconds)
     except ValueError as exc:
         raise InvalidError(str(exc)) from exc
-    if (
-        current is not None
-        and not current.failed
-        and current.image == metadata.image
-        and current.source == source
-        and current.envs == merged
-        and current.min_scale == min_scale
-        and current.idle_seconds == idle_seconds
-    ):
-        raise ConflictError("Source and configuration are up to date. No revision was created.")
 
     # Never change Solution-owned runtime credentials when appending a release.
     revision = Revision(
         solution_id=solution.id,
         image=metadata.image,
-        source=source,
+        version=metadata.version,
         min_scale=min_scale,
         idle_seconds=idle_seconds,
         envs=merged,

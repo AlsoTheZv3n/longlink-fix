@@ -32,7 +32,7 @@ export default function DocsArticleRoute() {
                     decisions, coordinating people, and correcting mistakes.
                 </Text>
                 <Stack
-                    className="handwritten-diagram"
+                    className="[--font-family-body:var(--font-family-handwritten)] [--font-family-heading:var(--font-family-handwritten)]"
                     direction="horizontal"
                     gap={6}
                     hAlign="center"

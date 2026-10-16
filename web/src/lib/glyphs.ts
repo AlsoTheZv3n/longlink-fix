@@ -33,6 +33,7 @@ import {
     Search,
     Square,
     Trash2,
+    Upload,
     UserRound,
     Users,
     Wrench,
@@ -79,6 +80,7 @@ export const stoneIconComponents = {
     hardDrive: HardDrive,
     userRound: UserRound,
     users: Users,
+    upload: Upload,
 } satisfies Record<string, LucideIcon>;
 
 // SAFETY: Every registry entry is created from the bundled component map without filtering keys.

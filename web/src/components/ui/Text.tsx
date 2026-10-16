@@ -1,26 +1,30 @@
 import type { ReactNode } from 'react';
 import { Text as AstryxText } from '@astryxdesign/core/Text';
 
-/** Displays View text with a small set of semantic styles. */
-export function Text({
-    children,
-    ...props
-}: {
+/** Displays View text with Astryx's semantic typography, alignment, wrapping, and truncation controls. */
+export function Text(props: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;
     children?: ReactNode;
-    color?: 'primary' | 'secondary';
-    type?: 'body' | 'large' | 'label' | 'supporting' | 'code';
+    color?: 'primary' | 'secondary' | 'disabled' | 'placeholder' | 'accent' | 'inherit';
+    type?: 'body' | 'large' | 'label' | 'supporting' | 'code' | 'display-1' | 'display-2' | 'display-3' | 'inherit';
+    size?: '4xs' | '3xs' | '2xs' | 'xsm' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+    weight?: 'normal' | 'medium' | 'semibold' | 'bold';
+    display?: 'inline' | 'block';
+    as?: 'span' | 'p' | 'div' | 'label' | 'h1' | 'h2' | 'h3';
+    maxLines?: number;
+    hasTruncateTooltip?: boolean | 'above' | 'below' | 'start' | 'end';
+    wordBreak?: 'break-word' | 'break-all';
+    textWrap?: 'wrap' | 'nowrap' | 'balance' | 'pretty';
+    justify?: 'start' | 'center' | 'end';
+    hasCapsize?: boolean;
+    hasStrikethrough?: boolean;
+    hasTabularNumbers?: boolean;
 }) {
-    // Preserve semantic supporting-text color while defaulting to body copy.
+    // Keep typography behavior and defaults owned by Astryx without adding a wrapper.
     return (
-        <AstryxText
-            {...props}
-            className={props.hidden ? 'hidden!' : undefined}
-            type={props.type ?? 'body'}
-            color={props.color ?? (props.type === 'supporting' ? 'secondary' : 'primary')}
-        >
-            {children}
+        <AstryxText {...props} className={props.hidden ? 'hidden!' : undefined}>
+            {props.children}
         </AstryxText>
     );
 }

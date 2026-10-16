@@ -1,19 +1,20 @@
 import { z } from 'zod';
-import { Info } from 'lucide-react';
-import { Form } from '@/components/Form';
 import { api, ApiError } from '@/lib/api';
 import { useApiError } from '@/lib/errors';
+import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
+import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
-import { useEffect, useId, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@/components/ui/TextInput';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { FileInput } from '@astryxdesign/core/FileInput';
+import { DialogClose } from '@/components/ui/DialogClose';
 import { Pagination } from '@astryxdesign/core/Pagination';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
@@ -26,14 +27,18 @@ const registrationSchema = schemas.zComputeRegistryCreate.extend({
 
 /** Lists registered Compute infrastructure and manages registration and removal. */
 export default function Compute() {
-    const [page, setPage] = useState(1);
+    // Defer list requests so typing remains responsive while a new page loads.
+    const [filters, setFilters] = useState({ search: '', page: 1 });
+    const { search, page } = useDeferredValue(filters);
 
     const [dialog, setDialog] = useState<
-        { kind: 'metadata'; id: string } | { kind: 'deletion'; item: { id: string; name: string } } | null
+        | { kind: 'registration' }
+        | { kind: 'metadata'; id: string }
+        | { kind: 'deletion'; item: { id: string; name: string } }
+        | null
     >(null);
 
-    const [registrationOpen, setRegistrationOpen] = useState(false);
-    const path = `/api/v1/computes?page=${page}&page_size=25`;
+    const path = `/api/v1/computes?page=${page}&page_size=25&search=${encodeURIComponent(search.trim())}`;
     const [computes, invalidate] = useApi(path, schemas.zPageComputeRegistryResponse);
 
     // Use current metadata and clear missing selections so returning to a page cannot reopen the dialog.
@@ -42,12 +47,21 @@ export default function Compute() {
     if (dialog?.kind === 'metadata' && !metadata) setDialog(null);
 
     return (
-        <Stack gap={4}>
+        <Stack gap={2}>
             <NoIndex title="Compute | LongLink" />
             <Stack direction="horizontal" justify="between" align="center" wrap="wrap">
                 <Heading level={1}>Compute</Heading>
-                <Button label="Register Compute" onClick={() => setRegistrationOpen(true)} />
+                <Button label="Register Compute" onClick={() => setDialog({ kind: 'registration' })} />
             </Stack>
+            <TextInput
+                label="Search compute"
+                isLabelHidden
+                placeholder="Search by name or endpoint"
+                value={filters.search}
+                startIcon={<Search />}
+                hasClear
+                onChange={(search) => setFilters({ search, page: 1 })}
+            />
             <Stack gap={1}>
                 <Table
                     data={computes.items}
@@ -83,10 +97,24 @@ export default function Compute() {
                         },
                     ]}
                 />
-                <Pagination page={page} onChange={setPage} totalItems={computes.total} pageSize={25} variant="none" />
+                <Stack as="footer" align="center" paddingBlock={2}>
+                    <Pagination
+                        page={page}
+                        onChange={(page) => setFilters({ ...filters, page })}
+                        totalItems={computes.total}
+                        pageSize={25}
+                        variant="pages"
+                    />
+                </Stack>
             </Stack>
-            {registrationOpen && (
-                <ComputeRegistration invalidate={invalidate} onClose={() => setRegistrationOpen(false)} />
+            {dialog?.kind === 'registration' && (
+                <ComputeRegistration
+                    invalidate={invalidate}
+                    onClose={() => {
+                        // An obsolete registration cannot dismiss a replacement dialog selection.
+                        setDialog((current) => (current === dialog ? null : current));
+                    }}
+                />
             )}
             {metadata && (
                 <Dialog
@@ -133,7 +161,7 @@ export default function Compute() {
                             // Remove the registry entry without deleting its Kubernetes resources.
                             await api.delete(`/api/v1/computes/${dialog.item.id}`);
                             await invalidate();
-                            setDialog(null);
+                            setDialog((current) => (current === dialog ? null : current));
                         },
                     }}
                     onClose={() => setDialog(null)}
@@ -146,7 +174,6 @@ export default function Compute() {
 /** Owns a fresh registration draft for the lifetime of the form dialog. */
 function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promise<void>; onClose: () => void }) {
     const reportApiError = useApiError();
-    const formId = useId();
 
     // Opening a new dialog starts with blank fields; dismissal discards this draft.
     const [kubeconfig, setKubeconfig] = useState('');
@@ -217,71 +244,85 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
         }
     }
 
-    // Preserve the existing 400px form dialog, control spacing, and dismissal behavior.
+    // Let the shared wizard own navigation, validation, and persistent fields within the creation dialog shell.
     return (
         <Dialog
+            aria-label="Register Compute"
             isOpen
             purpose="form"
+            width={960}
+            maxHeight="calc(100dvh - var(--spacing-10) * 4)"
+            padding={0}
             onOpenChange={(open) => {
                 if (!open) onClose();
             }}
         >
-            <DialogHeader title="Register Compute" onOpenChange={onClose} />
-            <Stack gap={3}>
-                <Form
-                    id={formId}
-                    action={registerCompute}
-                    submitDisabled={fileRead.kind === 'reading' || !kubeconfig.trim()}
-                >
-                    <TextInput label="Name" name="name" required />
-                    <TextInput
-                        label="Gateway URL"
-                        name="gateway_url"
-                        placeholder="https://<nightly_gateway_floating_ip>"
-                        required
-                    />
-                    <TextInput
-                        label="Storage endpoint"
-                        name="storage_endpoint"
-                        placeholder="https://<nightly_storage_floating_ip>"
-                        required
-                    />
-                    <FileInput
-                        label="Kubeconfig file"
-                        accept=".yaml,.yml"
-                        value={file}
-                        status={fileRead.kind === 'error' ? { type: 'error', message: fileRead.message } : undefined}
-                        onChange={(files) => {
-                            // Clear previous contents immediately so invalid or pending files cannot submit stale YAML.
-                            const selected = Array.isArray(files) ? (files[0] ?? null) : files;
-                            setFile(selected);
-                            setFileRead({ kind: selected ? 'reading' : 'idle' });
-                            setKubeconfig('');
-                        }}
-                    />
-                    <TextArea
-                        label="Kubeconfig"
-                        value={kubeconfig}
-                        placeholder="Paste the Compute kubeconfig"
-                        isRequired
-                        isDisabled={fileRead.kind === 'reading'}
-                        isLoading={fileRead.kind === 'reading'}
-                        hasSpellCheck={false}
-                        onChange={setKubeconfig}
-                    />
-                </Form>
-                {/* Keep Cancel usable while the shared form disables its fields during submission. */}
-                <Stack direction="horizontal" gap={2} justify="end">
-                    <Button label="Cancel" variant="ghost" onClick={onClose} />
-                    <Button
-                        label="Register"
-                        variant="primary"
-                        type="submit"
-                        form={formId}
-                        isDisabled={fileRead.kind === 'reading' || !kubeconfig.trim()}
-                    />
-                </Stack>
-            </Stack>
+            <DialogClose onClose={onClose} />
+            <Form
+                height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
+                action={registerCompute}
+                submitLabel="Register"
+                submitDisabled={fileRead.kind === 'reading' || !kubeconfig.trim()}
+                backVariant="ghost"
+            >
+                <FormStep label="Metadata">
+                    <Stack gap={8}>
+                        <Heading level={2} justify="center">
+                            Register Compute
+                        </Heading>
+                        <Stack gap={3}>
+                            <TextInput label="Name" name="name" required />
+                            <TextInput
+                                label="Gateway URL"
+                                name="gateway_url"
+                                placeholder="https://<nightly_gateway_floating_ip>"
+                                required
+                            />
+                            <TextInput
+                                label="Storage endpoint"
+                                name="storage_endpoint"
+                                placeholder="https://<nightly_storage_floating_ip>"
+                                required
+                            />
+                        </Stack>
+                    </Stack>
+                </FormStep>
+                <FormStep label="Kubeconfig">
+                    <Stack gap={8}>
+                        <Heading level={2} justify="center">
+                            Connect your cluster
+                        </Heading>
+                        <Stack gap={3}>
+                            <FileInput
+                                label="Kubeconfig file"
+                                accept=".yaml,.yml"
+                                value={file}
+                                status={
+                                    fileRead.kind === 'error' ? { type: 'error', message: fileRead.message } : undefined
+                                }
+                                onChange={(files) => {
+                                    // Clear previous contents immediately so invalid or pending files cannot submit stale YAML.
+                                    const selected = Array.isArray(files) ? (files[0] ?? null) : files;
+                                    setFile(selected);
+                                    setFileRead({ kind: selected ? 'reading' : 'idle' });
+                                    setKubeconfig('');
+                                }}
+                            />
+                            <TextArea
+                                label="Kubeconfig"
+                                rows={8}
+                                value={kubeconfig}
+                                placeholder="Paste the Compute kubeconfig"
+                                isRequired
+                                isDisabled={fileRead.kind === 'reading'}
+                                isLoading={fileRead.kind === 'reading'}
+                                hasSpellCheck={false}
+                                onChange={setKubeconfig}
+                            />
+                        </Stack>
+                    </Stack>
+                </FormStep>
+            </Form>
         </Dialog>
     );
 }

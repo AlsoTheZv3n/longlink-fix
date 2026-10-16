@@ -2,9 +2,10 @@ import asyncio
 from src import auth
 from kr8s import ServerError, NotFoundError
 from uuid import UUID
-from fastapi import Depends, APIRouter
-from src.errors import InvalidError, UnavailableError
+from fastapi import Query, Depends, APIRouter
+from src.errors import InvalidError, ConflictError, UnavailableError
 from src.logger import logger
+from sqlalchemy.exc import IntegrityError
 from src.kubernetes import tls, gateway, storageclasses
 from collections.abc import Sequence
 from src.models.computes import ComputeRegistryCreate, ComputeRegistryResponse
@@ -69,16 +70,27 @@ async def create_compute_registry(payload: ComputeRegistryCreate, session: auth.
         raise UnavailableError("Compute infrastructure is unavailable; verify endpoints, credentials, and certificates") from exc
 
     # Persist the verified connection as immediately assignable.
-    await compute.create(session, candidate)
+    session.add(candidate)
+
+    # Translate duplicate names or physical clusters to one stable API conflict.
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        raise ConflictError("Compute registry already exists") from exc
     await session.commit()
     return candidate
 
 
 @router.get("/computes", response_model=Page[ComputeRegistryResponse])
-async def list_compute_registries(session: auth.Session, pagination: Pagination = Depends()) -> dict[str, Sequence[ComputeRegistry] | int]:
+async def list_compute_registries(
+    session: auth.Session,
+    pagination: Pagination = Depends(),
+    search: str = Query(default="", max_length=200),
+) -> dict[str, Sequence[ComputeRegistry] | int]:
     """Return all registered compute backends."""
 
-    items, total = await compute.fetch_page(session, pagination)
+    # Search the full administrator listing before pagination.
+    items, total = await compute.fetch_page(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 

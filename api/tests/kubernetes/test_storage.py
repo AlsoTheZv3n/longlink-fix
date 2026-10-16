@@ -4,7 +4,7 @@ from uuid import uuid4
 from types import SimpleNamespace
 from contextlib import asynccontextmanager
 from src.kubernetes import storage
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 pytestmark = pytest.mark.no_db
 
@@ -28,10 +28,11 @@ def storage_cluster() -> object:
     class Cluster:
         """Expose the forwarded RustFS port without opening a cluster connection."""
 
-        async def forward_storage(self) -> int:
-            """Return the private administration port."""
+        @asynccontextmanager
+        async def forward_storage(self) -> AsyncGenerator[int, None]:
+            """Scope the private administration port to one workflow."""
 
-            return 19000
+            yield 19000
 
     return Cluster()
 
@@ -92,7 +93,7 @@ async def test_storage_registration_checks_remote_tunnel(
         """Observe the real S3 client's public endpoint and transport lifetime."""
 
         @asynccontextmanager
-        async def create_client(self, service: str, **kwargs: object) -> AsyncIterator[Buckets]:
+        async def create_client(self, service: str, **kwargs: object) -> AsyncGenerator[Buckets, None]:
             """Require TLS verification and release the S3 client before readiness."""
 
             # Preserve public endpoint, credential, and TLS checks at the external boundary.

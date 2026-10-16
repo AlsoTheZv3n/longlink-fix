@@ -12,6 +12,18 @@ configuration, and supporting services.
 Requirements: Linux AMD64, Docker, k3d, kubectl, OpenSSL, curl, Helm,
 uv, Vite+, and `storage.localhost` resolving to loopback.
 
+### Recreate the sample
+
+With the infrastructure and API running (`make up` and `make api`), run `make seed`.
+It regenerates `sdk/dev` from the current SDK starter, rebuilds the image, deletes
+the existing `acme-ink/invoices` sample through the Platform API, and creates a
+fresh Solution. This resets the sample's database, attachments, and local edits
+so its initial migration seeds the four building projects again.
+
+The command waits for cleanup and deployment to finish, then prints the Projects
+URL. It preserves the Organization, accounts, infrastructure, and other Solutions.
+Use `make image` instead when you want to build without resetting the sample.
+
 ### Temporary HTTPS tunnel
 
 With the local API running (`make api`), run `make tunnel` in another terminal.

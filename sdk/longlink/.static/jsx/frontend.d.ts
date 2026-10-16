@@ -8,6 +8,143 @@ type ViewJson = string | number | boolean | null | ViewJson[] | { [key: string]:
 type ViewData = ViewJson | Blob;
 type Spacing = 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
 
+/** @category Action @group Button */
+type ViewMouseEvent = Omit<MouseEvent, 'currentTarget'> & { currentTarget: HTMLElement; nativeEvent: MouseEvent };
+
+/** @category Action @group DropdownMenu */
+type DropdownMenuItemData = {
+    id?: string;
+    label: ViewNode;
+    icon?: StoneIconName;
+    description?: ViewNode;
+    endContent?: ViewNode;
+    variant?: 'default' | 'destructive';
+    isDisabled?: boolean;
+    hasCloseOnSelect?: boolean;
+    onClick?: () => void;
+    items?: DropdownMenuOption[];
+};
+
+/** @category Action @group DropdownMenu */
+type DropdownMenuOption =
+    | DropdownMenuItemData
+    | { type: 'divider' }
+    | {
+          type: 'section';
+          id?: string;
+          title?: string;
+          items: DropdownMenuItemData[];
+      };
+
+/** @category Runtime */
+declare namespace React {
+    namespace JSX {
+        interface Element {
+            readonly type: unknown;
+            readonly props: unknown;
+        }
+
+        interface ElementChildrenAttribute {
+            children: unknown;
+        }
+
+        interface IntrinsicElements {
+            [name: string]: Record<string, unknown>;
+        }
+    }
+}
+
+/** Groups JSX children without a DOM wrapper. @category Runtime @group Functions */
+declare const Fragment: ViewComponent<{
+    key?: string | number;
+}>;
+
+/**
+ * Returns the current state and a setter. Pass a value or an initializer function; updates can use the previous state.
+ * @category Runtime
+ * @group Hooks
+ */
+declare function useState<T = undefined>(initial?: T | (() => T)): [T, (value: T | ((previous: T) => T)) => void];
+
+/**
+ * Synchronizes with external systems after rendering. Return a cleanup function to release timers or subscriptions. Include every reactive value used by the effect in its dependencies.
+ * @category Runtime
+ * @group Hooks
+ */
+declare function useEffect(effect: () => void | (() => void), dependencies?: readonly unknown[]): void;
+
+/**
+ * Caches a calculated value until its dependencies change. Use it for expensive calculations, not required application state.
+ * @category Runtime
+ * @group Hooks
+ */
+declare function useMemo<T>(factory: () => T, dependencies: readonly unknown[]): T;
+
+/**
+ * Returns a stable object with a mutable current property. Changing current does not trigger a render.
+ * @category Runtime
+ * @group Hooks
+ */
+declare function useRef<T>(initial: T): { current: T };
+
+/**
+ * Navigates within the current Solution using a scoped path, or opens an HTTP(S) URL in a new tab. External URLs require user activation and open without an opener or referrer.
+ * @category Runtime
+ * @group Functions
+ */
+declare function navigate(path: string): void;
+
+/**
+ * Requests a Solution operation and returns its data. Options support the HTTP method, JSON, form data, and binary responses. Requests and responses are limited to 2,000,000 bytes, with at most 32 form entries and 8 pending operations. Successful writes automatically refresh cached View data. Failed HTTP requests reject with an Error containing an optional numeric status and a bounded client-facing message.
+ * @category Runtime
+ * @group Functions
+ */
+declare function request<T = unknown>(
+    path: string,
+    options?: {
+        method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        json?: unknown;
+        form?: [string, string | Blob][];
+        binary?: boolean;
+    },
+): Promise<T>;
+
+/**
+ * Returns Solution data and an awaitable invalidator scoped to the full request path. The renderer handles initial loading, errors, and retry.
+ * @category Runtime
+ * @group Hooks
+ */
+declare function useApi<T = unknown>(path: string): readonly [T, () => Promise<void>];
+
+/** @category Form @group DateInput */
+type ISODateString = `${number}${number}${number}${number}-${number}${number}-${number}${number}`;
+
+/** @category Form @group TimeInput */
+type ISOTimeString = string & { readonly __brand: 'ISOTimeString' };
+
+/** @category Form @group Selector */
+type SelectorOptionData = {
+    value: string;
+    label?: string;
+    description?: ViewNode;
+    icon?: StoneIconName;
+    disabled?: boolean;
+};
+
+/** @category Form @group Selector */
+type SelectorOptionType =
+    | string
+    | SelectorOptionData
+    | { type: 'divider' }
+    | {
+          type: 'section';
+          title?: string;
+          options: SelectorOptionData[];
+      };
+
+/** @category Display @group Table */
+type ColumnWidth = { type: 'proportional'; value: number; minWidth?: number } | { type: 'pixel'; value: number };
+
 /** Supported LongLink Lucide icon names, generated from the runtime registry. @ignore */
 type StoneIconName =
     | 'close'
@@ -47,6 +184,7 @@ type StoneIconName =
     | 'hardDrive'
     | 'userRound'
     | 'users'
+    | 'upload'
     | 'a-arrow-down'
     | 'a-arrow-up'
     | 'a-large-small'
@@ -102,6 +240,7 @@ type StoneIconName =
     | 'archive-x'
     | 'archive'
     | 'armchair'
+    | 'armenian-dram'
     | 'arrow-big-down-dash'
     | 'arrow-big-down'
     | 'arrow-big-left-dash'
@@ -194,6 +333,7 @@ type StoneIconName =
     | 'ban'
     | 'banana'
     | 'bandage'
+    | 'bangladeshi-taka'
     | 'banknote-arrow-down'
     | 'banknote-arrow-up'
     | 'banknote-check'
@@ -696,6 +836,7 @@ type StoneIconName =
     | 'dollar-sign'
     | 'dome'
     | 'donut'
+    | 'door-closed-cog'
     | 'door-closed-locked'
     | 'door-closed-package'
     | 'door-closed'
@@ -981,6 +1122,7 @@ type StoneIconName =
     | 'grip-horizontal'
     | 'grip-vertical'
     | 'grip'
+    | 'groceries'
     | 'group'
     | 'guitar'
     | 'ham'
@@ -997,6 +1139,7 @@ type StoneIconName =
     | 'hand-platter'
     | 'hand'
     | 'handbag'
+    | 'handle-bottom-right'
     | 'handshake'
     | 'hard-drive-download'
     | 'hard-drive-upload'
@@ -1029,6 +1172,7 @@ type StoneIconName =
     | 'helicopter'
     | 'hexagon'
     | 'highlighter'
+    | 'hiking-stick'
     | 'hop-off'
     | 'hop'
     | 'hospital'
@@ -1071,6 +1215,7 @@ type StoneIconName =
     | 'joystick'
     | 'kanban'
     | 'kayak'
+    | 'kazakh-tenge'
     | 'key-round'
     | 'key-square'
     | 'key'
@@ -1106,6 +1251,7 @@ type StoneIconName =
     | 'layout-arrow-right'
     | 'layout-dashboard'
     | 'layout-freeform'
+    | 'layout-grid-circles'
     | 'layout-grid'
     | 'layout-list'
     | 'layout-panel-left'
@@ -1116,6 +1262,8 @@ type StoneIconName =
     | 'lectern'
     | 'lens-concave'
     | 'lens-convex'
+    | 'lens'
+    | 'letters'
     | 'library-big'
     | 'library'
     | 'life-buoy'
@@ -1181,6 +1329,7 @@ type StoneIconName =
     | 'mail-badge'
     | 'mail-check'
     | 'mail-clock'
+    | 'mail-dot'
     | 'mail-minus'
     | 'mail-open'
     | 'mail-pen'
@@ -1430,6 +1579,7 @@ type StoneIconName =
     | 'phone-call'
     | 'phone-forwarded'
     | 'phone-incoming'
+    | 'phone-log'
     | 'phone-missed'
     | 'phone-off'
     | 'phone-outgoing'
@@ -1473,6 +1623,7 @@ type StoneIconName =
     | 'power-off'
     | 'power'
     | 'presentation'
+    | 'printer-3d'
     | 'printer-check'
     | 'printer-x'
     | 'printer'
@@ -1558,6 +1709,7 @@ type StoneIconName =
     | 'panels-top-bottom'
     | 'rows-4'
     | 'rss'
+    | 'rugby-ball'
     | 'ruler-dimension-line'
     | 'ruler'
     | 'russian-ruble'
@@ -1592,8 +1744,10 @@ type StoneIconName =
     | 'scissors-line-dashed'
     | 'scissors'
     | 'scooter'
+    | 'scratch-blocks'
     | 'screen-share-off'
     | 'screen-share'
+    | 'screw'
     | 'scroll-text'
     | 'scroll'
     | 'search-alert'
@@ -1628,6 +1782,7 @@ type StoneIconName =
     | 'shield-cog'
     | 'shield-ellipsis'
     | 'shield-half'
+    | 'shield-house'
     | 'shield-keyhole'
     | 'shield-lock'
     | 'shield-minus'
@@ -1922,6 +2077,9 @@ type StoneIconName =
     | 'align-center'
     | 'text-align-end'
     | 'align-right'
+    | 'text-align-justify-center'
+    | 'text-align-justify-end'
+    | 'text-align-justify-start'
     | 'text-align-justify'
     | 'align-justify'
     | 'text-align-start'
@@ -2024,7 +2182,6 @@ type StoneIconName =
     | 'unlink-2'
     | 'unlink'
     | 'unplug'
-    | 'upload'
     | 'usb-c-port'
     | 'usb'
     | 'user-check'
@@ -2048,6 +2205,7 @@ type StoneIconName =
     | 'user-round-plus'
     | 'user-plus-2'
     | 'user-round-search'
+    | 'user-round-star'
     | 'user-round-x'
     | 'user-x-2'
     | 'user-round'
@@ -2119,6 +2277,7 @@ type StoneIconName =
     | 'whole-word'
     | 'wifi-cog'
     | 'wifi-high'
+    | 'wifi-lock'
     | 'wifi-low'
     | 'wifi-off'
     | 'wifi-pen'
@@ -2126,6 +2285,7 @@ type StoneIconName =
     | 'wifi-zero'
     | 'wifi'
     | 'wind-arrow-down'
+    | 'wind-arrow-up'
     | 'wind'
     | 'wine-off'
     | 'wine'
@@ -2165,6 +2325,7 @@ type StoneIconName =
     | 'lucide:logs'
     | 'lucide:trash'
     | 'lucide:users'
+    | 'lucide:upload'
     | 'lucide:a-arrow-down'
     | 'lucide:a-arrow-up'
     | 'lucide:a-large-small'
@@ -2220,6 +2381,7 @@ type StoneIconName =
     | 'lucide:archive-x'
     | 'lucide:archive'
     | 'lucide:armchair'
+    | 'lucide:armenian-dram'
     | 'lucide:arrow-big-down-dash'
     | 'lucide:arrow-big-down'
     | 'lucide:arrow-big-left-dash'
@@ -2312,6 +2474,7 @@ type StoneIconName =
     | 'lucide:ban'
     | 'lucide:banana'
     | 'lucide:bandage'
+    | 'lucide:bangladeshi-taka'
     | 'lucide:banknote-arrow-down'
     | 'lucide:banknote-arrow-up'
     | 'lucide:banknote-check'
@@ -2814,6 +2977,7 @@ type StoneIconName =
     | 'lucide:dollar-sign'
     | 'lucide:dome'
     | 'lucide:donut'
+    | 'lucide:door-closed-cog'
     | 'lucide:door-closed-locked'
     | 'lucide:door-closed-package'
     | 'lucide:door-closed'
@@ -3099,6 +3263,7 @@ type StoneIconName =
     | 'lucide:grip-horizontal'
     | 'lucide:grip-vertical'
     | 'lucide:grip'
+    | 'lucide:groceries'
     | 'lucide:group'
     | 'lucide:guitar'
     | 'lucide:ham'
@@ -3115,6 +3280,7 @@ type StoneIconName =
     | 'lucide:hand-platter'
     | 'lucide:hand'
     | 'lucide:handbag'
+    | 'lucide:handle-bottom-right'
     | 'lucide:handshake'
     | 'lucide:hard-drive-download'
     | 'lucide:hard-drive-upload'
@@ -3147,6 +3313,7 @@ type StoneIconName =
     | 'lucide:helicopter'
     | 'lucide:hexagon'
     | 'lucide:highlighter'
+    | 'lucide:hiking-stick'
     | 'lucide:hop-off'
     | 'lucide:hop'
     | 'lucide:hospital'
@@ -3189,6 +3356,7 @@ type StoneIconName =
     | 'lucide:joystick'
     | 'lucide:kanban'
     | 'lucide:kayak'
+    | 'lucide:kazakh-tenge'
     | 'lucide:key-round'
     | 'lucide:key-square'
     | 'lucide:key'
@@ -3224,6 +3392,7 @@ type StoneIconName =
     | 'lucide:layout-arrow-right'
     | 'lucide:layout-dashboard'
     | 'lucide:layout-freeform'
+    | 'lucide:layout-grid-circles'
     | 'lucide:layout-grid'
     | 'lucide:layout-list'
     | 'lucide:layout-panel-left'
@@ -3234,6 +3403,8 @@ type StoneIconName =
     | 'lucide:lectern'
     | 'lucide:lens-concave'
     | 'lucide:lens-convex'
+    | 'lucide:lens'
+    | 'lucide:letters'
     | 'lucide:library-big'
     | 'lucide:library'
     | 'lucide:life-buoy'
@@ -3299,6 +3470,7 @@ type StoneIconName =
     | 'lucide:mail-badge'
     | 'lucide:mail-check'
     | 'lucide:mail-clock'
+    | 'lucide:mail-dot'
     | 'lucide:mail-minus'
     | 'lucide:mail-open'
     | 'lucide:mail-pen'
@@ -3548,6 +3720,7 @@ type StoneIconName =
     | 'lucide:phone-call'
     | 'lucide:phone-forwarded'
     | 'lucide:phone-incoming'
+    | 'lucide:phone-log'
     | 'lucide:phone-missed'
     | 'lucide:phone-off'
     | 'lucide:phone-outgoing'
@@ -3591,6 +3764,7 @@ type StoneIconName =
     | 'lucide:power-off'
     | 'lucide:power'
     | 'lucide:presentation'
+    | 'lucide:printer-3d'
     | 'lucide:printer-check'
     | 'lucide:printer-x'
     | 'lucide:printer'
@@ -3676,6 +3850,7 @@ type StoneIconName =
     | 'lucide:panels-top-bottom'
     | 'lucide:rows-4'
     | 'lucide:rss'
+    | 'lucide:rugby-ball'
     | 'lucide:ruler-dimension-line'
     | 'lucide:ruler'
     | 'lucide:russian-ruble'
@@ -3710,8 +3885,10 @@ type StoneIconName =
     | 'lucide:scissors-line-dashed'
     | 'lucide:scissors'
     | 'lucide:scooter'
+    | 'lucide:scratch-blocks'
     | 'lucide:screen-share-off'
     | 'lucide:screen-share'
+    | 'lucide:screw'
     | 'lucide:scroll-text'
     | 'lucide:scroll'
     | 'lucide:search-alert'
@@ -3746,6 +3923,7 @@ type StoneIconName =
     | 'lucide:shield-cog'
     | 'lucide:shield-ellipsis'
     | 'lucide:shield-half'
+    | 'lucide:shield-house'
     | 'lucide:shield-keyhole'
     | 'lucide:shield-lock'
     | 'lucide:shield-minus'
@@ -4040,6 +4218,9 @@ type StoneIconName =
     | 'lucide:align-center'
     | 'lucide:text-align-end'
     | 'lucide:align-right'
+    | 'lucide:text-align-justify-center'
+    | 'lucide:text-align-justify-end'
+    | 'lucide:text-align-justify-start'
     | 'lucide:text-align-justify'
     | 'lucide:align-justify'
     | 'lucide:text-align-start'
@@ -4142,7 +4323,6 @@ type StoneIconName =
     | 'lucide:unlink-2'
     | 'lucide:unlink'
     | 'lucide:unplug'
-    | 'lucide:upload'
     | 'lucide:usb-c-port'
     | 'lucide:usb'
     | 'lucide:user-check'
@@ -4166,6 +4346,7 @@ type StoneIconName =
     | 'lucide:user-round-plus'
     | 'lucide:user-plus-2'
     | 'lucide:user-round-search'
+    | 'lucide:user-round-star'
     | 'lucide:user-round-x'
     | 'lucide:user-x-2'
     | 'lucide:user-round'
@@ -4237,6 +4418,7 @@ type StoneIconName =
     | 'lucide:whole-word'
     | 'lucide:wifi-cog'
     | 'lucide:wifi-high'
+    | 'lucide:wifi-lock'
     | 'lucide:wifi-low'
     | 'lucide:wifi-off'
     | 'lucide:wifi-pen'
@@ -4244,6 +4426,7 @@ type StoneIconName =
     | 'lucide:wifi-zero'
     | 'lucide:wifi'
     | 'lucide:wind-arrow-down'
+    | 'lucide:wind-arrow-up'
     | 'lucide:wind'
     | 'lucide:wine-off'
     | 'lucide:wine'
@@ -4270,192 +4453,6 @@ type StoneIconName =
     | 'lucide:zoom-in'
     | 'lucide:zoom-out';
 
-/** @category Action @group Button */
-type ViewMouseEvent = Omit<MouseEvent, 'currentTarget'> & { currentTarget: HTMLElement; nativeEvent: MouseEvent };
-
-/** @category Action @group Button */
-type ButtonProps = {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
-    /** Visible button text and accessible label. */
-    label: string;
-    variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
-    size?: 'sm' | 'md' | 'lg';
-    type?: 'button' | 'submit' | 'reset';
-    name?: string;
-    value?: string | number | readonly string[];
-    form?: string;
-    icon?: StoneIconName;
-    endContent?: ViewNode;
-    tooltip?: string;
-    width?: number | string;
-    disabled?: boolean;
-    /** Solution-relative destination or HTTP(S) URL to open in a new tab. */
-    href?: string;
-    /** Runs an action with automatic async loading and duplicate-click prevention until its promise settles. */
-    onClick?: (event: ViewMouseEvent) => void | Promise<void>;
-};
-
-/** @category Action @group DropdownMenu */
-type DropdownMenuItemData = {
-    id?: string;
-    label: ViewNode;
-    icon?: StoneIconName;
-    description?: ViewNode;
-    endContent?: ViewNode;
-    variant?: 'default' | 'destructive';
-    isDisabled?: boolean;
-    hasCloseOnSelect?: boolean;
-    onClick?: () => void;
-    items?: DropdownMenuOption[];
-};
-
-/** @category Action @group DropdownMenu */
-type DropdownMenuOption =
-    | DropdownMenuItemData
-    | { type: 'divider' }
-    | {
-          type: 'section';
-          id?: string;
-          title?: string;
-          items: DropdownMenuItemData[];
-      };
-
-/** @category Runtime */
-declare namespace React {
-    namespace JSX {
-        interface Element {
-            readonly type: unknown;
-            readonly props: unknown;
-        }
-
-        interface ElementChildrenAttribute {
-            children: unknown;
-        }
-
-        interface IntrinsicElements {
-            [name: string]: Record<string, unknown>;
-        }
-    }
-}
-
-/** Groups JSX children without a DOM wrapper. @category Runtime @group Functions */
-declare const Fragment: ViewComponent<{
-    key?: string | number;
-}>;
-
-/**
- * Returns the current state and a setter. Pass a value or an initializer function; updates can use the previous state.
- * @category Runtime
- * @group Hooks
- */
-declare function useState<T = undefined>(initial?: T | (() => T)): [T, (value: T | ((previous: T) => T)) => void];
-
-/**
- * Synchronizes with external systems after rendering. Return a cleanup function to release timers or subscriptions. Include every reactive value used by the effect in its dependencies.
- * @category Runtime
- * @group Hooks
- */
-declare function useEffect(effect: () => void | (() => void), dependencies?: readonly unknown[]): void;
-
-/**
- * Caches a calculated value until its dependencies change. Use it for expensive calculations, not required application state.
- * @category Runtime
- * @group Hooks
- */
-declare function useMemo<T>(factory: () => T, dependencies: readonly unknown[]): T;
-
-/**
- * Returns a stable object with a mutable current property. Changing current does not trigger a render.
- * @category Runtime
- * @group Hooks
- */
-declare function useRef<T>(initial: T): { current: T };
-
-/**
- * Navigates within the current Solution using a scoped path, or opens an HTTP(S) URL in a new tab. External URLs require user activation and open without an opener or referrer.
- * @category Runtime
- * @group Functions
- */
-declare function navigate(path: string): void;
-
-/**
- * Requests a Solution operation and returns its data. Options support the HTTP method, JSON, form data, and binary responses. Requests and responses are limited to 2,000,000 bytes, with at most 32 form entries and 8 pending operations. Successful writes automatically refresh cached View data. Failed HTTP requests reject with an Error containing an optional numeric status and a bounded client-facing message.
- * @category Runtime
- * @group Functions
- */
-declare function request<T = unknown>(
-    path: string,
-    options?: {
-        method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-        json?: unknown;
-        form?: [string, string | Blob][];
-        binary?: boolean;
-    },
-): Promise<T>;
-
-/**
- * Returns Solution data and an awaitable invalidator scoped to the full request path. The renderer handles initial loading, errors, and retry.
- * @category Runtime
- * @group Hooks
- */
-declare function useApi<T = unknown>(path: string): readonly [T, () => Promise<void>];
-
-/** Shared props for form controls. */
-type FieldProps = {
-    /** Hides the field while keeping it mounted and enabled for form submission and validation. */
-    hidden?: boolean;
-    label: string;
-    description?: string;
-    /** Includes the themed control's value under this form submission name. */
-    name?: string;
-    /** Requires a value before native form submission. */
-    required?: boolean;
-    /** Prevents interaction and excludes the field from submission. */
-    disabled?: boolean;
-    width?: number | string;
-};
-
-/** @category Form @group DateInput */
-type ISODateString = `${number}${number}${number}${number}-${number}${number}-${number}${number}`;
-
-/** @category Form @group DateInput */
-type DateInputProps = FieldProps & {
-    value?: ISODateString;
-    defaultValue?: ISODateString;
-    onChange?: (value: ISODateString | undefined) => void;
-    min?: ISODateString;
-    max?: ISODateString;
-    /** Additional constraints applied to the themed calendar picker. */
-    dateConstraints?: readonly ((date: Date) => boolean)[];
-    placeholder?: string;
-    hasClear?: boolean;
-    size?: 'sm' | 'md' | 'lg';
-};
-
-/** @category Form @group TimeInput */
-type ISOTimeString = string & { readonly __brand: 'ISOTimeString' };
-
-/** @category Form @group Selector */
-type SelectorOptionData = {
-    value: string;
-    label?: string;
-    description?: ViewNode;
-    icon?: StoneIconName;
-    disabled?: boolean;
-};
-
-/** @category Form @group Selector */
-type SelectorOptionType =
-    | string
-    | SelectorOptionData
-    | { type: 'divider' }
-    | {
-          type: 'section';
-          title?: string;
-          options: SelectorOptionData[];
-      };
-
 /** @category Layouts @group Card */
 type CardProps = {
     /** Hides the component without unmounting it. */
@@ -4464,6 +4461,8 @@ type CardProps = {
     children?: ViewNode;
     /** Inner spacing using the theme spacing scale. */
     padding?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    /** Clips full-bleed content to the card's rounded edges. */
+    isClipped?: boolean;
     /** Background color variant, independent of the interaction mode. */
     variant?:
         | 'default'
@@ -4507,11 +4506,57 @@ type CardProps = {
     onChange?: (isSelected: boolean) => void;
 };
 
-/** @category Display @group Table */
-type ColumnWidth = { type: 'proportional'; value: number; minWidth?: number } | { type: 'pixel'; value: number };
+/** @category Action @group Button */
+type ButtonProps = {
+    /** Hides the component without unmounting it. */
+    hidden?: boolean;
+    /** Visible button text and accessible label. */
+    label: string;
+    variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
+    size?: 'sm' | 'md' | 'lg';
+    type?: 'button' | 'submit' | 'reset';
+    name?: string;
+    value?: string | number | readonly string[];
+    form?: string;
+    icon?: StoneIconName;
+    endContent?: ViewNode;
+    tooltip?: string;
+    width?: number | string;
+    disabled?: boolean;
+    /** Solution-relative destination or HTTP(S) URL to open in a new tab. */
+    href?: string;
+    /** Runs an action with automatic async loading and duplicate-click prevention until its promise settles. */
+    onClick?: (event: ViewMouseEvent) => void | Promise<void>;
+};
 
-// BEGIN GENERATED COMPONENTS
-// Generated from web/src/views/components.ts by vp run generate:docs. Do not edit.
+/** @category Form @group DateInput */
+type DateInputProps = FieldProps & {
+    value?: ISODateString;
+    defaultValue?: ISODateString;
+    onChange?: (value: ISODateString | undefined) => void;
+    min?: ISODateString;
+    max?: ISODateString;
+    /** Additional constraints applied to the themed calendar picker. */
+    dateConstraints?: readonly ((date: Date) => boolean)[];
+    placeholder?: string;
+    hasClear?: boolean;
+    size?: 'sm' | 'md' | 'lg';
+};
+
+/** Shared props for form controls. */
+type FieldProps = {
+    /** Hides the field while keeping it mounted and enabled for form submission and validation. */
+    hidden?: boolean;
+    label: string;
+    description?: string;
+    /** Includes the themed control's value under this form submission name. */
+    name?: string;
+    /** Requires a value before native form submission. */
+    required?: boolean;
+    /** Prevents interaction and excludes the field from submission. */
+    disabled?: boolean;
+    width?: number | string;
+};
 
 /** @category Layouts */
 declare function Layout(props: {
@@ -4540,6 +4585,7 @@ declare function LayoutContent(props: {
     hidden?: boolean;
     children?: ViewNode;
     padding?: Spacing;
+    /** Enables independent scrolling; defaults to true. */
     isScrollable?: boolean;
     /** Accessible name for the region; distinguish repeated landmarks with labels. */
     label?: string;
@@ -4584,6 +4630,7 @@ declare function LayoutPanel(props: {
     children?: ViewNode;
     hasDivider?: boolean;
     padding?: Spacing;
+    /** Enables independent scrolling; defaults to true. */
     isScrollable?: boolean;
     label?: string;
     role?: 'complementary' | 'navigation' | 'region';
@@ -4607,6 +4654,12 @@ declare function Stack(props: {
     /** Spacing between items. */
     gap?: Spacing;
     padding?: Spacing;
+    /** Horizontal padding, overriding padding on the inline axis. */
+    paddingInline?: Spacing;
+    /** Vertical padding, overriding padding on the block axis. */
+    paddingBlock?: Spacing;
+    /** Optional muted surface background; omitted stacks remain transparent. */
+    background?: 'muted';
     direction?: 'horizontal' | 'vertical';
     justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'evenly';
     align?: 'start' | 'center' | 'end' | 'stretch';
@@ -4630,8 +4683,19 @@ declare function Grid(props: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;
     children?: ViewNode;
-    columns?: number;
+    /** Fixed columns or responsive tracks with a minimum width in pixels and optional column cap. Use one-column or full spans with responsive tracks. */
+    columns?: number | { minWidth: number; max?: number; repeat?: 'fill' | 'fit' };
+    /** Collapse to one column at or below this View viewport width in pixels, including all GridSpan children. */
+    collapseBelow?: number;
     gap?: Spacing;
+    rowGap?: Spacing;
+    columnGap?: Spacing;
+    align?: 'start' | 'center' | 'end' | 'stretch';
+    justify?: 'start' | 'center' | 'end' | 'stretch';
+    width?: number | string;
+    height?: number | string;
+    maxWidth?: number | string;
+    minHeight?: number | string;
 }): React.JSX.Element;
 
 /** @category Layouts @group Grid */
@@ -4669,8 +4733,20 @@ declare function Text(props: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;
     children?: ViewNode;
-    color?: 'primary' | 'secondary';
-    type?: 'body' | 'large' | 'label' | 'supporting' | 'code';
+    color?: 'primary' | 'secondary' | 'disabled' | 'placeholder' | 'accent' | 'inherit';
+    type?: 'body' | 'large' | 'label' | 'supporting' | 'code' | 'display-1' | 'display-2' | 'display-3' | 'inherit';
+    size?: '4xs' | '3xs' | '2xs' | 'xsm' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+    weight?: 'normal' | 'medium' | 'semibold' | 'bold';
+    display?: 'inline' | 'block';
+    as?: 'span' | 'p' | 'div' | 'label' | 'h1' | 'h2' | 'h3';
+    maxLines?: number;
+    hasTruncateTooltip?: boolean | 'above' | 'below' | 'start' | 'end';
+    wordBreak?: 'break-word' | 'break-all';
+    textWrap?: 'wrap' | 'nowrap' | 'balance' | 'pretty';
+    justify?: 'start' | 'center' | 'end';
+    hasCapsize?: boolean;
+    hasStrikethrough?: boolean;
+    hasTabularNumbers?: boolean;
 }): React.JSX.Element;
 
 /** @category Display */
@@ -4690,6 +4766,16 @@ declare function Avatar(
         size?: 'sm' | 'md' | 'lg';
     },
 ): React.JSX.Element;
+
+/** @category Display */
+declare function Image(props: {
+    /** Hides the image without unmounting it. */
+    hidden?: boolean;
+    /** Scoped Solution image path, or an image data/blob URL. */
+    src: string;
+    /** Accessible description of the photo. */
+    alt: string;
+}): React.JSX.Element;
 
 /** @category Display */
 declare function Badge(props: {
@@ -4730,15 +4816,6 @@ declare function Token(props: {
     onClick?: () => void;
     /** Shows a remove button and runs when it is clicked. */
     onRemove?: () => void;
-}): React.JSX.Element;
-
-/** @category Display */
-declare function StatusDot(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
-    label: string;
-    variant: 'success' | 'warning' | 'error' | 'accent' | 'neutral';
-    tooltip?: string;
 }): React.JSX.Element;
 
 /** @category Layouts */
@@ -4802,6 +4879,8 @@ declare function Dialog(props: {
     hidden?: boolean;
     children?: ViewNode;
     'aria-label': string;
+    /** Shows the accessible dialog name as a visible header title; defaults to true. */
+    showTitle?: boolean;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     purpose?: 'form' | 'info' | 'required';
@@ -4841,7 +4920,7 @@ declare function Form(props: {
 declare function FormStep(props: {
     /** Visible label identifying this step in the progress indicator. */
     label: string;
-    /** Fields and layout displayed when this step is active. */
+    /** Fields arranged vertically with spacing step 3. Use an explicit layout child for custom grouping. */
     children?: ViewNode;
 }): React.JSX.Element;
 
@@ -4894,6 +4973,7 @@ declare function TextInput(
         autoComplete?: string;
         hasClear?: boolean;
         hasAutoFocus?: boolean;
+        isLabelHidden?: boolean;
         startIcon?: ViewNode;
         onEnter?: () => void;
     },
@@ -5036,6 +5116,9 @@ declare function MetadataList(props: {
     children?: ViewNode;
     columns?: 'multi' | 'single' | number;
     title?: ViewNode;
+    label?: { position: 'start' | 'top'; width?: number | string };
+    maxNumOfItems?: number;
+    orientation?: 'vertical' | 'horizontal';
 }): React.JSX.Element;
 
 /** @category Display @group MetadataList */
@@ -5066,6 +5149,20 @@ declare function Table<T extends Record<string, unknown>>(props: {
         align?: 'start' | 'center' | 'end';
         renderCell?: (row: T) => ViewNode;
     }[];
+}): React.JSX.Element;
+
+/** @category Action */
+declare function Pagination(props: {
+    /** Hides the component without unmounting it. */
+    hidden?: boolean;
+    /** Current page number, starting at 1. */
+    page: number;
+    /** Receives the selected page number. */
+    onPageChange: (page: number) => void;
+    totalItems: number;
+    pageSize: number;
+    /** Accessible navigation label; defaults to Astryx's localized Pagination label. */
+    label?: string;
 }): React.JSX.Element;
 
 /** @category Display @group Table */
@@ -5104,6 +5201,13 @@ declare function CodeBlock(props: {
     language?: string;
     title?: string;
     isWrapped?: boolean;
+    hasLineNumbers?: boolean;
+    highlightLines?: number[];
+    hasCopyButton?: boolean;
+    maxHeight?: number | string;
+    size?: 'sm' | 'md';
+    isCollapsible?: boolean;
+    collapsibleThreshold?: number;
 }): React.JSX.Element;
 
 /** @category Display */
@@ -5114,7 +5218,13 @@ declare function ProgressBar(props: {
     value?: number;
     max?: number;
     hasValueLabel?: boolean;
+    /** Formats usage counts or units instead of the default percentage. */
+    formatValueLabel?: (value: number, max: number) => string;
     variant?: 'accent' | 'success' | 'warning' | 'error' | 'neutral';
+    marks?: ReadonlyArray<{ value: number; label: string }>;
+    isDisabled?: boolean;
+    isLabelHidden?: boolean;
+    isIndeterminate?: boolean;
 }): React.JSX.Element;
 
 /** @category Layouts */
@@ -5146,7 +5256,7 @@ declare function Tabs(props: {
     hidden?: boolean;
     /** Tab elements defining labels and panel content. */
     children?: ViewNode;
-    gap?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    gap?: Spacing;
     hasDivider?: boolean;
     /** Receives the selected Tab value; use with value to control selection. */
     onChange?: (value: string) => void;
@@ -5193,7 +5303,7 @@ declare function Menu(props: {
     hidden?: boolean;
     /** MenuSection elements defining navigation and content. */
     children?: ViewNode;
-    gap?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    gap?: Spacing;
 }): React.JSX.Element;
 
 /** @category Layouts @group Menu */
@@ -5269,6 +5379,6 @@ declare function FileViewer(props: {
     src: string;
     /** Attachment name used for accessible action labels and the downloaded filename. */
     title: string;
+    /** Size of preview and download actions; use sm in compact tables. Omitted values retain inherited sizing. */
+    size?: 'sm' | 'md' | 'lg';
 }): React.JSX.Element;
-
-// END GENERATED COMPONENTS

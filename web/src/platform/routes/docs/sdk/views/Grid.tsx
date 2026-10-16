@@ -8,6 +8,7 @@ export default function GridPage() {
     return (
         <ViewLayout
             name="Grid"
+            introduction="Grid supports fixed columns or responsive tracks with columns={{ minWidth: 240, max: 3 }}. Responsive tracks reflow with the container width; use one-column or full GridSpan items with them. For unequal fixed-column layouts, collapseBelow={768} switches to a single column at narrow View viewport widths and makes spanning children full-width."
             examples={[
                 {
                     title: 'Grid',

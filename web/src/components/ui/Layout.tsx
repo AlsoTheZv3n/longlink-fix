@@ -29,7 +29,7 @@ export function Layout(props: {
     defaultHasDividers?: boolean;
 }) {
     // Preserve Astryx's slot layout and contextual spacing without introducing custom sizing behavior.
-    return <AstryxLayout {...props} className={props.hidden ? 'hidden!' : undefined} height={props.height ?? 'fill'} />;
+    return <AstryxLayout {...props} className={props.hidden ? 'hidden!' : undefined} />;
 }
 
 /** Provides the main content region, with optional independently scrollable overflow. */
@@ -38,19 +38,14 @@ export function LayoutContent(props: {
     hidden?: boolean;
     children?: ReactNode;
     padding?: Spacing;
+    /** Enables independent scrolling; defaults to true. */
     isScrollable?: boolean;
     /** Accessible name for the region; distinguish repeated landmarks with labels. */
     label?: string;
     role?: 'main' | 'region';
 }) {
     // Let Astryx align the content and inherit padding from its containing layout.
-    return (
-        <AstryxLayoutContent
-            {...props}
-            className={props.hidden ? 'hidden!' : undefined}
-            isScrollable={props.isScrollable ?? true}
-        />
-    );
+    return <AstryxLayoutContent {...props} className={props.hidden ? 'hidden!' : undefined} />;
 }
 
 /** Keeps titles and toolbars above the main content region. */
@@ -97,6 +92,7 @@ export function LayoutPanel(props: {
     children?: ReactNode;
     hasDivider?: boolean;
     padding?: Spacing;
+    /** Enables independent scrolling; defaults to true. */
     isScrollable?: boolean;
     label?: string;
     role?: 'complementary' | 'navigation' | 'region';
@@ -104,11 +100,5 @@ export function LayoutPanel(props: {
     width?: number | string;
 }) {
     // Keep panel sizing, divider placement, and scrolling owned by Astryx.
-    return (
-        <AstryxLayoutPanel
-            {...props}
-            className={props.hidden ? 'hidden!' : undefined}
-            isScrollable={props.isScrollable ?? true}
-        />
-    );
+    return <AstryxLayoutPanel {...props} className={props.hidden ? 'hidden!' : undefined} />;
 }

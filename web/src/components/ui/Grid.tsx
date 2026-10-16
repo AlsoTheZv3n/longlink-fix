@@ -1,23 +1,44 @@
 import type { Spacing } from './types';
-import type { ReactNode } from 'react';
+import { useMediaQuery } from '@astryxdesign/core/hooks';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Grid as AstryxGrid, GridSpan as AstryxGridSpan } from '@astryxdesign/core/Grid';
 
-/** Arranges View content into a fixed number of columns. */
+// Collapsed grids keep spanning children within their single explicit column.
+const GridCollapseContext = createContext(false);
+
+/** Arranges View content into fixed or width-responsive columns. */
 export function Grid(props: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;
     children?: ReactNode;
-    columns?: number;
+    /** Fixed columns or responsive tracks with a minimum width in pixels and optional column cap. Use one-column or full spans with responsive tracks. */
+    columns?: number | { minWidth: number; max?: number; repeat?: 'fill' | 'fit' };
+    /** Collapse to one column at or below this View viewport width in pixels, including all GridSpan children. */
+    collapseBelow?: number;
     gap?: Spacing;
+    rowGap?: Spacing;
+    columnGap?: Spacing;
+    align?: 'start' | 'center' | 'end' | 'stretch';
+    justify?: 'start' | 'center' | 'end' | 'stretch';
+    width?: number | string;
+    height?: number | string;
+    maxWidth?: number | string;
+    minHeight?: number | string;
 }) {
-    // Start with one column and the standard content gap.
+    // Let Astryx reflow galleries; explicit viewport collapse preserves unequal desktop spans.
+    const { collapseBelow, ...grid } = props;
+    const narrow = useMediaQuery(`(max-width: ${collapseBelow ?? 0}px)`);
+    const collapsed = collapseBelow !== undefined && narrow;
+
     return (
-        <AstryxGrid
-            {...props}
-            className={props.hidden ? 'hidden!' : undefined}
-            columns={props.columns ?? 1}
-            gap={props.gap ?? 3}
-        />
+        <GridCollapseContext value={collapsed}>
+            <AstryxGrid
+                {...grid}
+                className={props.hidden ? 'hidden!' : undefined}
+                columns={collapsed ? 1 : (props.columns ?? 1)}
+                gap={props.gap ?? 3}
+            />
+        </GridCollapseContext>
     );
 }
 
@@ -30,6 +51,14 @@ export function GridSpan(props: {
     /** Number of columns to occupy, or full to span the entire grid. */
     columns?: number | 'full';
 }) {
-    // Unspecified items occupy one column.
-    return <AstryxGridSpan {...props} className={props.hidden ? 'hidden!' : undefined} columns={props.columns ?? 1} />;
+    // Avoid implicit extra tracks when the parent collapses to a single column.
+    const collapsed = useContext(GridCollapseContext);
+
+    return (
+        <AstryxGridSpan
+            {...props}
+            className={props.hidden ? 'hidden!' : undefined}
+            columns={collapsed ? 'full' : (props.columns ?? 1)}
+        />
+    );
 }

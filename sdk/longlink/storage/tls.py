@@ -2,12 +2,12 @@ import ssl
 import tempfile
 from typing import override
 from contextlib import contextmanager
-from collections.abc import Iterator
+from collections.abc import Generator
 from aiobotocore.httpsession import AIOHTTPSession
 
 
 @contextmanager
-def certificate_file(pem: str) -> Iterator[str]:
+def certificate_file(pem: str) -> Generator[str]:
     """Yield a validated CA filename for exactly the caller's chosen resource lifetime."""
 
     # Validate before creating the file; publish its name only after the PEM has been flushed.
@@ -19,7 +19,7 @@ def certificate_file(pem: str) -> Iterator[str]:
 
 
 @contextmanager
-def verified_location(pem: str | None) -> Iterator[str | None]:
+def verified_location(pem: str | None) -> Generator[str | None]:
     """Yield a CA filename for private endpoints while keeping public trust as None."""
 
     # Keep the no-certificate path explicit so callers can distinguish default trust.

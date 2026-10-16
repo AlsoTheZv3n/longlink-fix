@@ -542,6 +542,17 @@
         "operationId": "list_solutions_api_v1_solutions_get",
         "parameters": [
           {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Search"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -757,7 +768,7 @@
     "/api/v1/solutions/{solution_id}/update": {
       "get": {
         "summary": "Check Update",
-        "description": "Inspect the desired release source without changing deployment state.",
+        "description": "Inspect the repository's latest image without changing deployment state.",
         "operationId": "check_update_api_v1_solutions__solution_id__update_get",
         "parameters": [
           {
@@ -822,7 +833,7 @@
       },
       "post": {
         "summary": "Apply Update",
-        "description": "Re-resolve the desired source and deploy a changed image or configuration.",
+        "description": "Re-resolve latest and deploy a changed immutable image or configuration.",
         "operationId": "apply_update_api_v1_solutions__solution_id__update_post",
         "parameters": [
           {
@@ -1160,6 +1171,17 @@
         "operationId": "list_compute_registries_api_v1_computes_get",
         "parameters": [
           {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Search"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -1469,6 +1491,17 @@
         "operationId": "list_operations_api_v1_operations_get",
         "parameters": [
           {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Search"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -1548,6 +1581,17 @@
         "description": "Return all organizations for administrator views.",
         "operationId": "list_organizations_api_v1_organizations_get",
         "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Search"
+            }
+          },
           {
             "name": "page",
             "in": "query",
@@ -2563,6 +2607,17 @@
         "description": "Return all user summaries for administrator views.",
         "operationId": "list_users_api_v1_users_get",
         "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Search"
+            }
+          },
           {
             "name": "page",
             "in": "query",
@@ -4108,22 +4163,6 @@
             "title": "Client Name",
             "default": "MCP client"
           },
-          "grant_types": {
-            "items": {
-              "type": "string",
-              "enum": [
-                "authorization_code",
-                "refresh_token"
-              ]
-            },
-            "type": "array",
-            "maxItems": 2,
-            "minItems": 1,
-            "title": "Grant Types",
-            "default": [
-              "authorization_code"
-            ]
-          },
           "redirect_uris": {
             "items": {
               "type": "string"
@@ -4151,6 +4190,22 @@
             "const": "none",
             "title": "Token Endpoint Auth Method",
             "default": "none"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "authorization_code",
+                "refresh_token"
+              ]
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Grant Types",
+            "default": [
+              "authorization_code"
+            ]
           }
         },
         "type": "object",
@@ -4760,6 +4815,18 @@
               }
             ],
             "title": "Desired Revision Id"
+          },
+          "deployed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployed Version",
+            "description": "Recorded image version of the last successfully deployed revision, when available."
           }
         },
         "type": "object",
@@ -4962,19 +5029,6 @@
             "title": "Client Name",
             "default": "MCP client"
           },
-          "grant_types": {
-            "items": {
-              "type": "string",
-              "const": "authorization_code"
-            },
-            "type": "array",
-            "maxItems": 1,
-            "minItems": 1,
-            "title": "Grant Types",
-            "default": [
-              "authorization_code"
-            ]
-          },
           "redirect_uris": {
             "items": {
               "type": "string"
@@ -5002,6 +5056,19 @@
             "const": "none",
             "title": "Token Endpoint Auth Method",
             "default": "none"
+          },
+          "grant_types": {
+            "items": {
+              "type": "string",
+              "const": "authorization_code"
+            },
+            "type": "array",
+            "maxItems": 1,
+            "minItems": 1,
+            "title": "Grant Types",
+            "default": [
+              "authorization_code"
+            ]
           },
           "client_id": {
             "type": "string",
@@ -5370,6 +5437,18 @@
               }
             ],
             "title": "Desired Revision Id"
+          },
+          "deployed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployed Version",
+            "description": "Recorded image version of the last successfully deployed revision, when available."
           },
           "organization": {
             "$ref": "#/components/schemas/OrganizationIdentity"

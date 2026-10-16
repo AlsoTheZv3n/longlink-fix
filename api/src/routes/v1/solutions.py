@@ -3,7 +3,7 @@ import json
 import zipfile
 from src import auth
 from uuid import UUID
-from fastapi import Depends, Response, APIRouter, HTTPException
+from fastapi import Query, Depends, Response, APIRouter, HTTPException
 from src.utils import roles, images
 from src.errors import NotFoundError, ForbiddenError
 from src.logger import logger
@@ -24,8 +24,8 @@ router = APIRouter()
 
 async def update_candidate(
     session: AsyncSession, solution_id: UUID, user_id: UUID, expected_revision_id: UUID | None = None
-) -> tuple[Solution, Revision, Image, LongLinkMetadata]:
-    """Inspect and revalidate one desired Solution revision for an update request."""
+) -> tuple[Solution, Revision, LongLinkMetadata]:
+    """Inspect the repository's latest image and revalidate the desired revision."""
 
     # Avoid holding command locks while waiting for the container registry.
     solution = await solutions.access(session, solution_id, user_id, lock=False)
@@ -34,7 +34,11 @@ async def update_candidate(
     revision = await session.get(Revision, solution.desired_revision_id)
     if revision is None:
         raise HTTPException(status_code=409, detail="Solution has no desired revision")
-    source, revision_id = Image(revision.source), revision.id
+
+    # Follow latest for updates, including Solutions created with a version tag or digest.
+    source = Image(revision.image)
+    source = Image(f"{source.registry}/{source.repository}:latest")
+    revision_id = revision.id
     connection = await registries.resolve(session, solution.organization_id, revision.registry_connection_id, source)
     await session.commit()
     metadata = await images.required_metadata(source, connection)
@@ -45,7 +49,7 @@ async def update_candidate(
     solution = await solutions.access(session, solution_id, user_id)
     if solution.desired_revision_id != revision_id:
         raise HTTPException(status_code=409, detail="Desired revision changed during inspection. Check again.")
-    return solution, revision, source, metadata
+    return solution, revision, metadata
 
 
 @router.get("/solutions", response_model=Page[SolutionResponse])
@@ -53,10 +57,12 @@ async def list_solutions(
     _user: auth.PlatformAdmin,
     session: auth.Session,
     pagination: Pagination = Depends(),
+    search: str = Query(default="", max_length=200),
 ):
     """Return all solutions for administrator views."""
 
-    items, total = await solutions.fetch_page(session, pagination)
+    # Search the full administrator listing before pagination.
+    items, total = await solutions.fetch_page(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 
@@ -84,9 +90,9 @@ async def create_solution(
 
 @router.get("/solutions/{solution_id}/update", response_model=SolutionUpdateCheck)
 async def check_update(solution_id: UUID, user: auth.CurrentUser, session: auth.Session):
-    """Inspect the desired release source without changing deployment state."""
+    """Inspect the repository's latest image without changing deployment state."""
 
-    solution, revision, _, metadata = await update_candidate(session, solution_id, user.id)
+    solution, revision, metadata = await update_candidate(session, solution_id, user.id)
 
     # Reuse the inspected version when the candidate is the current immutable image.
     current_version = metadata.version if metadata.image == revision.image else None
@@ -113,7 +119,7 @@ async def check_update(solution_id: UUID, user: auth.CurrentUser, session: auth.
         "current_version": current_version,
         "metadata": metadata,
         "revision_id": revision.id,
-        "configured_envs": revision.configured_envs,
+        "configured_envs": sorted(revision.envs),
         "min_scale": revision.min_scale,
         "idle_seconds": revision.idle_seconds,
     }
@@ -121,13 +127,13 @@ async def check_update(solution_id: UUID, user: auth.CurrentUser, session: auth.
 
 @router.post("/solutions/{solution_id}/update", status_code=204)
 async def apply_update(solution_id: UUID, payload: SolutionPatch, user: auth.CurrentUser, session: auth.Session):
-    """Re-resolve the desired source and deploy a changed image or configuration."""
+    """Re-resolve latest and deploy a changed immutable image or configuration."""
 
-    solution, _, source, metadata = await update_candidate(session, solution_id, user.id, payload.expected_revision_id)
+    solution, _revision, metadata = await update_candidate(session, solution_id, user.id, payload.expected_revision_id)
 
     # Compare and merge only against the current serialized desired state.
     await solutions.deploy(
-        session, solution, user.id, metadata, payload.envs, source=source, min_scale=payload.min_scale, idle_seconds=payload.idle_seconds
+        session, solution, user.id, metadata, payload.envs, min_scale=payload.min_scale, idle_seconds=payload.idle_seconds
     )
     await session.commit()
 

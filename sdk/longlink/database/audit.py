@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from sqlalchemy import event
 from contextvars import ContextVar
 from sqlalchemy.orm import Session as SyncSession
-from collections.abc import Iterator
+from collections.abc import Generator
 
 current_actor: ContextVar[UUID | None] = ContextVar("current_actor", default=None)
 
@@ -22,7 +22,7 @@ class AuditRecord(Protocol):
 
 
 @contextmanager
-def actor(user_id: UUID | None) -> Iterator[None]:
+def actor(user_id: UUID | None) -> Generator[None]:
     """Bind one authenticated user or anonymous request to the current audit scope."""
 
     token = current_actor.set(user_id)
@@ -67,5 +67,6 @@ def install_listener(session_type: type[SyncSession], audit_type: type[object]) 
             record.updated_at = now
             record.updated_id = user_id
 
-            if record.deleted_at is not None and record.deleted_id is None:
+            # Attribute explicit soft deletes only on models that support them.
+            if getattr(record, "deleted_at", None) is not None and record.deleted_id is None:
                 record.deleted_id = user_id

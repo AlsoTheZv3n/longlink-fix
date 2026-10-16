@@ -1,5 +1,3 @@
-"""Test Solution routes with isolated in-memory services."""
-
 from typing import Any
 from longlink.app import LongLink, RuntimeState
 from fastapi.testclient import TestClient as FastAPITestClient

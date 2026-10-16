@@ -19,6 +19,12 @@ function isRoute(route: string): boolean {
         });
 }
 
+const runtimeSchema = z.object({
+    version: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+export type ViewRuntime = z.infer<typeof runtimeSchema>;
+
 const viewSchema = z.object({
     path: z
         .string()
@@ -53,3 +59,6 @@ export const viewsSchema = z.array(viewSchema).superRefine((views, context) => {
         routes.add(routeKey);
     }
 });
+
+// Require one pinned Solution-wide runtime for the complete catalog.
+export const manifestSchema = z.object({ views: viewsSchema, runtime: runtimeSchema });

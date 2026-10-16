@@ -1,8 +1,8 @@
 from uuid import UUID, uuid4
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
 from datetime import datetime
 from sqlmodel import Field, Relationship
-from sqlalchemy import Enum, Column, Integer, CheckConstraint, UniqueConstraint, ForeignKeyConstraint, event, inspect
+from sqlalchemy import Enum, Text, Column, Integer, CheckConstraint, UniqueConstraint, ForeignKeyConstraint, event, inspect
 from sqlalchemy.orm import Mapper
 from src.environments import env
 from src.models.types import MinScale
@@ -69,6 +69,19 @@ class Solution(AuditTable, table=True):
             "lazy": "raise",
         }
     )
+    deployed_revision: Optional["Revision"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "Solution.deployed_revision_id == Revision.id",
+            "foreign_keys": "Solution.deployed_revision_id",
+            "lazy": "raise",
+        }
+    )
+
+    @property
+    def deployed_version(self) -> str | None:
+        """Expose the last successfully deployed image's recorded version."""
+
+        return self.deployed_revision.version if self.deployed_revision is not None else None
 
     @property
     def image_desired(self) -> str:
@@ -101,7 +114,7 @@ class Revision(AuditTable, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     solution_id: UUID = Field(foreign_key="solutions.id", ondelete="CASCADE")
     image: str = Field(max_length=512)
-    source: str = Field(max_length=512)
+    version: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     registry_connection_id: UUID | None = Field(default=None, foreign_key="registry_connections.id")
     min_scale: MinScale = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
     idle_seconds: int = Field(default=60, ge=0, le=3600, sa_column=Column(Integer, nullable=False, server_default="60"))
@@ -109,12 +122,6 @@ class Revision(AuditTable, table=True):
     # Observed state does not modify the snapshot.
     failed: bool = Field(default=False)
     deployed_at: datetime | None = Field(default=None)
-
-    @property
-    def configured_envs(self) -> list[str]:
-        """Expose configured names without returning their encrypted values."""
-
-        return sorted(self.envs)
 
 
 @event.listens_for(Revision, "before_update")
@@ -128,8 +135,8 @@ def protect_snapshot(_mapper: Mapper[Revision], _connection: Connection, revisio
         for name in (
             "id",
             "solution_id",
-            "source",
             "image",
+            "version",
             "envs",
             "min_scale",
             "idle_seconds",

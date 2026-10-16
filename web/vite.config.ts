@@ -1,6 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
-import * as catalog from './src/lib/catalog-loader';
 import { reactRouter } from '@react-router/dev/vite';
 
 const ignoredPaths = [
@@ -29,24 +28,9 @@ export default defineConfig(({ mode }) => {
     const devServerPort = env.VITE_DEV_PORT ? Number.parseInt(env.VITE_DEV_PORT, 10) : 5173;
 
     return {
-        // Keep code-level test servers from replacing the running dev server's optimized dependencies.
-        cacheDir: mode === 'test' ? 'node_modules/.vite-test' : 'node_modules/.vite',
-        plugins: [
-            {
-                name: 'documentation-catalog',
-
-                // Bundle validated data instead of Node filesystem access or a browser YAML parser.
-                load(id) {
-                    if (id !== new URL('./src/lib/catalog.ts', import.meta.url).pathname) return;
-
-                    this.addWatchFile(new URL('../sdk/longlink/.static/jsx/components.yml', import.meta.url).pathname);
-
-                    return `export default ${JSON.stringify(catalog.loadCatalog())};`;
-                },
-            },
-            ...tailwindcss(),
-            ...(mode === 'test' ? [] : reactRouter()),
-        ],
+        // Isolate Platform, SDK, and test dependency optimization from each other and default-cache tooling.
+        cacheDir: `node_modules/.vite-${mode}`,
+        plugins: [...tailwindcss(), ...(mode === 'test' ? [] : reactRouter())],
 
         fmt: {
             arrowParens: 'always',
@@ -130,6 +114,14 @@ export default defineConfig(({ mode }) => {
 
         envPrefix: ['VITE_', 'VERSION'],
 
+        build: {
+            rolldownOptions: {
+                checks: {
+                    moduleLevelDirective: false,
+                },
+            },
+        },
+
         resolve: {
             tsconfigPaths: true,
         },
@@ -137,6 +129,7 @@ export default defineConfig(({ mode }) => {
         server: {
             host: devServerHost,
             port: devServerPort,
+            strictPort: true,
 
             // Route API calls and canonical MCP resource discovery to the local backend.
             proxy: {

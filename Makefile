@@ -1,4 +1,4 @@
-.PHONY: install apt check format build test up image down api tunnel web sdk seed main
+.PHONY: install apt check format build test up image down clear api tunnel web sdk seed main
 
 # Keep user-installed development tools available across separate make invocations.
 export PATH := $(HOME)/.vite-plus/bin:$(HOME)/.local/bin:$(PATH)
@@ -76,8 +76,10 @@ build:
 
 # Build required bundles and run all test suites.
 test:
-	cd web && vp run build:api:bundle --logLevel warn
-	cd web && vp run build:sdk:bundle --logLevel warn
+	cd web && vp run build:views
+	cd web && vp run check:docs
+	cd web && vp exec react-router build --mode api --logLevel warn
+	cd web && vp exec react-router build --mode sdk --logLevel warn
 	cd api && uv run --locked --extra dev pytest --cov=main --cov=src --cov-report=term-missing
 	cd sdk && uv run --locked --group dev pytest --cov --cov-report=term-missing
 	cd web && vp test run
@@ -109,6 +111,7 @@ up:
 
 
 # Build and push the local sample, preserving an existing development project.
+# Keep sample preparation explicit in image and sdk so each workflow remains standalone.
 image:
 	cd web && vp run build:sdk:bundle --logLevel warn
 	@if [ ! -d sdk/dev ]; then \
@@ -130,6 +133,15 @@ down:
 	# Reap volumes orphaned by removed containers and superseded image layers.
 	@docker volume ls -qf dangling=true | xargs -r docker volume rm
 	docker image prune -f
+
+
+# Reset local development state without changing tracked files or unrelated Docker resources.
+clear:
+	@if k3d cluster list compute >/dev/null 2>&1; then k3d cluster delete compute; fi
+	@if k3d registry list longlink-registry >/dev/null 2>&1; then k3d registry delete longlink-registry; fi
+	docker compose -f dev/compose.yml down --volumes --remove-orphans
+	# Delete all ignored files, including environments, databases, dependencies, and local secrets.
+	git clean -fdX
 
 
 # Prepare and run the local LongLink Platform API server.
@@ -157,20 +169,20 @@ tunnel:
 # Run the Vite web app.
 web:
 	cd web && vp install --frozen-lockfile
-	cd web && vp run dev --port 5173
+	cd web && vp run dev
 
 
-# Run the local sample Solution, preserving an existing development project.
+# Recreate and run the local sample Solution from the current scaffold.
 sdk:
 	cd web && vp run build:sdk:bundle --logLevel warn
-	@if [ ! -d sdk/dev ]; then \
-		cd sdk && uv run --locked longlink init --folder dev --name sample && \
-		printf '\n\n[tool.uv.sources]\nlonglink = { path = "..", editable = true }\n' >> dev/pyproject.toml; \
-	fi
+	# Remove only the generated sample, including its database, storage, and local edits.
+	rm -rf -- sdk/dev
+	cd sdk && uv run --locked longlink init --folder dev --name sample
+	printf '\n\n[tool.uv.sources]\nlonglink = { path = "..", editable = true }\n' >> sdk/dev/pyproject.toml
 	cd sdk/dev && uv run longlink dev
 
 
-# Recreate the local sample and seed the example Organization and Solution after the Platform API starts.
+# Recreate the local sample files, deployed Solution, database, and attachments after the Platform API starts.
 seed:
 	# Remove the generated sample, including any local edits, before rebuilding it.
 	rm -rf sdk/dev

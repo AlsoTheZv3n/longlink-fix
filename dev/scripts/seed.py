@@ -33,6 +33,24 @@ class Page(BaseModel):
     items: list[Resource]
 
 
+class Operation(BaseModel):
+    """Describe the cleanup state needed before recreating a sample."""
+
+    # Reference
+    target_id: UUID
+
+    # State
+    status: Literal["active", "completed", "failed", "scheduled"]
+    failed: str | None = None
+
+
+class OperationPage(BaseModel):
+    """Validate the administrator cleanup operation listing."""
+
+    # Results
+    items: list[Operation]
+
+
 class SeedSettings(BaseSettings):
     """Define the local development API and infrastructure registration."""
 
@@ -123,51 +141,77 @@ async def create_organization(client: httpx2.AsyncClient) -> Resource:
 
 
 async def create_sample(client: httpx2.AsyncClient, settings: SeedSettings, organization: Resource) -> None:
-    """Create, retry, or redeploy the local sample Solution."""
+    """Recreate the local sample with a fresh database and wait until it is ready."""
 
+    # Find only the seeded sample; leave other Organization Solutions untouched.
     response = await client.get(f"/api/v1/organizations/{organization.id}/solutions")
     response.raise_for_status()
     solution = next(
         (solution for solution in (Resource.model_validate(payload) for payload in response.json()) if solution.slug == SAMPLE_SOLUTION),
         None,
     )
-    if solution is None:
-        # The API resolves and validates the immutable image metadata before recording the Solution.
-        response = await client.post(
-            f"/api/v1/organizations/{organization.id}/solutions",
-            json={
-                "name": "Invoices",
-                "image": "localhost:15000/sample:dev",
-                "envs": settings.SAMPLE_ENVS,
-                "min_scale": 1,
-                "idle_seconds": 0,
-                "description": "Manage invoices for ACME Ink.",
-            },
-        )
-        if response.status_code == 404:
-            raise RuntimeError("Sample image 'localhost:15000/sample:dev' was not found in the local registry; run 'make image' first")
+    if solution is not None:
+        # Request normal lifecycle cleanup so the old schema, credentials, and attachments are removed together.
+        print("Removing the local sample Solution, including its database and attachments.")
+        response = await client.delete(f"/api/v1/solutions/{solution.id}")
         response.raise_for_status()
-        return
 
-    if solution.status == "creating":
-        # Leave in-flight provisioning alone; a later seed redeploys once it settles.
-        return
+        # The slug remains reserved until cleanup completes, not merely until the tombstone is recorded.
+        async with asyncio.timeout(300):
+            while True:
+                response = await client.get("/api/v1/operations", params={"search": "solution.delete", "page_size": 100})
+                response.raise_for_status()
+                operations = OperationPage.model_validate(response.json()).items
+                operation = next((operation for operation in operations if operation.target_id == solution.id), None)
+                if operation is not None:
+                    if operation.status == "failed":
+                        raise RuntimeError(f"Sample cleanup failed: {operation.failed}")
+                    if operation.status == "completed":
+                        break
+                await asyncio.sleep(1)
 
-    # Re-resolve the mutable development tag so a rebuilt image deploys a fresh revision.
+    # Create a new Solution identity so its initial migration runs against a fresh schema.
+    print("Creating the local sample Solution from the current image.")
     response = await client.post(
-        f"/api/v1/solutions/{solution.id}/update",
-        json={"envs": settings.SAMPLE_ENVS, "min_scale": 1, "idle_seconds": 0},
+        f"/api/v1/organizations/{organization.id}/solutions",
+        json={
+            "name": "Invoices",
+            "image": "localhost:15000/sample:latest",
+            "envs": settings.SAMPLE_ENVS,
+            "min_scale": 1,
+            "idle_seconds": 0,
+            "description": "Track building projects and construction phases for ACME Ink.",
+        },
     )
     if response.status_code == 404:
-        raise RuntimeError("Sample image 'localhost:15000/sample:dev' was not found in the local registry; run 'make image' first")
-    if response.status_code == 409 and str(response.json().get("detail", "")).endswith("No revision was created."):
-        # The rebuilt image matches the deployed snapshot, keeping repeated seeding idempotent.
-        return
+        raise RuntimeError("Sample image 'localhost:15000/sample:latest' was not found in the local registry; run 'make image' first")
     response.raise_for_status()
+
+    # Do not report seed success while the new schema or View runtime is still being provisioned.
+    async with asyncio.timeout(300):
+        while True:
+            response = await client.get(f"/api/v1/organizations/{organization.id}/solutions")
+            response.raise_for_status()
+            solution = next(
+                (
+                    solution
+                    for solution in (Resource.model_validate(payload) for payload in response.json())
+                    if solution.slug == SAMPLE_SOLUTION
+                ),
+                None,
+            )
+            if solution is not None:
+                if solution.status == "failed":
+                    raise RuntimeError("Sample deployment failed. Review its logs in the Platform.")
+                if solution.status == "running":
+                    break
+            await asyncio.sleep(1)
+
+    print(f"Sample ready: {settings.PUBLIC_URL}/orgs/{DEVELOPMENT_ORGANIZATION}/solutions/{SAMPLE_SOLUTION}/projects")
 
 
 async def seed(settings: SeedSettings, client: httpx2.AsyncClient) -> None:
-    """Register local infrastructure and create or redeploy the local example Organization and Solution."""
+    """Reuse local infrastructure and recreate the seeded sample Solution."""
 
     # Authenticate with the administrator that the API initializes during startup.
     response = await client.post(

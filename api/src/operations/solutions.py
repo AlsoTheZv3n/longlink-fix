@@ -8,7 +8,7 @@ from src.logger import logger
 from src.kubernetes import databases as database_resources
 from src.kubernetes import namespace
 from src.kubernetes import solutions as solution_resources
-from src.operations import databases, registries
+from src.operations import registries
 from src.models.statuses import Status
 from src.database.session import session_scope
 from src.database.services import organizations
@@ -40,7 +40,18 @@ async def deploy(revision_id: UUID) -> None:
         runtime_secrets = dict(solution.secrets)
 
     # Infrastructure owns these settings; discard copies retained by earlier deployments.
-    for name in ("LONGLINK_STORAGE_ENDPOINT_URL", "LONGLINK_DATABASE_CERTIFICATE", "LONGLINK_STORAGE_CERTIFICATE"):
+    for name in (
+        "LONGLINK_DATABASE_HOST",
+        "LONGLINK_DATABASE_NAME",
+        "LONGLINK_DATABASE_PORT",
+        "LONGLINK_DATABASE_SCHEMA",
+        "LONGLINK_STORAGE_BUCKET",
+        "LONGLINK_STORAGE_PREFIX",
+        "LONGLINK_STORAGE_REGION",
+        "LONGLINK_STORAGE_ENDPOINT_URL",
+        "LONGLINK_DATABASE_CERTIFICATE",
+        "LONGLINK_STORAGE_CERTIFICATE",
+    ):
         runtime_secrets.pop(name, None)
 
     # Organization reconciliation owns bucket provisioning and quota admission.
@@ -49,7 +60,6 @@ async def deploy(revision_id: UUID) -> None:
     )
     async with cluster:
         storage = Storage(compute, cluster)
-        bucket_name = storage.bucket_name(organization.id)
 
         # Use one current CA snapshot for SQL provisioning and workload rendering in this attempt.
         database_certificate = await database_resources.certificate(cluster, organization.id)
@@ -60,23 +70,16 @@ async def deploy(revision_id: UUID) -> None:
             logger.info("Creating object storage credentials for Solution %s", solution.id)
             database_password = secrets.token_urlsafe(24)
             credentials = await storage.service_account(organization.id, solution.id)
-            database = await databases.connection(organization, cluster, certificate=database_certificate)
+            database = await database_resources.connection(organization, cluster, certificate=database_certificate)
             database_username = await database.solution_schema(organization.id, solution.id, database_password)
 
             # Build the durable runtime credentials before creating the workload.
             runtime_secrets.update(
                 {
                     "LONGLINK_ENV": "production",
-                    "LONGLINK_DATABASE_HOST": namespace.database_hostname(organization.id),
-                    "LONGLINK_DATABASE_NAME": organization.id.hex,
                     "LONGLINK_DATABASE_PASSWORD": database_password,
-                    "LONGLINK_DATABASE_PORT": "5432",
-                    "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
                     "LONGLINK_DATABASE_USERNAME": database_username,
-                    "LONGLINK_STORAGE_BUCKET": bucket_name,
                     "LONGLINK_STORAGE_PASSWORD": credentials.secret_key,
-                    "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
-                    "LONGLINK_STORAGE_REGION": "us-east-1",
                     "LONGLINK_STORAGE_USERNAME": credentials.access_key,
                 }
             )
@@ -90,6 +93,13 @@ async def deploy(revision_id: UUID) -> None:
         runtime_environment = {
             **revision.envs,
             **runtime_secrets,
+            "LONGLINK_DATABASE_HOST": namespace.database_hostname(organization.id),
+            "LONGLINK_DATABASE_NAME": organization.id.hex,
+            "LONGLINK_DATABASE_PORT": "5432",
+            "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+            "LONGLINK_STORAGE_BUCKET": storage.bucket_name(organization.id),
+            "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+            "LONGLINK_STORAGE_REGION": "us-east-1",
             # Workloads always reach object storage through the cluster-local TLS proxy.
             "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
             "LONGLINK_DATABASE_CERTIFICATE": database_certificate,
@@ -147,32 +157,31 @@ async def delete(solution_id: UUID) -> None:
 
     # An absent tombstone means a previous execution completed cleanup.
     async with session_scope() as session:
-        target = await organizations.solution_infrastructure(session, solution_id)
+        target = await organizations.solution_cleanup_infrastructure(session, solution_id)
         if target is None:
             logger.info("Solution %s no longer exists; skipping deletion", solution_id)
             return
-        solution, organization, compute = target
+        organization, compute = target
         if organization.deleted_at is not None:
             return
 
     # Remove Solution Kubernetes resources before revoking provider credentials.
-    logger.info("Deleting Kubernetes workload for Solution %s", solution.id)
+    logger.info("Deleting Kubernetes workload for Solution %s", solution_id)
     cluster = Kubernetes(
         compute.kubeconfig,
     )
     async with cluster:
-        await solution_resources.delete(cluster, organization.id, solution.id)
-        db = await databases.connection(organization, cluster)
-        logger.info("Deleting PostgreSQL schema for Solution %s", solution.id)
-        await db.delete_solution_schema(organization.id, solution.id)
+        await solution_resources.delete(cluster, organization.id, solution_id)
+        db = await database_resources.connection(organization, cluster)
+        logger.info("Deleting PostgreSQL schema for Solution %s", solution_id)
+        await db.delete_solution_schema(organization.id, solution_id)
 
         # Revoke the service account before owner credentials remove its private objects.
         storage = Storage(compute, cluster)
-        await storage.revoke(solution.id)
-        await storage.delete_prefix(organization.id, f"solutions/{solution.id.hex}/")
+        await storage.delete_solution(organization.id, solution_id)
 
     # Purge the tombstone only after all external resources are absent.
-    logger.info("Purging Solution %s", solution.id)
+    logger.info("Purging Solution %s", solution_id)
     async with session_scope() as session:
         # The delete statement locks the tombstone while making completed cleanup idempotent.
         await session.execute(

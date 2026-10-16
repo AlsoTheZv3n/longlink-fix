@@ -1,5 +1,3 @@
-"""Add MCP public clients and hashed authorization credentials."""
-
 import sqlalchemy as sa
 from alembic import op
 from sqlmodel.sql.sqltypes import UTCDateTime

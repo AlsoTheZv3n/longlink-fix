@@ -32,8 +32,15 @@ uv run longlink dev
 Check [Documentation](https://www.longlink.dev/docs/sdk/) or use the `cli` (designed for agents):
 
 ```bash
-longlink docs --help
+longlink docs
+longlink docs group Form
+longlink docs component Table
+longlink docs search "searchable records"
+longlink docs build "approval queue"
 ```
+
+Search runs locally with keyword ranking and typo-tolerant matching. Build returns
+authored implementation guidance and relevant APIs, not code or templates.
 
 <br/>
 

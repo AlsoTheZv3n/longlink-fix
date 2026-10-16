@@ -1,4 +1,4 @@
-export { Root as default } from '@/components/Root';
+export { Root as default, HydrateFallback } from '@/components/Root';
 
 export { Document as Layout } from '@/components/layouts/Document';
 

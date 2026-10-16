@@ -1,16 +1,22 @@
 import pytest
+import asyncio
 from uuid import UUID, uuid4
 from conftest import DatabasePostgres, StorageKubernetes, DatabaseKubernetes, reject_provider_construction
 from factories import (
     claim_operation,
     create_solution,
+    fetch_operations,
     complete_operation,
     create_organization,
 )
+from contextlib import asynccontextmanager
 from src.utils.s3 import Credentials
+from sqlalchemy.orm import selectinload
+from src.kubernetes import storage
 from src.operations import solutions as solution_operations
 from src.utils.jobs import execute
-from collections.abc import Callable, Awaitable
+from collections.abc import Callable, Awaitable, AsyncGenerator
+from src.environments import env
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
 from src.models.statuses import Status
@@ -76,7 +82,7 @@ async def test_solution_delete_failure_stops_before_provider_credential_cleanup(
 
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "delete", delete)
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", unexpected_provider)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", unexpected_provider)
 
     # Act
     await execute(claimed)
@@ -100,7 +106,7 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
     """Remove the workload, provider state, and tombstone after successful cleanup."""
 
     # Arrange
-    _, solution = await create_deleted_solution(users[0])
+    organization, solution = await create_deleted_solution(users[0])
     calls: list[tuple[str, object]] = []
 
     async def delete(client: object, _organization_id: object, solution_id: object) -> None:
@@ -116,23 +122,35 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
 
             calls.append(("schema", solution_id))
 
-    class FakeStorage(StorageKubernetes):
-        """Record object-storage cleanup."""
+    class FakeKubernetes(DatabaseKubernetes):
+        """Provide the administration tunnel and observe its cleanup."""
 
-        async def revoke(self, solution: UUID) -> None:
-            """Record credential revocation."""
+        @asynccontextmanager
+        async def forward_storage(self) -> AsyncGenerator[int, None]:
+            """Release the administration tunnel before object removal."""
 
-            calls.append(("revoke", solution))
+            try:
+                yield 19000
+            finally:
+                calls.append(("admin_closed", solution.id))
 
-        async def delete_prefix(self, organization: UUID, prefix: str) -> None:
-            """Record solution file removal."""
+    async def revoke(self: storage.rustfs.RustFS, solution: UUID) -> None:
+        """Record credential revocation at the provider boundary."""
 
-            calls.append(("prefix", prefix))
+        calls.append(("revoke", solution))
 
-    monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
+    async def delete_prefix(self: storage.s3.S3, bucket: str, prefix: str) -> None:
+        """Record solution file removal from its canonical Organization bucket."""
+
+        assert bucket == f"longlink-{organization.id.hex}"
+        calls.append(("prefix", prefix))
+
+    monkeypatch.setattr(solution_operations, "Kubernetes", FakeKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "delete", delete)
-    monkeypatch.setattr(solution_operations, "Storage", FakeStorage)
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", FakePostgres)
+    monkeypatch.setattr(solution_operations, "Storage", storage.Storage)
+    monkeypatch.setattr(storage.rustfs.RustFS, "revoke", revoke)
+    monkeypatch.setattr(storage.s3.S3, "delete_prefix", delete_prefix)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", FakePostgres)
 
     # Act
     await solution_operations.delete(solution.id)
@@ -142,6 +160,7 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
         ("workload", solution.id),
         ("schema", solution.id),
         ("revoke", solution.id),
+        ("admin_closed", solution.id),
         ("prefix", f"solutions/{solution.id.hex}/"),
     ]
     async with session_scope() as session:
@@ -184,15 +203,16 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     class FakeKubernetes(DatabaseKubernetes):
         """Record the Kubernetes connection scope during deployment."""
 
-        def __init__(self, *_args: object) -> None:
+        def __init__(self, kubeconfig: dict[str, object]) -> None:
             """Record client construction alongside shared fake ownership."""
 
-            super().__init__()
+            super().__init__(kubeconfig)
             calls.append("open")
 
         async def aclose(self) -> None:
             """Provide the Kubernetes client cleanup contract."""
 
+            await super().aclose()
             calls.append("close")
 
     async def apply(
@@ -214,7 +234,7 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
         captured["secrets"] = secrets
         calls.append("workload")
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", FakePostgres)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", FakePostgres)
     monkeypatch.setattr(solution_operations, "Kubernetes", FakeKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
     monkeypatch.setattr(solution_operations, "Storage", Storage)
@@ -232,11 +252,19 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     assert captured["secrets"]["LONGLINK_DATABASE_PORT"] == "5432"
     assert captured["secrets"]["LONGLINK_DATABASE_USERNAME"] == "solution"
     assert captured["secrets"]["LONGLINK_DATABASE_CERTIFICATE"] == "test-database-ca"
+    assert captured["secrets"]["LONGLINK_STORAGE_BUCKET"] == f"longlink-{organization.id.hex}"
     async with session_scope() as session:
         persisted = await session.get(Solution, solution.id)
     assert persisted is not None
     assert persisted.status == Status.running
     assert not {
+        "LONGLINK_DATABASE_HOST",
+        "LONGLINK_DATABASE_NAME",
+        "LONGLINK_DATABASE_PORT",
+        "LONGLINK_DATABASE_SCHEMA",
+        "LONGLINK_STORAGE_BUCKET",
+        "LONGLINK_STORAGE_PREFIX",
+        "LONGLINK_STORAGE_REGION",
         "LONGLINK_DATABASE_CERTIFICATE",
         "LONGLINK_STORAGE_CERTIFICATE",
         "LONGLINK_STORAGE_ENDPOINT_URL",
@@ -246,7 +274,7 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     async with session_scope() as session:
         current = await solutions.access(session, solution.id, owner.id)
         metadata = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:updated"))
-        await solutions.deploy(session, current, owner.id, metadata, {"API_KEY": "replacement"}, source=metadata.image)
+        await solutions.deploy(session, current, owner.id, metadata, {"API_KEY": "replacement"})
         await session.commit()
         revision_id = current.desired_revision_id
     await solution_operations.deploy(revision_id)
@@ -254,6 +282,13 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
     assert captured["secrets"] == {
         "API_KEY": "replacement",
         **persisted.secrets,
+        "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
+        "LONGLINK_DATABASE_NAME": organization.id.hex,
+        "LONGLINK_DATABASE_PORT": "5432",
+        "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+        "LONGLINK_STORAGE_BUCKET": f"longlink-{organization.id.hex}",
+        "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+        "LONGLINK_STORAGE_REGION": "us-east-1",
         "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",
         "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
     }
@@ -287,7 +322,7 @@ async def test_solution_creation_preserves_schema_failure_before_storage_authori
 
             raise RuntimeError("database unavailable")
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", FailingPostgres)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", FailingPostgres)
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations, "Storage", StorageKubernetes)
 
@@ -332,22 +367,22 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
     )
     credentials = {
         "LONGLINK_ENV": "production",
-        "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
-        "LONGLINK_DATABASE_NAME": organization.id.hex,
         "LONGLINK_DATABASE_PASSWORD": "persisted-database-password",
-        "LONGLINK_DATABASE_PORT": "5432",
-        "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
         "LONGLINK_DATABASE_USERNAME": "persisted-database-user",
-        "LONGLINK_STORAGE_BUCKET": organization.id.hex,
         "LONGLINK_STORAGE_PASSWORD": "persisted-storage-password",
-        "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
-        "LONGLINK_STORAGE_REGION": "us-east-1",
         "LONGLINK_STORAGE_USERNAME": "persisted-storage-user",
     }
     if identity is not None:
         credentials["LONGLINK_IDENTITY_SECRET"] = identity
     initial_secrets = {
         **credentials,
+        "LONGLINK_STORAGE_BUCKET": organization.id.hex,
+        "LONGLINK_DATABASE_HOST": "old-database.example",
+        "LONGLINK_DATABASE_NAME": "old-database",
+        "LONGLINK_DATABASE_PORT": "5433",
+        "LONGLINK_DATABASE_SCHEMA": "old-schema",
+        "LONGLINK_STORAGE_PREFIX": "old-prefix/",
+        "LONGLINK_STORAGE_REGION": "old-region",
         "LONGLINK_DATABASE_CERTIFICATE": "old-database-ca",
         "LONGLINK_STORAGE_ENDPOINT_URL": "https://old-storage.example",
         "LONGLINK_STORAGE_CERTIFICATE": "old-storage-ca",
@@ -383,7 +418,7 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
 
         captured.append(secrets)
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", unexpected_provider)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", unexpected_provider)
     monkeypatch.setattr(StorageKubernetes, "service_account", unexpected_provider)
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
@@ -410,6 +445,13 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
         {
             "API_KEY": "runtime-secret",
             **persisted.secrets,
+            "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
+            "LONGLINK_DATABASE_NAME": organization.id.hex,
+            "LONGLINK_DATABASE_PORT": "5432",
+            "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+            "LONGLINK_STORAGE_BUCKET": f"longlink-{organization.id.hex}",
+            "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+            "LONGLINK_STORAGE_REGION": "us-east-1",
             "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",
             "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
         }
@@ -426,7 +468,7 @@ async def test_solution_creation_skips_removed_solution_provider_construction(
     _, solution = await create_deleted_solution(users[0])
     reject_provider_construction(
         monkeypatch,
-        (solution_operations.databases.postgres, "Postgres"),
+        (solution_operations.database_resources.postgres, "Postgres"),
         (solution_operations, "Kubernetes"),
     )
 
@@ -435,6 +477,302 @@ async def test_solution_creation_skips_removed_solution_provider_construction(
 
     # Assert
     assert result is None
+
+
+@pytest.mark.parametrize("failure", ["initial", "error", "timeout", "shutdown", "restoration", "deleted_during_rollout", "deleted_before_recovery"])
+async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch, failure: str) -> None:
+    """Finalize timed-out rollouts before returning, recover failures, and resume shutdown."""
+
+    # Arrange: use real persisted revisions and the actual worker; replace only Kubernetes.
+    owner = users[0]
+    organization = await create_organization(owner)
+    solution = await create_solution(
+        organization,
+        envs={"KEY": "old"},
+        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+    )
+    setup = await claim_operation()
+    assert setup is not None
+    await complete_operation(setup.id)
+    calls: list[tuple[str, dict[str, str], bool]] = []
+    rollout_finalized = asyncio.Event()
+    failing = failure == "initial"
+
+    async def apply(
+        client: object,
+        _organization_id: UUID,
+        _id: UUID,
+        image: str,
+        secrets: dict[str, str],
+        *,
+        revision_id: UUID,
+        min_scale: int,
+        idle_seconds: int = 60,
+        migrate: bool,
+        registry_connection_id: UUID | None = None,
+    ) -> None:
+        """Capture the exact snapshot and simulate rollout outcomes."""
+
+        calls.append((image, secrets, migrate))
+        assert min_scale == (1 if image.endswith("@sha256:new") else 0)
+        if not failing:
+            return
+        if failure == "deleted_during_rollout":
+            async with session_scope() as session:
+                await solutions.delete(session, solution.id, owner.id)
+                await session.commit()
+        if not migrate and failure != "restoration":
+            return
+        if failure == "shutdown":
+            raise asyncio.CancelledError
+        if failure == "timeout":
+            # Suspend rollout until the real worker timeout cancels and finalizes it.
+            try:
+                await asyncio.Event().wait()
+            finally:
+                rollout_finalized.set()
+        raise RuntimeError("rollout failed")
+
+    monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
+    monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
+    initial = await claim_operation()
+    assert initial is not None
+    await execute(initial)
+
+    # Read the committed worker outcome before checking deployment behavior.
+    async with session_scope() as session:
+        result = await session.get(Operation, initial.id)
+        assert result is not None
+    if failure == "initial":
+        assert result.failed is not None
+        async with session_scope() as session:
+            current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
+            assert current is not None
+            assert current.status == Status.failed
+            assert current.deployed_revision_id is None
+            assert current.desired_revision.failed
+
+        # Inspect pending recovery without claiming or completing unrelated work.
+        scheduled = await fetch_operations()
+        assert all(operation.kind != OperationKind.solution_deploy or operation.finished_at is not None for operation in scheduled)
+        return
+    assert result.failed is None
+    good_id = initial.target_id
+
+    # Replace only release configuration, leaving credentials and successful identity intact.
+    metadata = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:new"))
+    async with session_scope() as session:
+        current = await solutions.access(session, solution.id, owner.id)
+        await solutions.deploy(session, current, owner.id, metadata, {"KEY": "new"}, min_scale=1)
+        await session.commit()
+        desired_id = current.desired_revision_id
+    failing = True
+    update = await claim_operation()
+    assert update is not None
+    assert update.target_id == desired_id
+
+    # Shutdown is resumable, not a failed deployment or recovery request.
+    if failure == "shutdown":
+        with pytest.raises(asyncio.CancelledError):
+            await execute(update)
+        resumed = await claim_operation()
+        assert resumed is not None
+        assert resumed.id == update.id
+        async with session_scope() as session:
+            revision = await session.get(Revision, desired_id)
+            assert revision is not None
+            assert not revision.failed
+        return
+
+    # Act: limit the timeout override to the failing attempt, not recovery work.
+    with monkeypatch.context() as timeout:
+        if failure == "timeout":
+            timeout.setattr(env, "OPERATION_TIMEOUT_SECONDS", 0.5)
+        await execute(update)
+
+    # Assert: rollout finalization and the exact persisted timeout precede worker return.
+    async with session_scope() as session:
+        failed = await session.get(Operation, update.id)
+        assert failed is not None
+    assert failed.failed is not None
+    if failure == "timeout":
+        assert rollout_finalized.is_set()
+        assert failed.failed == "Operation timed out after 0.5 seconds"
+
+    # Tombstones suppress both new recovery requests and already queued recovery work.
+    if failure in {"deleted_during_rollout", "deleted_before_recovery"}:
+        if failure == "deleted_before_recovery":
+            async with session_scope() as session:
+                await solutions.delete(session, solution.id, owner.id)
+                await session.commit()
+            recovery = await claim_operation()
+            assert recovery is not None
+            assert recovery.kind == OperationKind.solution_deploy
+            await execute(recovery)
+
+            # Read the committed outcome for the tombstoned recovery target.
+            async with session_scope() as session:
+                recovered = await session.get(Operation, recovery.id)
+                assert recovered is not None
+                assert recovered.failed is None
+        deletion = await claim_operation()
+        assert deletion is not None
+        assert deletion.kind == OperationKind.solution_delete
+        await complete_operation(deletion.id)
+        assert await claim_operation() is None
+        assert len(calls) == 2
+        async with session_scope() as session:
+            current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
+            assert current is not None
+            assert current.deleted_at is not None
+            assert current.deployed_revision_id == good_id
+            assert current.desired_revision_id == desired_id
+            assert current.desired_revision.failed
+        return
+
+    # Assert: failure state is committed before the queued fallback is consumed.
+    async with session_scope() as session:
+        persisted_solution = await session.get(Solution, solution.id)
+        assert persisted_solution is not None
+        assert persisted_solution.status == Status.failed
+        persisted_revision = await session.get(Revision, desired_id)
+        assert persisted_revision is not None
+        assert persisted_revision.failed is True
+
+    # Act: consume the exact fallback queued by the failed update.
+    recovery = await claim_operation()
+    assert recovery is not None
+    assert (recovery.kind, recovery.target_id) == (OperationKind.solution_deploy, good_id)
+    await execute(recovery)
+
+    # Read the committed recovery outcome independently of worker execution.
+    async with session_scope() as session:
+        restored = await session.get(Operation, recovery.id)
+        assert restored is not None
+        assert (restored.failed is not None) == (failure == "restoration")
+
+    # Failed desired/history survives successful fallback; failed fallback cannot claim running.
+    async with session_scope() as session:
+        current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
+        assert current is not None
+        assert current.desired_revision_id == desired_id
+        assert current.deployed_revision_id == good_id
+        assert current.desired_revision.failed
+        good = await session.get(Revision, good_id)
+        assert good is not None
+        assert not good.failed
+        assert current.status == (Status.failed if failure == "restoration" else Status.running)
+        assert current.secrets == solution.secrets
+    assert calls[-1][1] == {
+        "KEY": "old",
+        **solution.secrets,
+        "LONGLINK_DATABASE_HOST": f"database-rw.longlink-database-{organization.id.hex}.svc.cluster.local",
+        "LONGLINK_DATABASE_NAME": organization.id.hex,
+        "LONGLINK_DATABASE_PORT": "5432",
+        "LONGLINK_DATABASE_SCHEMA": solution.id.hex,
+        "LONGLINK_STORAGE_BUCKET": f"longlink-{organization.id.hex}",
+        "LONGLINK_STORAGE_PREFIX": f"solutions/{solution.id.hex}/",
+        "LONGLINK_STORAGE_REGION": "us-east-1",
+        "LONGLINK_DATABASE_CERTIFICATE": "test-database-ca",
+        "LONGLINK_STORAGE_ENDPOINT_URL": "https://longlink-storage.rustfs.svc:443",
+    }
+    assert calls[-1][2] is False
+    assert await claim_operation() is None
+
+
+async def test_queued_deployments_keep_exact_targets(users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A newer desired revision cannot change the image or envs of queued work."""
+
+    organization = await create_organization(users[0])
+    solution = await create_solution(
+        organization,
+        envs={"KEY": "first"},
+        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+    )
+    setup = await claim_operation()
+    assert setup is not None
+    await complete_operation(setup.id)
+    initial = await claim_operation()
+    assert initial is not None
+    second = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:second"))
+    third = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:third"))
+    second_id: UUID | None = None
+    third_id: UUID | None = None
+    applied: list[str] = []
+    expected_images = {
+        "first": "ghcr.io/longlink/dashboard@sha256:test",
+        "second": "ghcr.io/longlink/dashboard@sha256:second",
+        "third": "ghcr.io/longlink/dashboard@sha256:third",
+    }
+
+    async def apply(
+        client: object,
+        _organization_id: UUID,
+        _id: UUID,
+        image: str,
+        secrets: dict[str, str],
+        *,
+        revision_id: UUID,
+        min_scale: int,
+        idle_seconds: int = 60,
+        migrate: bool,
+        registry_connection_id: UUID | None = None,
+    ) -> None:
+        """Capture immutable image and environment pairs."""
+
+        nonlocal second_id, third_id
+        applied.append(secrets["KEY"])
+        assert image == expected_images[secrets["KEY"]]
+        assert revision_id == {"first": initial.target_id, "second": second_id, "third": third_id}[secrets["KEY"]]
+        if second_id is None:
+            # A newer request during an active rollout must not change its captured target.
+            async with session_scope() as session:
+                current = await solutions.access(session, solution.id, users[0].id)
+                await solutions.deploy(session, current, users[0].id, second, {"KEY": "second"})
+                await session.commit()
+                second_id = current.desired_revision_id
+        elif third_id is None:
+            # The second rollout still uses its snapshot while a third revision becomes desired.
+            async with session_scope() as session:
+                current = await solutions.access(session, solution.id, users[0].id)
+                await solutions.deploy(session, current, users[0].id, third, {"KEY": "third"})
+                await session.commit()
+                third_id = current.desired_revision_id
+
+    monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
+    monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
+    await execute(initial)
+    async with session_scope() as session:
+        current = await session.get(Solution, solution.id)
+        assert current is not None
+        assert current.deployed_revision_id == initial.target_id
+        assert current.desired_revision_id == second_id
+    second_operation = await claim_operation()
+    assert second_operation is not None
+    assert second_operation.target_id == second_id
+    await execute(second_operation)
+
+    # Read the committed outcome before consuming the next queued deployment.
+    async with session_scope() as session:
+        completed = await session.get(Operation, second_operation.id)
+        assert completed is not None
+        assert completed.failed is None
+    third_operation = await claim_operation()
+    assert third_operation is not None
+    assert third_operation.target_id == third_id
+    await execute(third_operation)
+
+    # Read the final committed outcome before checking deployment order.
+    async with session_scope() as session:
+        completed = await session.get(Operation, third_operation.id)
+        assert completed is not None
+        assert completed.failed is None
+    assert applied == ["first", "second", "third"]
+    assert await claim_operation() is None
+    async with session_scope() as session:
+        current = await session.get(Solution, solution.id)
+        assert current is not None
+        assert current.desired_revision_id == current.deployed_revision_id == third_id
 
 
 @pytest.mark.parametrize(
@@ -449,7 +787,7 @@ async def test_solution_lifecycle_skips_missing_target_without_constructing_prov
     # Arrange
     reject_provider_construction(
         monkeypatch,
-        (solution_operations.databases.postgres, "Postgres"),
+        (solution_operations.database_resources.postgres, "Postgres"),
         (solution_operations, "Kubernetes"),
     )
 
@@ -480,7 +818,7 @@ async def test_solution_creation_skips_deployment_when_deleted_before_credential
                 await session.commit()
             return "solution"
 
-    monkeypatch.setattr(solution_operations.databases.postgres, "Postgres", Postgres)
+    monkeypatch.setattr(solution_operations.database_resources.postgres, "Postgres", Postgres)
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
     monkeypatch.setattr(solution_operations, "Storage", StorageKubernetes)
 

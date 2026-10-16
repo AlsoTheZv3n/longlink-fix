@@ -25,7 +25,7 @@ export function ApiBoundary({
         <QueryErrorResetBoundary>
             {({ reset }) => (
                 <ErrorBoundary
-                    onError={(error) => reportError(error)}
+                    onError={reportError}
                     onReset={reset}
                     resetKeys={[location.key]}
                     fallbackRender={

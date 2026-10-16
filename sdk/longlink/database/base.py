@@ -1,4 +1,5 @@
 import asyncio
+import sqlalchemy
 from uuid import UUID
 from datetime import datetime
 from sqlmodel import Field, SQLModel
@@ -6,6 +7,7 @@ from sqlmodel import Session as SyncSession
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import relationship, declared_attr
 from collections.abc import AsyncGenerator
+from sqlmodel._compat import SQLModelConfig
 from longlink.database import urls
 from sqlalchemy.engine import URL, make_url
 from longlink.shared.models import User
@@ -20,23 +22,20 @@ LOCAL_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 class Audit(Model):
     """Base SQLModel for Solution tables that track Platform users."""
 
-    model_config = SQLModel.model_config.copy()
-    model_config["ignored_types"] = (declared_attr,)
+    model_config = SQLModelConfig(ignored_types=(declared_attr,))
 
     # Audit timestamps
-    created_at: datetime | None = Field(default=None)
-    updated_at: datetime | None = Field(default=None)
-    deleted_at: datetime | None = Field(default=None)
+    # The flush listener supplies required values before persistence.
+    created_at: datetime = Field(default=None, nullable=False)
+    updated_at: datetime = Field(default=None, nullable=False)
 
     # Audit user identifiers
-    created_id: UUID | None = Field(default=None, foreign_key="audit.id")
-    updated_id: UUID | None = Field(default=None, foreign_key="audit.id")
-    deleted_id: UUID | None = Field(default=None, foreign_key="audit.id")
+    created_id: UUID = Field(default=None, nullable=False, foreign_key="audit.id")
+    updated_id: UUID = Field(default=None, nullable=False, foreign_key="audit.id")
 
     # Audit user relationships
     created_by = declared_attr(lambda cls: relationship(User, foreign_keys=[cls.created_id], lazy="selectin"))
     updated_by = declared_attr(lambda cls: relationship(User, foreign_keys=[cls.updated_id], lazy="selectin"))
-    deleted_by = declared_attr(lambda cls: relationship(User, foreign_keys=[cls.deleted_id], lazy="selectin"))
 
 
 def database_url(env: Envs) -> URL:
@@ -106,29 +105,30 @@ class Database:
 
                     # Initialize the database without publishing partially initialized resources.
                     try:
-                        if self._env.ENV == "testing":
-                            async with engine.begin() as conn:
-                                await conn.run_sync(SQLModel.metadata.create_all)
-                        elif self._env.ENV == "development":
-                            async with engine.begin() as conn:
-                                await conn.run_sync(SQLModel.metadata.tables["audit"].create, checkfirst=True)
-                        else:
-                            async with engine.connect():
-                                pass
-
-                        # Keep a local shared user available for development and test requests.
                         if self._env.ENV != "production":
-                            async with AsyncSession(engine) as session:
-                                if await session.get(User, LOCAL_USER_ID) is None:
+                            async with engine.begin() as conn:
+                                # Testing creates the full schema; development only bootstraps its audit table.
+                                if self._env.ENV == "testing":
+                                    await conn.run_sync(SQLModel.metadata.create_all)
+                                else:
+                                    await conn.run_sync(SQLModel.metadata.tables["audit"].create, checkfirst=True)
+
+                                # Seed the local user within the schema bootstrap's connection and transaction.
+                                users = SQLModel.metadata.tables["audit"]
+                                user_id = await conn.scalar(sqlalchemy.select(users.c.id).where(users.c.id == LOCAL_USER_ID))
+                                if user_id is None:
                                     name = "Development user" if self._env.ENV == "development" else "Testing user"
-                                    session.add(
-                                        User(
+                                    await conn.execute(
+                                        sqlalchemy.insert(users).values(
                                             id=LOCAL_USER_ID,
                                             name=name,
                                             email="local@example.com",
+                                            avatar="",
                                         )
                                     )
-                                    await session.commit()
+                        else:
+                            async with engine.connect():
+                                pass
                     except BaseException:
                         await engine.dispose()
                         raise

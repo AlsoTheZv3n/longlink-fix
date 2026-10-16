@@ -7,14 +7,14 @@ if TYPE_CHECKING:
     from src.kubernetes.client import Kubernetes
 
 
-async def certificate(client: "Kubernetes", namespace: str, name: str) -> str:
+async def certificate(client: "Kubernetes", namespace: str, name: str, *, entry: str = "tls.crt") -> str:
     """Read one valid TLS certificate from a Kubernetes Secret."""
 
     # Decode the Kubernetes TLS Secret into the PEM trust data used by Platform clients.
     secret = Secret(name, namespace=namespace, api=await client.api())
     await secret.refresh()
     data = secret.raw.get("data", {})
-    encoded_certificate = data.get("tls.crt") if isinstance(data, dict) else None
+    encoded_certificate = data.get(entry) if isinstance(data, dict) else None
     if not isinstance(encoded_certificate, str):
         raise ValueError(f"{namespace}/{name} must contain a TLS certificate")
 

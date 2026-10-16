@@ -1,6 +1,6 @@
 import { ProgressBar as AstryxProgressBar } from '@astryxdesign/core/ProgressBar';
 
-/** Displays determinate progress with a semantic state. */
+/** Displays determinate or indeterminate progress with a semantic state. */
 export function ProgressBar(props: {
     /** Hides the component without unmounting it. */
     hidden?: boolean;
@@ -8,19 +8,25 @@ export function ProgressBar(props: {
     value?: number;
     max?: number;
     hasValueLabel?: boolean;
+    /** Formats usage counts or units instead of the default percentage. */
+    formatValueLabel?: (value: number, max: number) => string;
     variant?: 'accent' | 'success' | 'warning' | 'error' | 'neutral';
+    marks?: ReadonlyArray<{ value: number; label: string }>;
+    isDisabled?: boolean;
+    isLabelHidden?: boolean;
+    isIndeterminate?: boolean;
 }) {
-    // Keep progress visible and determinate on a percentage scale.
+    // Default to visible, determinate progress on a percentage scale.
     return (
         <AstryxProgressBar
             {...props}
             className={props.hidden ? 'hidden!' : undefined}
             value={props.value ?? 0}
             max={props.max ?? 100}
-            isLabelHidden={false}
+            isLabelHidden={props.isLabelHidden ?? false}
             hasValueLabel={props.hasValueLabel ?? false}
             variant={props.variant ?? 'accent'}
-            isIndeterminate={false}
+            isIndeterminate={props.isIndeterminate ?? false}
         />
     );
 }

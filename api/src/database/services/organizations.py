@@ -1,14 +1,13 @@
 from uuid import UUID
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
-from src.utils import names, roles, postgres
-from sqlalchemy import Select, func, delete, select
+from src.utils import names, roles
+from sqlalchemy import Select, or_, func, delete, select
 from sqlalchemy import update as sql_update
 from src.errors import ConflictError, NotFoundError, ForbiddenError, UnavailableError
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import defer, load_only, joinedload, selectinload, contains_eager
+from sqlalchemy.orm import load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
-from longlink.shared import audit as shared_audit
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
 from src.database.services import billing, operations
@@ -26,7 +25,7 @@ from src.database.models.invitations import OrganizationInvitation
 from src.database.models.organizations import Organization
 
 
-def _membership_query(user_id: UUID) -> Select[tuple[UserOrganization]]:
+def _membership_query(user_id: UUID) -> Select[UserOrganization]:
     """Select one user's active membership with its response-ready Organization."""
 
     return (
@@ -187,7 +186,7 @@ async def database_infrastructure(session: AsyncSession, organization_id: UUID) 
     return result.tuples().one_or_none()
 
 
-def _infrastructure_query() -> Select[tuple[Organization, ComputeRegistry]]:
+def _infrastructure_query() -> Select[Organization, ComputeRegistry]:
     """Select one Organization's provider connections for lifecycle work."""
 
     # Keep provider projections and assignment joins shared across lifecycle targets.
@@ -217,13 +216,26 @@ async def infrastructure(session: AsyncSession, organization_id: UUID) -> tuple[
     return result.tuples().one_or_none()
 
 
+async def solution_cleanup_infrastructure(session: AsyncSession, solution_id: UUID) -> tuple[Organization, ComputeRegistry] | None:
+    """Return provider connections for cleanup without loading Solution release state."""
+
+    # Include tombstones while leaving secrets and revision snapshots outside the cleanup projection.
+    statement = (
+        _infrastructure_query()
+        .join_from(Organization, Solution, col(Solution.organization_id) == col(Organization.id))
+        .where(col(Solution.id) == solution_id)
+    )
+    result = await session.execute(statement)
+    return result.tuples().one_or_none()
+
+
 async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> tuple[Solution, Organization, ComputeRegistry] | None:
     """Return one Solution and its assigned infrastructure."""
 
     # Load infrastructure and the failure state needed to select the effective release, not its environments.
     statement = (
         _infrastructure_query()
-        .add_columns(Solution)
+        .with_only_columns(Solution, Organization, ComputeRegistry)
         .join_from(Organization, Solution, col(Solution.organization_id) == col(Organization.id))
         .options(
             load_only(
@@ -239,20 +251,22 @@ async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> t
         .where(col(Solution.id) == solution_id)
     )
     result = await session.execute(statement)
-    row = result.tuples().one_or_none()
-    if row is None:
-        return None
-    organization, compute, solution = row
-    return solution, organization, compute
+    return result.tuples().one_or_none()
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[Organization], int]:
-    """Return one ordered page of active organizations for administrator views."""
+async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Organization], int]:
+    """Return one newest-first page of active organizations for administrator views."""
+
+    # Match literal names and slugs while retaining active Organization visibility.
+    query = select(Organization).where(col(Organization.deleted_at).is_(None))
+    if search:
+        query = query.where(
+            or_(col(Organization.name).icontains(search, autoescape=True), col(Organization.slug).icontains(search, autoescape=True))
+        )
 
     # Load only Organization identity fields using a stable page order.
     statement = (
-        select(Organization)
-        .options(
+        query.options(
             load_only(
                 attr(Organization.id),
                 attr(Organization.name),
@@ -260,15 +274,14 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
                 attr(Organization.status),
             )
         )
-        .where(col(Organization.deleted_at).is_(None))
-        .order_by(col(Organization.name), col(Organization.id))
+        .order_by(col(Organization.created_at).desc(), col(Organization.id).desc())
         .offset(pagination.offset)
         .limit(pagination.page_size)
     )
     result = await session.scalars(statement)
 
-    # Count only active organizations visible in the listing.
-    count_result = await session.execute(select(func.count()).select_from(Organization).where(col(Organization.deleted_at).is_(None)))
+    # Count matches before pagination using the same visibility and search filters.
+    count_result = await session.execute(select(func.count()).select_from(query.subquery()))
     return result.all(), count_result.scalar_one()
 
 
@@ -279,8 +292,17 @@ async def solutions(session: AsyncSession, organization_id: UUID) -> Sequence[So
     statement = (
         select(Solution)
         .options(
-            defer(attr(Solution.secrets)),
+            load_only(
+                attr(Solution.id),
+                attr(Solution.name),
+                attr(Solution.slug),
+                attr(Solution.description),
+                attr(Solution.status),
+                attr(Solution.desired_revision_id),
+                attr(Solution.deployed_revision_id),
+            ),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.failed), raiseload=True),
+            selectinload(attr(Solution.deployed_revision)).load_only(attr(Revision.version), raiseload=True),
         )
         .where(
             col(Solution.organization_id) == organization_id,
@@ -333,27 +355,6 @@ async def members(session: AsyncSession, organization_id: UUID) -> Sequence[User
     return result.all()
 
 
-async def project_users(session: AsyncSession, organization_id: UUID, db: postgres.Postgres) -> None:
-    """Project a Platform snapshot while runtime coordination owns synchronization."""
-
-    # Load every authoritative membership for the Organization database snapshot.
-    statement = (
-        select(col(User.id), col(User.name), col(User.email), col(User.avatar))
-        .join(UserOrganization, col(UserOrganization.user_id) == col(User.id))
-        .where(col(UserOrganization.organization_id) == organization_id)
-    )
-    result = await session.execute(statement)
-    rows = result.mappings().all()
-
-    # Empty snapshots must not open an Organization database connection.
-    if not rows:
-        return
-
-    # The Platform owns the transaction for its authoritative Organization user projection.
-    async with db.connection(organization_id.hex, search_path="shared") as conn:
-        await shared_audit.sync(conn, rows)
-
-
 async def lock(session: AsyncSession, organization_id: UUID) -> Organization:
     """Serialize organization commands and membership admission on every supported database."""
 
@@ -386,6 +387,20 @@ async def locked_membership(
     return membership
 
 
+async def _lock_active_membership(
+    session: AsyncSession, user_id: UUID, organization_id: UUID, minimum_role: OrganizationRoles
+) -> UserOrganization:
+    """Lock an active Organization before refreshing and authorizing its caller membership."""
+
+    # Lock and refresh the Organization before checking active access.
+    organization = await session.get(Organization, organization_id, populate_existing=True, with_for_update=True)
+    if organization is None or organization.deleted_at is not None:
+        raise ForbiddenError("Access required")
+
+    # Refresh and authorize caller access only after locking the active Organization.
+    return await locked_membership(session, user_id, organization_id, minimum_role)
+
+
 async def update_member_role(
     session: AsyncSession,
     organization_id: UUID,
@@ -396,10 +411,7 @@ async def update_member_role(
     """Change one active Organization membership role."""
 
     # Lock the Organization before revalidating the caller's active access.
-    organization = await session.get(Organization, organization_id, populate_existing=True, with_for_update=True)
-    if organization is None or organization.deleted_at is not None:
-        raise ForbiddenError("Access required")
-    caller_membership = await locked_membership(session, user_id, organization_id, OrganizationRoles.admin)
+    caller_membership = await _lock_active_membership(session, user_id, organization_id, OrganizationRoles.admin)
 
     # Lock the member role after locking the Organization and caller access.
     statement = (
@@ -623,10 +635,7 @@ async def revoke_invitation(session: AsyncSession, organization_id: UUID, invita
     """Authorize and revoke one active Organization invitation."""
 
     # Lock the Organization before revalidating the caller's active invitation permission.
-    organization = await session.get(Organization, organization_id, populate_existing=True, with_for_update=True)
-    if organization is None or organization.deleted_at is not None:
-        raise ForbiddenError("Access required")
-    membership = await locked_membership(session, user_id, organization_id, OrganizationRoles.maintain)
+    membership = await _lock_active_membership(session, user_id, organization_id, OrganizationRoles.maintain)
 
     # Resolve only an invitation belonging to the locked Organization.
     invitation = await session.get(OrganizationInvitation, invitation_id, with_for_update=True)

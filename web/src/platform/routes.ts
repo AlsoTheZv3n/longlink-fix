@@ -10,6 +10,8 @@ export default [
     layout('./layouts/Page.tsx', [
         index('./routes/Index.tsx'),
         route('pricing', './routes/Pricing.tsx'),
+        route('blog', './routes/blog/Index.tsx'),
+        route('blog/why-longlink', './routes/blog/WhyLongLink.tsx'),
         // route('use-cases', './routes/usecases/Index.tsx'),
     ]),
     /* Use cases are a work in progress; retain the route definitions for later.
@@ -20,10 +22,10 @@ export default [
         ]),
     ]),
     */
+    route('docs/introduction', './routes/docs/Introduction.tsx'),
     ...prefix('docs', [
         layout('./layouts/Documentation.tsx', [
             index('./routes/docs/Index.tsx'),
-            route('introduction', './routes/docs/Introduction.tsx'),
             ...prefix('sdk', [
                 index('./routes/docs/sdk/Index.tsx'),
                 route('building', './routes/docs/sdk/Building.tsx'),
@@ -42,6 +44,7 @@ export default [
                 ]),
             ]),
             ...prefix('api', [index('./routes/docs/api/Index.tsx')]),
+            route('alternatives', './routes/docs/alternatives/Index.tsx'),
             route('*', '../components/layouts/NotFound.tsx', { id: 'docs-not-found' }),
         ]),
     ]),
@@ -61,6 +64,7 @@ export default [
         ]),
         route('login', './routes/auth/Login.tsx'),
         route('mcp/authorize', './routes/auth/Mcp.tsx'),
+        route('404', '../components/layouts/NotFound.tsx', { id: 'not-found' }),
         route('*', '../components/layouts/NotFound.tsx'),
     ]),
     layout('./layouts/Authenticated.tsx', [
@@ -77,11 +81,13 @@ export default [
             ),
         ]),
         ...prefix('orgs/:organization', [
-            layout('./layouts/Organization.tsx', [
-                index('./routes/orgs/Organization.tsx'),
-                route('settings', './routes/orgs/Settings.tsx'),
+            layout('./layouts/OrganizationAccess.tsx', [
+                layout('./layouts/Organization.tsx', [
+                    index('./routes/orgs/Organization.tsx'),
+                    route('settings', './routes/orgs/Settings.tsx'),
+                ]),
+                route('solutions/:solution/*', './routes/orgs/Solution.tsx'),
             ]),
-            route('solutions/:solution/*', './routes/orgs/Solution.tsx'),
         ]),
     ]),
 ] satisfies RouteConfig;

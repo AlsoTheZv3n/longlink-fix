@@ -29,13 +29,13 @@ export { Text } from '@/components/ui/Text';
 export { Avatar } from '@/components/ui/Avatar';
 
 /** @category Display */
+export { Image } from '@/components/ui/Image';
+
+/** @category Display */
 export { Badge } from '@/components/ui/Badge';
 
 /** @category Display */
 export { Token } from '@/components/ui/Token';
-
-/** @category Display */
-export { StatusDot } from '@/components/ui/StatusDot';
 
 /** @category Layouts */
 export { Card } from '@/components/ui/Card';
@@ -111,6 +111,9 @@ export { MetadataListItem } from '@/components/ui/MetadataList';
 
 /** @category Display */
 export { Table } from '@/components/ui/Table';
+
+/** @category Action */
+export { Pagination } from '@/components/ui/Pagination';
 
 /** @category Display @group Table */
 export { proportional, pixel } from '@/components/ui/Table';

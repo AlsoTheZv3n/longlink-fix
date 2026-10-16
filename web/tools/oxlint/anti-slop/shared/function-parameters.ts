@@ -2,6 +2,15 @@ import type { ESTree, SourceCode } from "@oxlint/plugins";
 
 export type FunctionParameter = ESTree.ParamPattern;
 
+export type ParameterOwner =
+	| ESTree.ArrowFunctionExpression
+	| ESTree.Function
+	| ESTree.TSCallSignatureDeclaration
+	| ESTree.TSConstructSignatureDeclaration
+	| ESTree.TSConstructorType
+	| ESTree.TSFunctionType
+	| ESTree.TSMethodSignature;
+
 /** Return whether a type is or contains TypeScript's absorbing unknown top type. */
 export function containsUnknownType(type: ESTree.TSType): boolean {
 	if (type.type === "TSUnknownKeyword") return true;

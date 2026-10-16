@@ -8,15 +8,16 @@ from sqlalchemy import text, delete, select, update
 from src.errors import ForbiddenError
 from dataclasses import dataclass
 from src.kubernetes import databases as database_resources
-from src.kubernetes import namespace
-from collections.abc import AsyncIterator
-from src.models.types import DatabaseSSLMode
+from collections.abc import AsyncGenerator
+from longlink.shared import audit as shared_audit
 from src.models.statuses import Status
 from src.database.session import session_scope
 from src.database.services import organizations
 from src.kubernetes.client import Kubernetes
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.organizations import DatabaseState
+from src.database.models.users import User
+from src.database.models.computes import ComputeRegistry
 from src.database.models.association import UserOrganization
 from src.database.models.organizations import Organization, OrganizationActivity
 
@@ -34,29 +35,25 @@ async def lock(session: AsyncSession, organization_id: UUID) -> Organization | N
     return await session.get(Organization, organization_id, populate_existing=True)
 
 
-async def connection(
-    organization: Organization,
-    cluster: Kubernetes,
-    *,
-    certificate: str | None = None,
-) -> postgres.Postgres:
-    """Build a private PostgreSQL connection using the caller's CA snapshot or a fresh cluster lookup."""
+async def _project_users(session: AsyncSession, organization_id: UUID, db: postgres.Postgres) -> None:
+    """Project a Platform snapshot while runtime coordination owns synchronization."""
 
-    # Platform workers can run outside the compute cluster and its private DNS/network.
-    port = await cluster.forward_database(organization.id)
-
-    # Preserve the cluster DNS hostname for certificate verification even through a local tunnel.
-    if certificate is None:
-        certificate = await database_resources.certificate(cluster, organization.id)
-    return postgres.Postgres(
-        host=namespace.database_hostname(organization.id),
-        port=port,
-        username="postgres",
-        password=organization.database_password,
-        sslmode=DatabaseSSLMode.require,
-        certificate=certificate,
-        hostaddr="127.0.0.1",
+    # Load every authoritative membership for the Organization database snapshot.
+    statement = (
+        select(col(User.id), col(User.name), col(User.email), col(User.avatar))
+        .join(UserOrganization, col(UserOrganization.user_id) == col(User.id))
+        .where(col(UserOrganization.organization_id) == organization_id)
     )
+    result = await session.execute(statement)
+    rows = result.mappings().all()
+
+    # Empty snapshots must not open an Organization database connection.
+    if not rows:
+        return
+
+    # The Platform owns the transaction for its authoritative Organization user projection.
+    async with db.connection(organization_id.hex, search_path="shared") as conn:
+        await shared_audit.sync(conn, rows)
 
 
 @dataclass
@@ -84,7 +81,7 @@ class Lease:
                 raise RuntimeError("Organization transition lease was lost")
 
     @contextlib.asynccontextmanager
-    async def maintain(self) -> AsyncIterator[None]:
+    async def maintain(self) -> AsyncGenerator[None]:
         """Renew a lease and interrupt its work if persistence or ownership is lost."""
 
         # Associate lease loss with the operation task that owns this maintenance scope.
@@ -157,7 +154,7 @@ async def _claim(session: AsyncSession, organization_id: UUID) -> Lease | None:
 
 
 @contextlib.asynccontextmanager
-async def deleting(organization_id: UUID) -> AsyncIterator[None]:
+async def deleting(organization_id: UUID) -> AsyncGenerator[None]:
     """Drain admitted work and fence database transitions during destructive cleanup."""
 
     # Serialize deletion eligibility and lease admission under the same Organization lock.
@@ -212,8 +209,8 @@ async def sync_users(user_id: UUID) -> None:
 
             # Upsert shared profiles without removing records referenced by historical Solution audits.
             async with cluster:
-                database = await connection(organization, cluster)
-                await organizations.project_users(session, organization_id, database)
+                database = await database_resources.connection(organization, cluster)
+                await _project_users(session, organization_id, database)
             await session.commit()
 
 
@@ -239,12 +236,18 @@ async def ready(organization_id: UUID) -> bool:
 
         async with lease.maintain():
             try:
+                # Load only the database assignment without decrypting unrelated storage credentials.
                 async with session_scope() as session:
-                    target = await organizations.infrastructure(session, organization_id)
+                    result = await session.execute(
+                        select(Organization, col(ComputeRegistry.kubeconfig), col(ComputeRegistry.database_storage_class))
+                        .join(ComputeRegistry, col(ComputeRegistry.id) == col(Organization.compute_id))
+                        .where(col(Organization.id) == organization_id)
+                    )
+                    target = result.tuples().one_or_none()
                 if target is None:
                     raise RuntimeError("Organization is unavailable")
-                organization, compute = target
-                cluster = Kubernetes(compute.kubeconfig)
+                organization, kubeconfig, database_storage_class = target
+                cluster = Kubernetes(kubeconfig)
                 async with cluster:
                     await lease.check()
                     if organization.status != Status.running:
@@ -252,14 +255,14 @@ async def ready(organization_id: UUID) -> bool:
                             cluster,
                             organization_id,
                             organization.database_password,
-                            compute.database_storage_class,
+                            database_storage_class,
                             size_mib=organization.database_size_mib,
                             instances=organization.database_instances,
                         )
                     else:
                         # Reassert the desired annotation even after an expired worker's interrupted sleep.
                         await database_resources.resume(cluster, organization_id)
-                    database = await connection(organization, cluster)
+                    database = await database_resources.connection(organization, cluster)
                     if organization.status != Status.running:
                         await lease.check()
                         await database.prepare_organization_database(organization_id)
@@ -267,7 +270,7 @@ async def ready(organization_id: UUID) -> bool:
                     # Verify ownership before taking the snapshot; the publish gate rechecks shared state.
                     await lease.check()
                     async with session_scope() as session:
-                        await organizations.project_users(session, organization_id, database)
+                        await _project_users(session, organization_id, database)
 
                     # Empty snapshots skip SQL; verify the tenant connection immediately before publication.
                     async with asyncio.timeout(10), database.connection(organization_id.hex) as sql:

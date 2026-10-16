@@ -3,17 +3,20 @@ import type { ReactNode } from 'react';
 import { startCase } from 'es-toolkit/compat';
 import { JsxView } from '@/components/JsxView';
 import { PageError } from '@/components/Utils';
-import { viewsSchema } from '@/views/manifest';
+import { manifestSchema } from '@/views/manifest';
 import { MAX_SOURCE_SIZE } from '@/views/protocol';
 import { Center } from '@astryxdesign/core/Center';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { matchRoutes, Navigate, useParams } from 'react-router';
-import type { NavigationTab } from '@/components/layouts/Platform';
-import { resolveNavigationUrl, resolveRequestUrl } from '@/lib/url';
+import { RELATIVE_URL_ORIGIN, resolveNavigationUrl, resolveRequestUrl } from '@/lib/url';
 
 type SolutionRuntimeProps = {
-    children: (solution: { content: ReactNode; tabs: readonly NavigationTab[]; title?: string }) => ReactNode;
+    children: (solution: {
+        content: ReactNode;
+        tabs: readonly { href: string; label: string }[];
+        title?: string;
+    }) => ReactNode;
     navigationBaseUrl?: string;
     viewsUrl?: string;
 };
@@ -33,21 +36,21 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
     const { '*': routePath = '' } = useParams();
 
     // Resolve JSX requests beside the manifest without changing its URL form.
-    const viewsLocation = new URL(viewsUrl, 'http://longlink.local');
+    const viewsLocation = new URL(viewsUrl, RELATIVE_URL_ORIGIN);
     const requestBaseLocation = new URL('.', viewsLocation);
     const requestBaseUrl = viewsUrl.startsWith('/') ? requestBaseLocation.pathname : requestBaseLocation.toString();
 
-    const { data: registeredViews, error: viewsError } = useQuery({
+    const { data: manifest, error: viewsError } = useQuery({
         queryKey: ['api', viewsUrl],
         queryFn: async ({ signal }) => {
             const body = await host.load(viewsUrl, { signal });
             const data: unknown = JSON.parse(await body.text());
 
-            return viewsSchema.parse(data);
+            return manifestSchema.parse(data);
         },
     });
 
-    const views = registeredViews ?? EMPTY_VIEWS;
+    const views = manifest?.views ?? EMPTY_VIEWS;
 
     const match = matchRoutes(
         views.map((view) => ({
@@ -62,7 +65,7 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
     // Let dynamic detail views share a tab with their matching list view.
     const activeView = routePath || tabViews.length === 0 ? match?.route.view : undefined;
     const activeViewTitle = activeView ? viewLabel(activeView.path) : undefined;
-    const isNotFound = registeredViews !== undefined && routePath.length > 0 && match == null;
+    const isNotFound = manifest !== undefined && routePath.length > 0 && match == null;
 
     const { data: activeViewSource, error: activeViewError } = useQuery({
         queryKey: ['api', 'solution-view', viewsUrl, activeView?.path],
@@ -78,13 +81,10 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
     });
 
     // Build one static navigation target per solution tab.
-    const tabs = tabViews.map(
-        (view) =>
-            ({
-                href: resolveNavigationUrl(navigationBaseUrl, view.route),
-                label: viewLabel(view.path),
-            }) satisfies NavigationTab
-    );
+    const tabs = tabViews.map((view) => ({
+        href: resolveNavigationUrl(navigationBaseUrl, view.route),
+        label: viewLabel(view.path),
+    }));
 
     let content: ReactNode;
 
@@ -105,19 +105,27 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
                 title="Unable to load this solution"
             />
         );
-    } else if (activeViewSource !== undefined && activeView && match) {
+    } else if (activeViewSource !== undefined && activeView && match && manifest) {
         content = (
             <JsxView
                 source={activeViewSource}
-                key={JSON.stringify([viewsUrl, navigationBaseUrl, activeView.route, activeView.path, routePath])}
+                key={JSON.stringify([
+                    viewsUrl,
+                    navigationBaseUrl,
+                    activeView.route,
+                    activeView.path,
+                    manifest.runtime,
+                    routePath,
+                ])}
                 navigationBaseUrl={navigationBaseUrl}
                 params={Object.fromEntries(
                     Object.entries(match.params).filter((entry): entry is [string, string] => entry[1] != null)
                 )}
                 requestBaseUrl={requestBaseUrl}
+                runtime={manifest.runtime}
             />
         );
-    } else if (registeredViews && !activeView) {
+    } else if (manifest && !activeView) {
         content = (
             <PageError
                 description="The solution did not expose any views to render."

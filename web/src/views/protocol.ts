@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const MAX_RUNTIME_SIZE = 8_000_000;
+
 export const MAX_SOURCE_SIZE = 1_000_000;
 
 export const MAX_MESSAGE_SIZE = 2_000_000;
@@ -100,7 +102,11 @@ export const iconDataSchema = z.object({
 
 export const commandSchema = z.discriminatedUnion('type', [
     requestSchema,
-    z.object({ type: z.literal('navigate'), path: z.string().min(1).max(4096) }).strict(),
+    // Only bounded dimensions cross the sandbox boundary; the host owns page scrolling.
+    z.object({ type: z.literal('resize'), height: z.number().int().min(1).max(1_000_000) }).strict(),
+    z
+        .object({ type: z.literal('navigate'), path: z.string().min(1).max(4096), newTab: z.boolean().optional() })
+        .strict(),
     downloadSchema,
     iconSchema,
 ]);
@@ -118,7 +124,7 @@ export type ViewData = z.output<typeof responseSchema>;
 
 export type ViewReply =
     | { id: number; ok: true; data: ViewData }
-    | { id: number; ok: false; error: string; status?: number };
+    | { id: number; ok: false; error: string; status?: number; notified?: boolean };
 
 /** Bounds bridge payloads before allowing them to consume host resources. */
 export function messageSize(command: RequestCommand): number {

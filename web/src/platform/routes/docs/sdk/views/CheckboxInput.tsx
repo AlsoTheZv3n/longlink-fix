@@ -20,12 +20,10 @@ export default function CheckboxInputPage() {
 export default function ApprovalForm() {
   return (
     <Form action="/api/example" method="post">
-      <Stack gap={3}>
-        <CheckboxInput name="approved" label="Approved" defaultChecked />
-        <Stack direction="horizontal" gap={2}>
-          <Button type="submit" label="Submit" variant="primary" />
-          <Button type="reset" label="Reset" />
-        </Stack>
+      <CheckboxInput name="approved" label="Approved" defaultChecked />
+      <Stack direction="horizontal" gap={2}>
+        <Button type="submit" label="Submit" variant="primary" />
+        <Button type="reset" label="Reset" />
       </Stack>
     </Form>
   );

@@ -1,6 +1,4 @@
 import { z } from 'zod';
-import { ApiError } from '@/lib/api';
-import { useParams } from 'react-router';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
@@ -14,47 +12,17 @@ import { CodeBlock } from '@astryxdesign/core/CodeBlock';
 import NotFoundLayout from '@/components/layouts/NotFound';
 import { PageContainer } from '@/components/PageContainer';
 import { EmptyState } from '@astryxdesign/core/EmptyState';
-import { PageError, PageLoading } from '@/components/Utils';
+import { useParams, useOutletContext } from 'react-router';
 import { useAuthenticatedUser } from '@/lib/hooks/use-user';
 import { ProfileMenu } from '@/platform/components/Profile';
 import { PageBreadcrumb } from '@/platform/components/PageBreadcrumb';
 import { zUserOrganizationMembership, zOrganizationSolutionSummary } from '@/lib/generated/platform-api-v1/zod.gen';
 
-/** Renders one proxy-backed organization solution after route authentication. */
+/** Renders one proxy-backed organization solution after membership resolves. */
 export default function OrganizationSolution() {
-    return (
-        <ApiBoundary
-            fallback={
-                <>
-                    <NoIndex title="Solution | LongLink" />
-                    <PageLoading label="Loading solution" />
-                </>
-            }
-            fallbackRender={({ error }) =>
-                error instanceof ApiError && error.status === 404 ? (
-                    <NotFoundLayout />
-                ) : (
-                    <>
-                        <NoIndex title="Solution | LongLink" />
-                        <PageError description="We couldn't load this solution." title="Unable to load solution" />
-                    </>
-                )
-            }
-        >
-            <SolutionPage />
-        </ApiBoundary>
-    );
-}
-
-/** Resolves organization access before polling its deployments or loading Solution content. */
-function SolutionPage() {
     const { organization = '', solution = '' } = useParams();
     const user = useAuthenticatedUser();
-
-    const [membership] = useApi(
-        `/api/v1/organizations/slug/${encodeURIComponent(organization)}`,
-        zUserOrganizationMembership
-    );
+    const membership = useOutletContext<z.output<typeof zUserOrganizationMembership>>();
 
     // Fetch accessible solutions after membership resolves and poll pending deployments.
     const [solutions] = useApi(
@@ -135,7 +103,7 @@ function SolutionPage() {
             viewsUrl={`/api/v1/solutions/${solutionAccess.id}/proxy/views.json`}
         >
             {({ content, tabs, title }) => (
-                <Platform action={action} breadcrumb={breadcrumb} height="fill" tabs={tabs}>
+                <Platform action={action} breadcrumb={breadcrumb} tabs={tabs}>
                     <NoIndex title={`${title ?? solutionAccess.name} | LongLink`} />
                     <PageContainer height="100%" minHeight={0} padding={2}>
                         {content}

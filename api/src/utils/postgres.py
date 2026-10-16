@@ -1,7 +1,7 @@
 import contextlib
 from uuid import UUID
 from sqlalchemy import String, text
-from collections.abc import Iterator, AsyncGenerator
+from collections.abc import Generator, AsyncGenerator
 from longlink.shared import migrations as shared_migrations
 from longlink.storage import tls
 from src.models.types import DatabaseSSLMode
@@ -40,41 +40,32 @@ class Postgres:
             hostaddr: Optional transport IP; host remains the PostgreSQL TLS identity.
 
         """
-        # Store organization cluster connection settings.
-        self._host = host
-        self._port = port
-        self._hostaddr = hostaddr
-        self._username = username
-        self._password = password
-        self._sslmode = sslmode
+        # Configure the immutable cluster URL without acquiring certificate files or connections.
+        query = {"sslmode": "verify-full" if certificate is not None else sslmode.value, "options": "-c timezone=UTC"}
+
+        # A tunnel changes only the transport address, preserving hostname verification.
+        if hostaddr is not None:
+            query["hostaddr"] = hostaddr
+
+        # Keep connection details inside the adapter and credentials structured.
+        self._url = URL.create(
+            "postgresql+psycopg",
+            username=username,
+            password=password,
+            host=host,
+            port=port,
+            query=query,
+        )
         self._certificate = certificate
 
     @contextlib.contextmanager
-    def url(self, database: str, search_path: str | None = None) -> Iterator[URL]:
+    def url(self, database: str, search_path: str | None = None) -> Generator[URL]:
         """Yield a libpq URL whose CA file lives until exit; dispose all consuming engines inside this context."""
 
-        # Configure PostgreSQL driver options before creating the structured URL.
-        sslmode = "verify-full" if self._certificate is not None else self._sslmode.value
-        query = {"sslmode": sslmode, "options": "-c timezone=UTC"}
-
-        # A tunnel changes only the transport address, preserving hostname verification.
-        if self._hostaddr is not None:
-            query["hostaddr"] = self._hostaddr
-
-        # Forward an explicit schema search path when callers request one.
+        # Derive operation-local settings without accumulating changes on the cluster URL.
+        url = self._url.set(database=database)
         if search_path is not None:
-            query["options"] = f"{query['options']} -c search_path={search_path}"
-
-        # Keep connection details inside the adapter and credentials structured.
-        url = URL.create(
-            "postgresql+psycopg",
-            username=self._username,
-            password=self._password,
-            host=self._host,
-            port=self._port,
-            database=database,
-            query=query,
-        )
+            url = url.update_query_dict({"options": f"{self._url.query['options']} -c search_path={search_path}"})
 
         # Local connections need no certificate file; hosted connections must verify the server hostname and CA.
         if self._certificate is None:
@@ -120,7 +111,7 @@ class Postgres:
         # Ask PostgreSQL for the current database's on-disk size through the managed connection.
         async with self.connection(organization.hex) as conn:
             result = await conn.execute(text("SELECT pg_database_size(current_database())"))
-            return int(result.scalar_one())
+            return result.scalar_one()
 
     async def prepare_organization_database(self, organization: UUID) -> None:
         """Converge one organization database, run SDK-owned shared-schema migrations, and restore shared-schema restrictions.

@@ -1,8 +1,7 @@
 from uuid import UUID
 from sqlmodel import col
-from sqlalchemy import func, select
+from sqlalchemy import or_, func, select
 from src.errors import ConflictError, NotFoundError
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 from collections.abc import Sequence
 from src.database.types import attr
@@ -12,13 +11,23 @@ from src.database.models.computes import ComputeRegistry
 from src.database.models.organizations import Organization
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Sequence[ComputeRegistry], int]:
-    """Return one ordered page of compute registries."""
+async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[ComputeRegistry], int]:
+    """Return one newest-first page of compute registries."""
+
+    # Match literal names and infrastructure endpoints before pagination.
+    query = select(ComputeRegistry)
+    if search:
+        query = query.where(
+            or_(
+                col(ComputeRegistry.name).icontains(search, autoescape=True),
+                col(ComputeRegistry.gateway_url).icontains(search, autoescape=True),
+                col(ComputeRegistry.storage_endpoint).icontains(search, autoescape=True),
+            )
+        )
 
     # Load only the fields exposed by the administrator response.
     statement = (
-        select(ComputeRegistry)
-        .options(
+        query.options(
             load_only(
                 attr(ComputeRegistry.id),
                 attr(ComputeRegistry.name),
@@ -27,28 +36,15 @@ async def fetch_page(session: AsyncSession, pagination: Pagination) -> tuple[Seq
                 attr(ComputeRegistry.storage_endpoint),
             )
         )
-        .order_by(col(ComputeRegistry.name), col(ComputeRegistry.id))
+        .order_by(col(ComputeRegistry.created_at).desc(), col(ComputeRegistry.id).desc())
         .offset(pagination.offset)
         .limit(pagination.page_size)
     )
     result = await session.scalars(statement)
 
-    # Count every registered compute target.
-    count_result = await session.execute(select(func.count()).select_from(ComputeRegistry))
+    # Count matches before pagination using the same search filters.
+    count_result = await session.execute(select(func.count()).select_from(query.subquery()))
     return result.all(), count_result.scalar_one()
-
-
-async def create(session: AsyncSession, registry: ComputeRegistry) -> None:
-    """Register one verified compute target as immediately assignable."""
-
-    # Persist the inline-verified target; duplicates translate to one stable API conflict.
-    session.add(registry)
-
-    # Translate duplicate names or physical clusters to one stable API conflict.
-    try:
-        await session.flush()
-    except IntegrityError as exc:
-        raise ConflictError("Compute registry already exists") from exc
 
 
 async def delete(session: AsyncSession, registry_id: UUID) -> None:

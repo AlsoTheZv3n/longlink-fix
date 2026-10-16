@@ -5,7 +5,7 @@ import {
     MetadataListItem as AstryxMetadataListItem,
 } from '@astryxdesign/core/MetadataList';
 
-/** Lists labeled values without configurable truncation or label geometry. */
+/** Lists labeled values with optional truncation and label placement. */
 export function MetadataList({
     children,
     ...props
@@ -15,6 +15,9 @@ export function MetadataList({
     children?: ReactNode;
     columns?: 'multi' | 'single' | number;
     title?: ReactNode;
+    label?: { position: 'start' | 'top'; width?: number | string };
+    maxNumOfItems?: number;
+    orientation?: 'vertical' | 'horizontal';
 }) {
     // Keep labeled values in one readable column by default.
     return (

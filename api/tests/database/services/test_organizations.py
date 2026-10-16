@@ -1,9 +1,7 @@
 import pytest
 from uuid import uuid4
-from conftest import DatabasePostgres
 from factories import create_compute, fetch_operations, create_organization
 from src.errors import ConflictError, ForbiddenError
-from collections.abc import Mapping, Sequence
 from src.models.roles import OrganizationRoles
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
@@ -36,38 +34,6 @@ async def test_fetch_ignores_deleted_organizations(users: tuple[User, User, User
     # Assert
     assert [organization.id for organization in fetched] == [active_organization.id]
     assert total == 1
-
-
-async def test_sync_users_projects_active_organization_members(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Publish the Platform-authoritative member snapshot for an Organization."""
-
-    # Arrange
-    organization = await create_organization(users[0])
-    synchronized: list[tuple[DatabasePostgres, Sequence[Mapping[str, object]]]] = []
-
-    async def capture_sync(conn: DatabasePostgres, rows: Sequence[Mapping[str, object]]) -> None:
-        """Capture the shared-database projection without opening a connection."""
-
-        synchronized.append((conn, rows))
-
-    monkeypatch.setattr(organizations.shared_audit, "sync", capture_sync)
-
-    # Act
-    async with session_scope() as session:
-        await organizations.project_users(session, organization.id, DatabasePostgres())
-
-    # Assert
-    conn, rows = synchronized[0]
-    assert conn.database == organization.id.hex
-    assert conn.search_path == "shared"
-    (row,) = rows
-    assert row["id"] == users[0].id
-    assert row["name"] == users[0].name
-    assert row["email"] == users[0].email
-    assert row["avatar"] == users[0].avatar
 
 
 async def test_update_member_role_rejects_owner_changes_from_non_owners(users: tuple[User, User, User]) -> None:

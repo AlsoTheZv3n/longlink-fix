@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
+import { useDeferredValue, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
+import { TextInput } from '@/components/ui/TextInput';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
@@ -22,10 +23,15 @@ const statuses = { scheduled: 'Planned', active: 'Active', completed: 'Completed
 
 /** Lists operation history and exposes its metadata. */
 export default function Operations() {
-    const [page, setPage] = useState(1);
+    // Defer list requests so typing remains responsive while a new page loads.
+    const [filters, setFilters] = useState({ search: '', page: 1 });
+    const { search, page } = useDeferredValue(filters);
     const [metadataId, setMetadataId] = useState<string | null>(null);
 
-    const [operations] = useApi(`/api/v1/operations?page=${page}&page_size=25`, zPageOperationResponse);
+    const [operations] = useApi(
+        `/api/v1/operations?page=${page}&page_size=25&search=${encodeURIComponent(search.trim())}`,
+        zPageOperationResponse
+    );
 
     // Use current metadata and clear missing selections so returning to a page cannot reopen the dialog.
     const metadata = operations.items.find((item) => item.id === metadataId);
@@ -33,9 +39,18 @@ export default function Operations() {
     if (metadataId !== null && !metadata) setMetadataId(null);
 
     return (
-        <Stack gap={4}>
+        <Stack gap={2}>
             <NoIndex title="Operations | LongLink" />
             <Heading level={1}>Operations</Heading>
+            <TextInput
+                label="Search operations"
+                isLabelHidden
+                placeholder="Search by operation kind or resource name"
+                value={filters.search}
+                startIcon={<Search />}
+                hasClear
+                onChange={(search) => setFilters({ search, page: 1 })}
+            />
             <Stack gap={1}>
                 <Table
                     data={operations.items}
@@ -87,7 +102,15 @@ export default function Operations() {
                         },
                     ]}
                 />
-                <Pagination page={page} onChange={setPage} totalItems={operations.total} pageSize={25} variant="none" />
+                <Stack as="footer" align="center" paddingBlock={2}>
+                    <Pagination
+                        page={page}
+                        onChange={(page) => setFilters({ ...filters, page })}
+                        totalItems={operations.total}
+                        pageSize={25}
+                        variant="pages"
+                    />
+                </Stack>
             </Stack>
             {metadata && (
                 <Dialog

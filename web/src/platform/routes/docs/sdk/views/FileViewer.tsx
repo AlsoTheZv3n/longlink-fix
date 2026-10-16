@@ -1,6 +1,7 @@
 import * as host from '@/views/host';
 import ViewLayout from './ViewLayout';
-import { FileViewer, FileRequestContext } from '@/components/ui/FileViewer';
+import { FileViewer } from '@/components/ui/FileViewer';
+import { FileRequestContext } from '@/components/ui/preview';
 
 /** Documents image previews and attachment downloads through the scoped Solution API. */
 export default function FileViewerPage() {
@@ -8,7 +9,9 @@ export default function FileViewerPage() {
     return (
         <ViewLayout
             name="FileViewer"
-            introduction="FileViewer previews images and downloads attachments through the scoped Solution API. Other documents, including PDFs, are downloaded rather than executed inside the View."
+            introduction={
+                'FileViewer previews images and downloads attachments through the scoped Solution API. Other documents, including PDFs, are downloaded rather than executed inside the View. Set size="sm" for compact table actions; omit size to retain inherited sizing.'
+            }
             examples={[
                 {
                     title: 'FileViewer',
