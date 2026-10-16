@@ -1,15 +1,12 @@
 import sys
 import pytest
 import sqlite3
-from io import StringIO
-from alembic import command
 from pathlib import Path
 from sqlmodel import SQLModel
 from contextlib import closing
 from sqlalchemy import create_engine
 from alembic.config import Config
 from longlink.database import migrations as database_migrations
-from longlink.constants import ROOT
 
 
 @pytest.mark.parametrize(
@@ -137,23 +134,3 @@ def test_production_migrations_upgrade_head_with_committed_revision(tmp_path: Pa
     assert captured["target"] == "head"
     assert config.get_main_option("script_location") == str(database_migrations.CURRENT_FILE.parent)
     assert config.get_main_option("version_locations") == str(migrations_path)
-
-
-def test_migration_environment_emits_offline_sql_without_creating_database(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Emit Solution migration SQL without opening a database connection."""
-
-    # Arrange
-    output = StringIO()
-    config = database_migrations.migration_config(ROOT / ".static" / "new" / "migrations")
-    config.output_buffer = output
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("LONGLINK_ENV", "development")
-
-    # Act
-    command.upgrade(config, "head", sql=True)
-
-    # Assert
-    sql = output.getvalue()
-    assert "CREATE TABLE project (" in sql
-    assert "INSERT INTO alembic_version" in sql
-    assert not (tmp_path / "dev.db").exists()

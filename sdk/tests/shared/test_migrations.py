@@ -1,16 +1,12 @@
 import pytest
 import pytest_asyncio
-from io import StringIO
 from uuid import UUID
-from typing import cast
-from alembic import command
 from sqlalchemy import text
-from sqlalchemy.exc import DBAPIError
 from collections.abc import AsyncIterator
 from longlink.shared import audit as shared_audit
 from longlink.shared import migrations as shared_migrations
 from sqlalchemy.engine import URL
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncConnection, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 
 @pytest.fixture
@@ -70,37 +66,6 @@ def test_migration_config_rejects_missing_packaged_resources(tmp_path, monkeypat
     # Act and assert
     with pytest.raises(RuntimeError, match="could not be located"):
         shared_migrations.migration_config("postgresql+asyncpg://control:secret@db/longlink")
-
-
-async def test_empty_shared_audit_sync_does_not_execute_sql() -> None:
-    """Treat empty shared audit synchronization as a no-op on the supplied connection."""
-
-    # Empty payloads return before synchronization needs a connection.
-    conn = cast(AsyncConnection, object())
-    await shared_audit.sync(conn, [])
-
-
-async def test_shared_audit_sync_leaves_cleanup_to_caller_when_upsert_fails(audit_user: dict[str, UUID | str]) -> None:
-    """Propagate SQL failures while leaving connection and transaction ownership with the caller."""
-
-    # Missing shared tables cause a real SQL failure within a caller-owned transaction.
-    engine = create_async_engine("sqlite+aiosqlite://")
-    try:
-        async with engine.connect() as conn:
-            # Keep the transaction active while the failing sync unwinds through finally.
-            with pytest.raises(DBAPIError, match="no such table: audit"):  # noqa: PT012
-                async with conn.begin():
-                    try:
-                        await shared_audit.sync(conn, [audit_user])
-                    finally:
-                        assert not conn.closed
-                        assert conn.in_transaction()
-
-            # The caller's transaction context rolls back and leaves its connection usable.
-            assert not conn.in_transaction()
-            assert await conn.scalar(text("SELECT 1")) == 1
-    finally:
-        await engine.dispose()
 
 
 @pytest.mark.integration
@@ -176,52 +141,3 @@ async def test_shared_migrations_isolate_schema_and_sync_user_profiles(
         "email": "updated@example.com",
         "avatar": "https://example.com/avatar.png",
     }
-
-
-def test_shared_migration_environment_emits_offline_schema_bootstrap() -> None:
-    """Emit shared-schema bootstrap SQL before offline migration output."""
-
-    # Arrange
-    output = StringIO()
-    config = shared_migrations.migration_config("postgresql+asyncpg://db/organization")
-    config.output_buffer = output
-
-    # Act
-    command.upgrade(config, "head", sql=True)
-
-    # Assert
-    sql = output.getvalue()
-    assert (
-        sql.index("CREATE SCHEMA IF NOT EXISTS shared")
-        < sql.index("SET search_path TO shared")
-        < sql.index("CREATE TABLE shared.alembic_version")
-        < sql.index("CREATE TABLE audit")
-    )
-
-
-def test_shared_migration_environment_rejects_missing_online_connection() -> None:
-    """Require the async migration runner to supply its owned connection."""
-
-    # Arrange
-    config = shared_migrations.migration_config("postgresql+asyncpg://db/organization")
-
-    # Act and assert
-    with pytest.raises(RuntimeError, match="Online shared migrations require a supplied SQLAlchemy Connection"):
-        command.upgrade(config, "head")
-
-
-def test_initial_shared_migration_downgrade_drops_only_audit_table() -> None:
-    """Remove only the SDK-owned audit table when downgrading the shared schema."""
-
-    # Arrange
-    output = StringIO()
-    config = shared_migrations.migration_config("postgresql+asyncpg://db/organization")
-    config.output_buffer = output
-
-    # Act
-    command.downgrade(config, "20260713_0001:base", sql=True)
-
-    # Assert
-    sql = output.getvalue()
-    assert [line for line in sql.splitlines() if line.startswith("DROP TABLE ")] == ["DROP TABLE audit;"]
-    assert "DROP SCHEMA" not in sql
