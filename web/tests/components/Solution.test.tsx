@@ -310,7 +310,9 @@ describe('SolutionRuntime', () => {
             '/proxy/views.json?version=1#manifest'
         );
         expect(viewRequest.headers.get('accept')).toBe('text/plain');
-        expect(output.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts allow-forms');
+        expect(output.querySelector('iframe')?.getAttribute('sandbox')).toBe(
+            'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox'
+        );
         expect(output.querySelector('iframe')?.srcdoc).toContain("form-action 'none'");
         expect(output.textContent).not.toContain('Welcome');
     });
