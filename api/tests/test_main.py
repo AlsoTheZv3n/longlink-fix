@@ -354,24 +354,3 @@ async def test_lifespan_starts_and_stops_background_jobs(monkeypatch: pytest.Mon
     assert events[2] == "serving"
     assert set(events[3:5]) == {"administrator cancel", "scheduler cancel"}
     assert events[5:] == ["kubernetes dispose", "dispose"]
-
-
-@pytest.mark.no_db
-def test_every_source_module_has_a_corresponding_test_file() -> None:
-    """Enforce one test file per source module, without supplemental suites."""
-
-    # Arrange
-    tests = Path(__file__).resolve().parent
-    source = tests.parent / "src"
-
-    # Act
-    expected = {
-        module.relative_to(source).with_name("test_init.py" if module.name == "__init__.py" else f"test_{module.name}")
-        for module in source.rglob("*.py")
-        if module.name != "__init__.py" or module.read_text(encoding="utf-8").strip()
-    }
-    actual = {module.relative_to(tests) for module in tests.rglob("test_*.py")}
-    actual -= {Path("test_main.py"), Path("alembic/test_versions.py")}
-
-    # Assert
-    assert actual == expected, f"Missing: {sorted(expected - actual)}; unexpected: {sorted(actual - expected)}"

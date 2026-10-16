@@ -10,5 +10,5 @@ it('keeps cumulative links canonical while decoding readable labels', () => {
         { label: 'Documentation', href: '/docs/' },
         { label: 'Order History', href: '/docs/order%20history/' },
     ]);
-    expect(() => formatPathSegment('%invalid')).not.toThrow();
+    expect(formatPathSegment('%invalid')).toBe('Invalid');
 });

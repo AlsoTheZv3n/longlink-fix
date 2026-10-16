@@ -41,32 +41,26 @@ async def test_organization_delete_waits_for_namespace_termination(monkeypatch: 
     """Delete an Organization Namespace once and wait until it is absent."""
 
     # Arrange
-    deleted: list[bool] = []
+    deleted: list[str] = []
     waits: list[str] = []
 
-    class Namespace:
-        """Represent a Namespace through deletion and terminal absence."""
+    async def delete(resource: kubernetes_utils.Namespace) -> None:
+        """Record the Namespace receiving the deletion request."""
 
-        def __init__(self, name: str, **_kwargs: object) -> None:
-            """Validate the Namespace."""
+        deleted.append(resource.name)
 
-            assert name == "longlink-compute-00000000000040008000000000000001"
+    async def wait(resource: kubernetes_utils.Namespace, condition: str) -> None:
+        """Record the terminal deletion wait."""
 
-        async def delete(self) -> None:
-            """Record the single deletion request."""
+        assert resource.name == "longlink-compute-00000000000040008000000000000001"
+        waits.append(condition)
 
-            deleted.append(True)
-
-        async def wait(self, condition: str) -> None:
-            """Record the terminal deletion wait."""
-
-            waits.append(condition)
-
-    monkeypatch.setattr(kubernetes_utils, "Namespace", Namespace)
+    monkeypatch.setattr(kubernetes_utils.Namespace, "delete", delete)
+    monkeypatch.setattr(kubernetes_utils.Namespace, "wait", wait)
 
     # Act
     await organizations.delete(kubernetes_client(), UUID("00000000-0000-4000-8000-000000000001"))
 
     # Assert
-    assert deleted == [True]
+    assert deleted == ["longlink-compute-00000000000040008000000000000001"]
     assert waits == ["delete"]

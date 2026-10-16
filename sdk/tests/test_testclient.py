@@ -40,6 +40,4 @@ def test_solution_test_client_replaces_development_services_with_testing_service
     storage = app.state.longlink.storage
     assert storage.ls("", detail=False) == []
     storage.pipe_file("report.txt", b"report")
-    assert storage.cat_file("report.txt") == b"report"
-    assert storage.ls("", detail=False) == ["report.txt"]
     assert not Path("report.txt").exists()

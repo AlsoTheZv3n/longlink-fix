@@ -105,13 +105,12 @@ def test_production_storage_passes_configured_ca_to_s3_client(production_setting
 
 
 @pytest.mark.parametrize("name", ["DATABASE_HOST", "DATABASE_PASSWORD", "STORAGE_BUCKET", "STORAGE_PREFIX"])
-@pytest.mark.usefixtures("production_environment")
-def test_production_settings_reject_blank_required_values(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+def test_production_settings_reject_blank_required_values(production_settings: dict[str, str | int], name: str) -> None:
     """Reject blank values in the production runtime contract."""
 
     # Arrange
-    monkeypatch.setenv(f"LONGLINK_{name}", "   ")
+    settings = production_settings | {name: "   "}
 
     # Act
     with pytest.raises(ValidationError, match=name):
-        Envs()
+        Envs.model_validate(settings)

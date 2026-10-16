@@ -11,7 +11,7 @@ from longlink.cli.main import main
 @pytest.mark.parametrize(
     ("host", "expected_warnings"),
     [
-        pytest.param("0.0.0.0", [("Development server is exposed on host %s", ("0.0.0.0",))], id="public"),
+        pytest.param("0.0.0.0", ["Development server is exposed on host 0.0.0.0"], id="public"),
         pytest.param("127.0.0.1", [], id="ipv4-loopback"),
         pytest.param("::1", [], id="ipv6-loopback"),
         pytest.param("localhost", [], id="localhost"),
@@ -22,7 +22,7 @@ def test_dev_command_warns_only_for_public_hosts(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     host: str,
-    expected_warnings: list[tuple[str, tuple[str]]],
+    expected_warnings: list[str],
 ) -> None:
     """Warn only when the development server is exposed beyond loopback interfaces."""
 
@@ -57,7 +57,7 @@ def test_dev_command_warns_only_for_public_hosts(
 
     # Assert
     assert (tmp_path / "frontend.d.ts").read_bytes() == (dev.ROOT / ".static" / "jsx" / "frontend.d.ts").read_bytes()
-    assert [(record.msg, record.args) for record in caplog.records if record.levelno == logging.WARNING] == expected_warnings
+    assert [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING] == expected_warnings
     assert calls == [
         (
             "main:app",

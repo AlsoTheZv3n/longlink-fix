@@ -52,14 +52,7 @@ async def test_storage_administration_uses_cluster_tunnel(
         return httpx2.Response(200, json={})
 
     transport = httpx2.MockTransport(respond)
-    client = httpx2.AsyncClient
-
-    def local_client(**kwargs: object) -> httpx2.AsyncClient:
-        """Keep real request construction and signature verification observable."""
-
-        return client(transport=transport, **kwargs)
-
-    monkeypatch.setattr(storage.httpx2, "AsyncClient", local_client)
+    monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", transport.handle_async_request)
     target = storage.Storage(storage_compute, storage_cluster)  # type: ignore[arg-type]
 
     # A legitimate controller operation succeeds without sending admin traffic to the public endpoint.

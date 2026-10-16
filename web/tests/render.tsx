@@ -1,5 +1,5 @@
 import { act } from 'react';
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import { Theme } from '@astryxdesign/core/theme';
@@ -58,7 +58,8 @@ export async function withMounted(children: ReactNode, check: (output: HTMLEleme
     document.body.append(output);
     const root = createRoot(output);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    const actEnvironment = Object.getOwnPropertyDescriptor(globalThis, 'IS_REACT_ACT_ENVIRONMENT');
+    Object.defineProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT', { configurable: true, writable: true, value: true });
 
     try {
         await act(async () =>
@@ -77,6 +78,8 @@ export async function withMounted(children: ReactNode, check: (output: HTMLEleme
         await act(async () => root.unmount());
         client.clear();
         output.remove();
-        vi.unstubAllGlobals();
+
+        if (actEnvironment) Object.defineProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT', actEnvironment);
+        else Reflect.deleteProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT');
     }
 }

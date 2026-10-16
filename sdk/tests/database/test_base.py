@@ -65,13 +65,13 @@ async def test_create_engine_selects_database_url_and_options(
     env = Envs.model_validate(settings)
 
     # Record settings while constructing a real engine without connecting.
-    captured: dict[str, object] = {}
+    captured: list[dict[str, object]] = []
 
     def record_create_async_engine(database_url: URL, **kwargs: object) -> AsyncEngine:
         """Record async engine settings and forward them to SQLAlchemy."""
 
         # Preserve the exact arguments accepted by the real engine factory.
-        captured["kwargs"] = kwargs
+        captured.append(kwargs)
         return create_async_engine(database_url, **kwargs)
 
     monkeypatch.setattr(database_base, "create_async_engine", record_create_async_engine)
@@ -82,8 +82,7 @@ async def test_create_engine_selects_database_url_and_options(
     try:
         # Assert the real engine uses the selected URL and preserve its forwarded options.
         assert engine.url == expected_url
-        engine_kwargs = captured["kwargs"]
-        assert isinstance(engine_kwargs, dict)
+        [engine_kwargs] = captured
         engine_kwargs = engine_kwargs.copy()
 
         # Verify TLS separately, normalizing only a copy of the connection arguments.

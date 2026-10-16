@@ -19,6 +19,9 @@ it('keeps inactive step fields mounted within the owning form', () => {
     );
 
     // Assert
+    const notes = output.querySelector('form [data-form-step="1"][hidden] input[name="notes"]');
+
+    expect(notes).not.toBeNull();
+    expect(notes?.matches(':disabled')).toBe(false);
     expect(output.querySelectorAll('[data-form-step]')).toHaveLength(2);
-    expect(output.querySelector('input[name="notes"]')).not.toBeNull();
 });

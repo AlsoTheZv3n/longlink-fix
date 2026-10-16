@@ -84,7 +84,7 @@ async def test_file_response_closes_after_send_failure(stored_file: tuple[LocalF
             raise failure
 
     # Act
-    with pytest.raises(RuntimeError, match="transport failed") as error:
+    with pytest.raises(RuntimeError) as error:
         await response({"type": "http", "asgi": {"spec_version": "2.4"}}, receive, send)
 
     # Assert

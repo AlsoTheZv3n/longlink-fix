@@ -4,6 +4,7 @@ import asyncio
 from uuid import UUID
 from fastapi import FastAPI, WebSocket
 from longlink import identity
+from collections.abc import Iterator
 from longlink.database import audit
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -46,8 +47,9 @@ def test_context_middleware_treats_untrusted_identity_as_anonymous(secret: str, 
     assert response.json() == {"authenticated": False}
 
 
-def test_production_context_requires_signed_identity_except_for_probes() -> None:
-    """Require signed HTTP identity, allow anonymous probes, and reject all WebSockets."""
+@pytest.fixture
+def production_client() -> Iterator[TestClient]:
+    """Provide a production identity boundary with HTTP and WebSocket routes."""
 
     # Install the same production identity boundary used by the Solution application.
     app = FastAPI()
@@ -72,33 +74,64 @@ def test_production_context_requires_signed_identity_except_for_probes() -> None
 
         await socket.accept()
 
-    user_id = UUID("00000000-0000-0000-0000-000000000001")
-    headers = identity_headers(user_id)
-    wrong_key_token = identity.create_identity_token(user_id, "wrong-identity-secret-01234567890")
+    # Keep the application lifespan local to each test.
     client = TestClient(app)
-
-    # Direct gateway requests have no valid Platform assertion; proxy requests do.
     with client:
-        anonymous = client.get("/views.json")
-        assert anonymous.status_code == 401
-        assert anonymous.json() == {"detail": "Authentication required"}
-        assert client.get("/views.json", headers={"x-longlink-identity": "invalid-token"}).status_code == 401
-        forged = client.get("/views.json", headers={"x-longlink-identity": wrong_key_token})
-        assert forged.status_code == 401
-        assert forged.json() == {"detail": "Authentication required"}
-        authorized = client.get("/views.json", headers=headers)
-        assert authorized.status_code == 200
-        assert authorized.json() == {"authenticated": True}
-        assert client.get("/health").status_code == 200
-        assert client.get("/ready").status_code == 200
+        yield client
 
-        # Neither anonymous nor validly signed identity grants the unsupported transport.
-        with pytest.raises(WebSocketDisconnect) as anonymous_rejection, client.websocket_connect("/events"):
-            pass
-        assert anonymous_rejection.value.code == 1008
-        with pytest.raises(WebSocketDisconnect) as signed_rejection, client.websocket_connect("/events", headers=headers):
-            pass
-        assert signed_rejection.value.code == 1008
+
+HTTP_IDENTITY_CASES = [
+    pytest.param({}, None, 401, {"detail": "Authentication required"}, id="missing"),
+    pytest.param({"x-longlink-identity": "invalid-token"}, None, 401, {"detail": "Authentication required"}, id="malformed"),
+    pytest.param({}, "wrong-identity-secret-01234567890", 401, {"detail": "Authentication required"}, id="wrong-key"),
+    pytest.param({}, IDENTITY_SECRET, 200, {"authenticated": True}, id="valid"),
+]
+
+
+@pytest.mark.parametrize(("headers", "signing_secret", "status", "payload"), HTTP_IDENTITY_CASES)
+def test_production_context_requires_signed_http_identity(
+    production_client: TestClient, headers: dict[str, str], signing_secret: str | None, status: int, payload: dict[str, str | bool]
+) -> None:
+    """Admit protected HTTP requests only with a valid Platform assertion."""
+
+    # Arrange
+    if signing_secret is not None:
+        token = identity.create_identity_token(UUID("00000000-0000-0000-0000-000000000001"), signing_secret)
+        headers = {"x-longlink-identity": token}
+
+    # Act
+    response = production_client.get("/views.json", headers=headers)
+
+    # Assert
+    assert response.status_code == status
+    assert response.json() == payload
+
+
+@pytest.mark.parametrize("path", ["/health", "/ready"])
+def test_production_context_allows_anonymous_probes(production_client: TestClient, path: str) -> None:
+    """Allow anonymous liveness and readiness requests."""
+
+    # Act
+    response = production_client.get(path)
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+
+@pytest.mark.parametrize("signed", [False, True], ids=["anonymous", "signed"])
+def test_production_context_rejects_websockets(production_client: TestClient, signed: bool) -> None:
+    """Reject WebSockets even when the request carries a valid identity."""
+
+    # Arrange
+    headers = identity_headers(UUID("00000000-0000-0000-0000-000000000001")) if signed else {}
+
+    # Act
+    with pytest.raises(WebSocketDisconnect) as rejection, production_client.websocket_connect("/events", headers=headers):
+        pass
+
+    # Assert
+    assert rejection.value.code == 1008
 
 
 async def test_context_middleware_isolates_concurrent_audit_identities() -> None:
