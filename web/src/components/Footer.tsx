@@ -106,6 +106,9 @@ export function Footer({ maxWidth = 1000 }: { maxWidth?: number }) {
                         <Link href="/docs/" color="secondary" type="supporting" weight="medium">
                             Documentation
                         </Link>
+                        <Link href="/blog/" color="secondary" type="supporting" weight="medium">
+                            Blog
+                        </Link>
                         <Link href="/pricing/" color="secondary" type="supporting" weight="medium">
                             Pricing
                         </Link>

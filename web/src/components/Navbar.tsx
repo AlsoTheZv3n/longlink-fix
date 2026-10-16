@@ -20,6 +20,9 @@ export function Navbar({ maxWidth = 1000, navigation }: { maxWidth?: number; nav
                     label="Main navigation"
                     endContent={
                         <Stack direction="horizontal" gap={6} vAlign="center">
+                            <Link href="/blog/" color="secondary" isStandalone weight="medium">
+                                Blog
+                            </Link>
                             <Link className="sm:hidden" href="/docs/" color="secondary" isStandalone weight="medium">
                                 Docs
                             </Link>

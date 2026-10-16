@@ -23,6 +23,8 @@ const publicPagePaths = [
     '/',
     '/login',
     '/pricing',
+    '/blog',
+    '/blog/why-longlink',
     // ...useCasePaths,
     ...legalPaths,
     ...brandingPaths,
