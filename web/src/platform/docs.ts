@@ -60,6 +60,10 @@ export const documentationSections: Array<{ title: string; pages: Array<Document
         title: 'Platform',
         pages: [{ path: '/docs/api', label: 'Overview', icon: ShieldCheck }],
     },
+    {
+        title: 'Alternatives',
+        pages: [],
+    },
 ];
 
 // Keep static tutorials and generated component references in their published reading order.
