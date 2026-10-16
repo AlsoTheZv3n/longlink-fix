@@ -300,8 +300,8 @@ export function JsxView({
         <iframe
             ref={frame}
             title="Solution View"
-            // Allow native validation and submit events; CSP form-action blocks direct form navigation.
-            sandbox="allow-scripts allow-forms"
+            // Open native links without passing sandbox restrictions to their destinations; the View stays isolated.
+            sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
             referrerPolicy="no-referrer"
             srcDoc={bootstrapState.document}
             className="block w-full shrink-0 border-0 bg-transparent"
