@@ -57,7 +57,7 @@ Open `http://127.0.0.1:1707` to preview your Solution.
 
 ## How it works
 
-A Solution is a Python project where you define your data, business logic, and user interface using familiar tools, it follows:
+A Solution is a conventional Python project where you define your data, logic, and user interface using established libraries, it follows:
 
 ```text
 ├── main.py             # Application entry point
@@ -71,17 +71,6 @@ A Solution is a Python project where you define your data, business logic, and u
 └── pyproject.toml      # Project dependencies
 ```
 
-Your application starts with `LongLink()`, which extends FastAPI with the services needed to run your Solution.
-
-```python
-from longlink import LongLink
-from src.routes import projects
-
-app = LongLink()
-app.include_router(projects.router)
-```
-
-Write your business logic in Python, build interactive Views using JSX, and let LongLink handle authentication, database connections, storage, and deployment.
 
 
 <br />
