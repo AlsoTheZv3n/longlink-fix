@@ -1,5 +1,5 @@
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import Field, BaseModel, ConfigDict
 from src.models.statuses import Status
 
 
@@ -36,3 +36,8 @@ class OrganizationSolutionSummary(BaseModel):
     status: Status
     deployment_pending: bool
     desired_revision_id: UUID | None
+
+    # Deployed release
+    deployed_version: str | None = Field(
+        default=None, description="Recorded image version of the last successfully deployed revision, when available."
+    )

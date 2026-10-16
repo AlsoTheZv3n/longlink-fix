@@ -507,7 +507,8 @@ export const zOrganizationSolutionSummary = z.object({
     description: z.string().nullish(),
     status: zStatus,
     deployment_pending: z.boolean(),
-    desired_revision_id: z.uuid().nullable()
+    desired_revision_id: z.uuid().nullable(),
+    deployed_version: z.string().nullish()
 });
 
 /**
@@ -531,6 +532,7 @@ export const zSolutionResponse = z.object({
     status: zStatus,
     deployment_pending: z.boolean(),
     desired_revision_id: z.uuid().nullable(),
+    deployed_version: z.string().nullish(),
     organization: zOrganizationIdentity,
     image_desired: z.string(),
     deployed_revision_id: z.uuid().nullable(),
