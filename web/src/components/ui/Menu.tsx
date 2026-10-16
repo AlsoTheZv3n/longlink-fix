@@ -1,3 +1,4 @@
+import type { Spacing } from './types';
 import { Stack } from '@astryxdesign/core/Stack';
 import { useMediaQuery } from '@astryxdesign/core/hooks';
 import { Icon, type StoneIconName } from '@/components/ui/Icon';
@@ -62,7 +63,7 @@ export function Menu({
     hidden?: boolean;
     /** MenuSection elements defining navigation and content. */
     children?: ReactNode;
-    gap?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    gap?: Spacing;
 }) {
     const navigation = useContext(MenuNavigationContext);
     const narrow = useMediaQuery('(max-width: 768px)');

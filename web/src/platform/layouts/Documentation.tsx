@@ -4,16 +4,30 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Outlet, useLocation } from 'react-router';
 import { AppShell } from '@astryxdesign/core/AppShell';
 import { documentationSections } from '@/platform/docs';
+import { Tab, TabList } from '@astryxdesign/core/TabList';
 import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
 
-/** Renders documentation with flat navigation, article, and outline columns. */
+/** Renders documentation with section navigation, article, and outline columns. */
 export default function Documentation() {
     const { pathname } = useLocation();
     const pagePath = pathname.replace(/\/+$/, '') || '/';
+    const activeSection = pagePath === '/docs/api' || pagePath.startsWith('/docs/api/') ? 'Platform' : 'Solutions';
+
+    const sections = documentationSections.filter(
+        (section) => section.title === 'Introduction' || section.title === activeSection
+    );
 
     return (
         <Stack minHeight="100dvh">
-            <Navbar maxWidth={1272} />
+            <Navbar
+                maxWidth={1272}
+                navigation={
+                    <TabList aria-label="Documentation sections" value={activeSection} onChange={() => undefined}>
+                        <Tab href="/docs/sdk/" label="Solutions" value="Solutions" />
+                        <Tab href="/docs/api/" label="Platform" value="Platform" />
+                    </TabList>
+                }
+            />
             <Stack className="mx-auto flex-1" maxWidth={1320} width="100%">
                 <AppShell
                     className="min-h-0! [&_:has(>.astryx-app-shell-sidenav)]:h-fit! [&_:has(>.astryx-app-shell-sidenav)]:max-h-dvh"
@@ -23,7 +37,7 @@ export default function Documentation() {
                     sideNav={
                         <SideNav aria-label="Documentation navigation">
                             <Stack paddingInline={4} paddingBlock={6}>
-                                {documentationSections.map((section) => (
+                                {sections.map((section) => (
                                     <SideNavSection key={section.title} title={section.title}>
                                         {section.pages.map((page) => (
                                             <SideNavItem

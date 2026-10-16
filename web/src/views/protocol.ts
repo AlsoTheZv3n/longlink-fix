@@ -124,7 +124,7 @@ export type ViewData = z.output<typeof responseSchema>;
 
 export type ViewReply =
     | { id: number; ok: true; data: ViewData }
-    | { id: number; ok: false; error: string; status?: number };
+    | { id: number; ok: false; error: string; status?: number; notified?: boolean };
 
 /** Bounds bridge payloads before allowing them to consume host resources. */
 export function messageSize(command: RequestCommand): number {

@@ -78,11 +78,13 @@ export default [
             ),
         ]),
         ...prefix('orgs/:organization', [
-            layout('./layouts/Organization.tsx', [
-                index('./routes/orgs/Organization.tsx'),
-                route('settings', './routes/orgs/Settings.tsx'),
+            layout('./layouts/OrganizationAccess.tsx', [
+                layout('./layouts/Organization.tsx', [
+                    index('./routes/orgs/Organization.tsx'),
+                    route('settings', './routes/orgs/Settings.tsx'),
+                ]),
+                route('solutions/:solution/*', './routes/orgs/Solution.tsx'),
             ]),
-            route('solutions/:solution/*', './routes/orgs/Solution.tsx'),
         ]),
     ]),
 ] satisfies RouteConfig;

@@ -1,4 +1,5 @@
 import { useContext } from 'react';
+import { ReportedError } from '@/lib/errors';
 import { LinkNavigationContext } from './Link';
 import { Icon, type StoneIconName } from './Icon';
 import type { MouseEvent, ReactNode } from 'react';
@@ -52,16 +53,21 @@ export function Button({ onClick, ...props }: ButtonProps) {
             onClick={undefined}
             clickAction={
                 onClick || (navigate && props.href)
-                    ? (event) => {
-                          // Run the action first so it can cancel ordinary scoped navigation.
-                          const result = onClick?.(event);
+                    ? async (event) => {
+                          try {
+                              // Run the action first so it can cancel ordinary scoped navigation.
+                              const result = onClick?.(event);
 
-                          if (navigate && props.href && !event.defaultPrevented) {
-                              event.preventDefault();
-                              navigate(props.href);
+                              if (navigate && props.href && !event.defaultPrevented) {
+                                  event.preventDefault();
+                                  navigate(props.href);
+                              }
+
+                              await result;
+                          } catch (error) {
+                              // Keep the View mounted when the page has already shown the request failure.
+                              if (!(error instanceof ReportedError)) throw error;
                           }
-
-                          return result;
                       }
                     : undefined
             }

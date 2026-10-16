@@ -1,15 +1,11 @@
 // @vitest-environment happy-dom
 import { act } from 'react';
-import PlatformRoot from '@/platform/root';
+import { Root } from '@/components/Root';
 import { createRoot } from 'react-dom/client';
 import userEvent from '@testing-library/user-event';
-import Settings from '@/platform/routes/orgs/Settings';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import OrganizationLayout from '@/platform/layouts/Organization';
-import AuthenticatedLayout from '@/platform/layouts/Authenticated';
-
-const organizationId = '00000000-0000-4000-8000-000000000003';
+import DeploymentReview from '@/platform/routes/orgs/DeploymentReview';
 
 const solutionId = '00000000-0000-4000-8000-000000000002';
 
@@ -40,7 +36,7 @@ const secretCandidate = {
     },
 };
 
-describe('Solution source update dialog', () => {
+describe('DeploymentReview', () => {
     let root: ReturnType<typeof createRoot> | undefined;
     let container: HTMLElement | undefined;
 
@@ -54,7 +50,7 @@ describe('Solution source update dialog', () => {
         vi.unstubAllGlobals();
     });
 
-    it('uses the native TSX dialog to review and submit a source update', async () => {
+    it('submits the reviewed revision with a source update', async () => {
         // Arrange
         const submissions = await openReview(candidate);
 
@@ -134,12 +130,15 @@ describe('Solution source update dialog', () => {
         );
     });
 
-    /** Opens the native review with the real providers and an isolated HTTP boundary. */
+    /** Mounts the dialog with shared UI providers and an isolated HTTP boundary. */
     async function openReview(inspection: typeof secretCandidate) {
         const submissions: { path: string; body: unknown }[] = [];
         vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
             const request = input instanceof Request ? input : new Request(input, init);
             const path = new URL(request.url).pathname;
+
+            if (path !== `/api/v1/solutions/${solutionId}/update`)
+                throw new Error(`Unexpected request ${request.method} ${path}`);
 
             if (request.method === 'POST') {
                 submissions.push({ path, body: await request.json() });
@@ -147,39 +146,7 @@ describe('Solution source update dialog', () => {
                 return new Response(null, { status: 204 });
             }
 
-            if (path === '/api/v1/me') {
-                return Response.json({
-                    id: '00000000-0000-4000-8000-000000000004',
-                    name: 'Maintainer',
-                    email: 'maintainer@example.com',
-                    avatar: '',
-                    administrator: false,
-                });
-            }
-
-            if (path === '/api/v1/organizations/slug/development') {
-                return Response.json({
-                    organization: { id: organizationId, name: 'Development', slug: 'development', status: 'running' },
-                    role: 'maintain',
-                });
-            }
-
-            if (path === `/api/v1/organizations/${organizationId}/solutions`) {
-                return Response.json([
-                    {
-                        id: solutionId,
-                        name: 'Sample',
-                        slug: 'sample',
-                        status: 'running',
-                        desired_revision_id: revisionId,
-                        deployment_pending: false,
-                    },
-                ]);
-            }
-
-            if (path === `/api/v1/solutions/${solutionId}/update`) return Response.json(inspection);
-
-            throw new Error(`Unexpected request ${request.method} ${path}`);
+            return Response.json(inspection);
         });
         container = document.createElement('section');
         document.body.append(container);
@@ -188,29 +155,25 @@ describe('Solution source update dialog', () => {
         vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
         await act(async () =>
             mountedRoot.render(
-                <MemoryRouter initialEntries={['/orgs/development/settings#solutions']}>
+                <MemoryRouter>
                     <Routes>
-                        <Route element={<PlatformRoot />}>
-                            <Route element={<AuthenticatedLayout />}>
-                                <Route path="/orgs/:organization" element={<OrganizationLayout />}>
-                                    <Route path="settings" element={<Settings />} />
-                                </Route>
-                            </Route>
+                        <Route element={<Root />}>
+                            <Route
+                                path="/"
+                                element={
+                                    <DeploymentReview
+                                        update={{ key: 'review', item: { id: solutionId, name: 'Sample' } }}
+                                        onSuccess={() => {}}
+                                        onClose={() => {}}
+                                    />
+                                }
+                            />
                         </Route>
                     </Routes>
                 </MemoryRouter>
             )
         );
 
-        await vi.waitFor(async () => {
-            await act(async () => {});
-            moreMenu();
-        });
-        await act(async () => moreMenu().click());
-        await act(async () => {
-            await vi.waitFor(() => menuItem('Update'));
-        });
-        await act(async () => menuItem('Update').click());
         await act(async () => vi.waitFor(() => button('Next')));
 
         return submissions;
@@ -231,26 +194,6 @@ describe('Solution source update dialog', () => {
         const found = [...document.querySelectorAll('button')].find((item) => item.textContent === label);
 
         if (!found) throw new Error(`Button not found: ${label}`);
-
-        return found;
-    }
-
-    /** Return the solution overflow-menu trigger. */
-    function moreMenu() {
-        const found = document.querySelector<HTMLButtonElement>('button[aria-label="More options"]');
-
-        if (!found) throw new Error('Solution overflow-menu trigger not found');
-
-        return found;
-    }
-
-    /** Return the named overflow-menu item. */
-    function menuItem(label: string) {
-        const found = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
-            (item) => item.textContent === label
-        );
-
-        if (!found) throw new Error(`Menu item not found: ${label}`);
 
         return found;
     }

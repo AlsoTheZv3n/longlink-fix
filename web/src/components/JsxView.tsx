@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api';
 import * as icons from '@/lib/icons';
 import * as host from '@/views/host';
+import { useApiError } from '@/lib/errors';
 import { useNavigate } from 'react-router';
 import { resolveNavigationUrl } from '@/lib/url';
 import { useQuery } from '@tanstack/react-query';
@@ -44,6 +45,7 @@ export function JsxView({
 }) {
     const frame = useRef<HTMLIFrameElement>(null);
     const navigate = useNavigate();
+    const reportError = useApiError();
     const [height, setHeight] = useState(1);
 
     const [bootstrapState, setBootstrapState] = useState<
@@ -102,6 +104,20 @@ export function JsxView({
         const session = crypto.randomUUID();
         const pending = new Map<number, 'icon' | 'operation'>();
         let handshakeTimer: ReturnType<typeof setTimeout> | undefined;
+
+        /** Reports safe Solution failures once in the page and returns them to the requesting View. */
+        function rejectRequest(
+            command: { id: number; type: 'request' | 'download' | 'icon' },
+            failure: ReturnType<typeof host.requestError>
+        ): void {
+            if (controller.signal.aborted) return;
+
+            // Keep icon fallback local while Solution operations use the page-owned notification layer.
+            const notified = command.type !== 'icon';
+
+            if (notified) reportError(new ApiError(failure.error, failure.status ?? 0));
+            channel.port1.postMessage({ id: command.id, ok: false, ...failure, notified });
+        }
 
         /** Revokes the attempt's capabilities and startup deadline on failure or unmount. */
         function dispose(): void {
@@ -209,12 +225,7 @@ export function JsxView({
             const count = [...pending.values()].filter((entry) => entry === budget).length;
 
             if (count >= (budget === 'icon' ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS)) {
-                channel.port1.postMessage({
-                    id: command.id,
-                    ok: false,
-                    error: 'Too many pending requests',
-                    status: 429,
-                });
+                rejectRequest(command, host.requestError(new ApiError('Too many pending requests', 429)));
 
                 return;
             }
@@ -241,8 +252,7 @@ export function JsxView({
 
                 if (!controller.signal.aborted) channel.port1.postMessage({ id: command.id, ok: true, data });
             } catch (error) {
-                if (!controller.signal.aborted)
-                    channel.port1.postMessage({ id: command.id, ok: false, ...host.requestError(error) });
+                rejectRequest(command, host.requestError(error));
             } finally {
                 pending.delete(command.id);
             }
@@ -275,7 +285,7 @@ export function JsxView({
 
         // Replacing or unmounting a View revokes its channel and cancels every outstanding operation.
         return dispose;
-    }, [source, parameters, requestBaseUrl, navigationBaseUrl, navigate, kernel]);
+    }, [source, parameters, requestBaseUrl, navigationBaseUrl, navigate, reportError, kernel]);
 
     if (runtimeError) return <PageError title="Unable to load this View" description={STARTUP_FAILURES.assets} />;
 

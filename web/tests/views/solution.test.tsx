@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { MessagePort } from 'node:worker_threads';
 import { SolutionRuntime } from '@/components/Solution';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiErrorContext, createErrorReporter } from '@/lib/errors';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -390,30 +391,32 @@ describe('SolutionRuntime', () => {
 
         await act(async () => {
             mountedRoot.render(
-                <QueryClientProvider client={client}>
-                    <MemoryRouter initialEntries={[initialPath]}>
-                        <Suspense fallback={null}>
-                            <Routes>
-                                <Route
-                                    element={
-                                        <SolutionRuntime viewsUrl={viewsUrl}>
-                                            {({ content, tabs, title }) => (
-                                                <>
-                                                    <Location
-                                                        tabs={tabs.map((tab) => tab.href).join(',')}
-                                                        title={title}
-                                                    />
-                                                    {content}
-                                                </>
-                                            )}
-                                        </SolutionRuntime>
-                                    }
-                                    path="*"
-                                />
-                            </Routes>
-                        </Suspense>
-                    </MemoryRouter>
-                </QueryClientProvider>
+                <ApiErrorContext value={createErrorReporter(vi.fn())}>
+                    <QueryClientProvider client={client}>
+                        <MemoryRouter initialEntries={[initialPath]}>
+                            <Suspense fallback={null}>
+                                <Routes>
+                                    <Route
+                                        element={
+                                            <SolutionRuntime viewsUrl={viewsUrl}>
+                                                {({ content, tabs, title }) => (
+                                                    <>
+                                                        <Location
+                                                            tabs={tabs.map((tab) => tab.href).join(',')}
+                                                            title={title}
+                                                        />
+                                                        {content}
+                                                    </>
+                                                )}
+                                            </SolutionRuntime>
+                                        }
+                                        path="*"
+                                    />
+                                </Routes>
+                            </Suspense>
+                        </MemoryRouter>
+                    </QueryClientProvider>
+                </ApiErrorContext>
             );
         });
 

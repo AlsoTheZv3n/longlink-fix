@@ -1,0 +1,79 @@
+import { ApiError } from '@/lib/api';
+import { useApi } from '@/lib/hooks/use-api';
+import { NoIndex } from '@/components/NoIndex';
+import Platform from '@/components/layouts/Platform';
+import { ApiBoundary } from '@/components/ApiBoundary';
+import NotFoundLayout from '@/components/layouts/NotFound';
+import { PageContainer } from '@/components/PageContainer';
+import { Outlet, useMatch, useParams } from 'react-router';
+import { PageError, PageLoading } from '@/components/Utils';
+import { useAuthenticatedUser } from '@/lib/hooks/use-user';
+import { ProfileMenu } from '@/platform/components/Profile';
+import { PageBreadcrumb } from '@/platform/components/PageBreadcrumb';
+import { zUserOrganizationMembership } from '@/lib/generated/platform-api-v1/zod.gen';
+
+/** Resolves organization access before either organization or Solution pages mount. */
+export default function OrganizationAccess() {
+    const { organization = '' } = useParams();
+    const user = useAuthenticatedUser();
+    const solutionRoute = useMatch('/orgs/:organization/solutions/:solution/*');
+
+    return (
+        <ApiBoundary
+            key={organization}
+            fallback={
+                solutionRoute ? (
+                    <>
+                        <NoIndex title="Solution | LongLink" />
+                        <PageLoading label="Loading solution" />
+                    </>
+                ) : (
+                    <Platform action={<ProfileMenu user={user} />} breadcrumb={<PageBreadcrumb />} tabs={[]}>
+                        <PageContainer gap={8} padding={2}>
+                            <PageLoading label="Loading organization" />
+                        </PageContainer>
+                    </Platform>
+                )
+            }
+            fallbackRender={({ error }) =>
+                solutionRoute ? (
+                    error instanceof ApiError && error.status === 404 ? (
+                        <NotFoundLayout />
+                    ) : (
+                        <>
+                            <NoIndex title="Solution | LongLink" />
+                            <PageError description="We couldn't load this solution." title="Unable to load solution" />
+                        </>
+                    )
+                ) : (
+                    <Platform action={<ProfileMenu user={user} />} breadcrumb={<PageBreadcrumb />} tabs={[]}>
+                        <PageContainer gap={8} padding={2}>
+                            {error instanceof ApiError && error.status === 404 ? (
+                                <NotFoundLayout />
+                            ) : (
+                                <PageError
+                                    description="We couldn't load this organization."
+                                    title="Unable to load organization"
+                                />
+                            )}
+                        </PageContainer>
+                    </Platform>
+                )
+            }
+        >
+            <OrganizationMembership />
+        </ApiBoundary>
+    );
+}
+
+/** Supplies the resolved membership to the active route branch. */
+function OrganizationMembership() {
+    const { organization = '' } = useParams();
+
+    const [membership] = useApi(
+        `/api/v1/organizations/slug/${encodeURIComponent(organization)}`,
+        zUserOrganizationMembership
+    );
+
+    return <Outlet context={membership} />;
+}

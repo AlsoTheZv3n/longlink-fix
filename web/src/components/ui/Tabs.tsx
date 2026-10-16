@@ -1,3 +1,4 @@
+import type { Spacing } from './types';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Tab as AstryxTab, TabList } from '@astryxdesign/core/TabList';
 import { Children, isValidElement, useId, useState, type ReactElement, type ReactNode } from 'react';
@@ -20,7 +21,7 @@ type TabsProps = {
     hidden?: boolean;
     /** Tab elements defining labels and panel content. */
     children?: ReactNode;
-    gap?: 0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10;
+    gap?: Spacing;
     hasDivider?: boolean;
     /** Receives the selected Tab value; use with value to control selection. */
     onChange?: (value: string) => void;

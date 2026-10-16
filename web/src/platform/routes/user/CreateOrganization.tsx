@@ -12,12 +12,10 @@ import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
 
 /** Owns the creation draft and refreshes memberships after a successful request. */
 export default function CreateOrganization({
-    isOpen,
-    onOpenChange,
+    onClose,
     invalidate,
 }: {
-    isOpen: boolean;
-    onOpenChange: (open: boolean) => void;
+    onClose: () => void;
     invalidate: () => Promise<void>;
 }) {
     const [name, setName] = useState('');
@@ -29,21 +27,23 @@ export default function CreateOrganization({
         // Close only after creation and the membership refresh succeed.
         await api.post('/api/v1/organizations', { json: zOrganizationCreate.parse({ name: name.trim() }) });
         await invalidate();
-        onOpenChange(false);
+        onClose();
     }
 
     // Keep the split dialog compact and within the dynamic viewport.
     return (
         <Dialog
             aria-label="Create organization"
-            isOpen={isOpen}
+            isOpen
             purpose="info"
-            onOpenChange={onOpenChange}
+            onOpenChange={(open) => {
+                if (!open) onClose();
+            }}
             width={960}
             maxHeight="calc(100dvh - var(--spacing-10) * 4)"
             padding={0}
         >
-            <DialogClose onClose={() => onOpenChange(false)} />
+            <DialogClose onClose={onClose} />
             <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                 <Layout
                     padding={0}
