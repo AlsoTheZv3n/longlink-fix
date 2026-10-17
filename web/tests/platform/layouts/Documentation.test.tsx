@@ -13,3 +13,18 @@ it('selects Platform navigation for API documentation', () => {
     );
     expect(output.querySelector('[aria-label="Documentation navigation"] a[href="/docs/sdk/storage/"]')).toBeNull();
 });
+
+it('selects Alternatives without listing alternatives or other sections’ pages', () => {
+    // Act
+    const output = renderStatic(<Layout />, '/docs/alternatives/');
+
+    // Assert
+    const activeTab = output.querySelector('[aria-label="Documentation sections"] [aria-current="true"]');
+    expect(activeTab?.textContent).toContain('Alternatives');
+    expect(activeTab?.getAttribute('href')).toBe('/docs/alternatives/');
+    expect(
+        Array.from(output.querySelectorAll('[aria-label="Documentation navigation"] a'), (link) =>
+            link.getAttribute('href')
+        )
+    ).toEqual(['/docs/', '/docs/introduction/']);
+});
