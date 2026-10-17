@@ -6,7 +6,7 @@ from src.utils import postgres, templates
 from src.kubernetes import tls, utils, databases, namespace
 from src.models.types import DatabaseSSLMode
 from importlib.resources import files
-from kr8s.asyncio.objects import Pod, Secret, new_class, object_from_spec
+from kr8s.asyncio.objects import Pod, Secret, ResourceQuota, new_class, object_from_spec
 from src.database.models.organizations import Organization
 
 if TYPE_CHECKING:
@@ -63,6 +63,18 @@ async def apply(
     )
     await utils.apply(cluster)
     await resume(client, organization_id)
+
+
+async def resize(client: "Kubernetes", organization_id: UUID, *, size_mib: int, instances: int) -> None:
+    """Apply monotonically increasing desired database capacity without reprovisioning credentials."""
+
+    # Desired capacity is retained on downgrades; expand namespace admission before CNPG requests larger PVCs.
+    api = await client.api()
+    database_namespace = namespace.database(organization_id)
+    quota = ResourceQuota("longlink-database", namespace=database_namespace, api=api)
+    await quota.patch({"spec": {"hard": {"requests.storage": f"{size_mib * (instances + 1)}Mi"}}})
+    cluster = ClusterResource("database", namespace=database_namespace, api=api)
+    await cluster.patch({"spec": {"storage": {"size": f"{size_mib}Mi"}}})
 
 
 async def resume(client: "Kubernetes", organization_id: UUID) -> None:

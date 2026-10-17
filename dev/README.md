@@ -24,6 +24,20 @@ The command waits for cleanup and deployment to finish, then prints the Projects
 URL. It preserves the Organization, accounts, infrastructure, and other Solutions.
 Use `make image` instead when you want to build without resetting the sample.
 
+### Local Stripe testing
+
+Set `STRIPE_SECRET_KEY=sk_test_...` in `api/.env`, then run `make stripe`.
+It installs a checksum-verified CLI in `dev/bin/` and forwards
+card-registration events to `/api/v1/stripe/webhook`. On first use, authorize the CLI
+with `dev/bin/stripe login`, then rerun `make stripe`.
+Copy the listener's signing secret into `STRIPE_WEBHOOK_SECRET` and restart `make api`.
+
+Organization Settings → Usage shows included usage, monthly rates, and registered cards.
+Use test card `4242 4242 4242 4242`, any future expiry, and any three-digit CVC.
+No payment is taken during registration. The API's monthly worker creates usage invoices
+at the start of each UTC month and Stripe collects them from the saved card.
+Review the provisional storage rates before using live credentials.
+
 ### Temporary HTTPS tunnel
 
 With the local API running (`make api`), run `make tunnel` in another terminal.

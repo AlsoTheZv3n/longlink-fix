@@ -314,6 +314,22 @@ export const zOrganizationStorageUsageResponse = z.object({
 });
 
 /**
+ * OrganizationUsage
+ *
+ * Describe current membership usage and its month-end pricing.
+ */
+export const zOrganizationUsage = z.object({
+    free_users: z.int().optional().default(5),
+    free_storage_bytes: z.int().optional().default(1073741824),
+    free_database_bytes: z.int().optional().default(104857600),
+    user_monthly_price: z.int().optional().default(500),
+    storage_gib_monthly_price: z.int().optional().default(10),
+    database_gib_monthly_price: z.int().optional().default(100),
+    users: z.int().gte(0),
+    stripe_enabled: z.boolean()
+});
+
+/**
  * Page[AdminUserSummary]
  */
 export const zPageAdminUserSummary = z.object({
@@ -354,6 +370,45 @@ export const zPasswordLogin = z.object({
  */
 export const zPasswordResetComplete = z.object({
     password: z.string().min(1).max(1024)
+});
+
+/**
+ * PaymentCard
+ *
+ * Expose only the saved card details needed to identify it.
+ */
+export const zPaymentCard = z.object({
+    id: z.string(),
+    brand: z.string(),
+    last4: z.string().regex(/^[0-9]{4}$/),
+    exp_year: z.int(),
+    exp_month: z.int().gte(1).lte(12),
+    is_default: z.boolean()
+});
+
+/**
+ * PaymentInvoice
+ *
+ * Expose issued Stripe invoices without customer or payment-method identifiers.
+ */
+export const zPaymentInvoice = z.object({
+    id: z.string(),
+    total: z.int(),
+    number: z.string().nullable(),
+    status: z.string().nullable(),
+    currency: z.string().regex(/^[a-z]{3}$/),
+    created_at: z.iso.datetime(),
+    invoice_pdf: z.url().min(1).max(2083).nullable(),
+    hosted_invoice_url: z.url().min(1).max(2083).nullable()
+});
+
+/**
+ * PaymentRedirect
+ *
+ * Return a hosted Stripe card-registration URL.
+ */
+export const zPaymentRedirect = z.object({
+    url: z.url().min(1).max(2083)
 });
 
 /**

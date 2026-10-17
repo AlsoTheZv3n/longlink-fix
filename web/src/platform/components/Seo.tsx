@@ -8,6 +8,7 @@ import { buildBreadcrumbs } from '@/components/breadcrumb/text';
 export const articleRouteLabels = {
     api: 'Platform',
     blog: 'Blog',
+    billing: 'Billing',
     docs: 'Documentation',
     'why-longlink': 'Why LongLink',
     sdk: 'Solutions',

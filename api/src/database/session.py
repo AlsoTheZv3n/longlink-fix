@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session as SyncSession
 from collections.abc import AsyncGenerator
 from src.environments import env
 from longlink.database import audit
-from src.database.models import registry  # noqa: F401
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from src.database.models.base import AuditTable
 

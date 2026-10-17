@@ -1,4 +1,4 @@
-from . import auth, image, proxy, users, health, computes, solutions, operations, registries, organizations
+from . import auth, image, proxy, users, health, computes, payments, solutions, operations, registries, organizations
 from fastapi import APIRouter
 from src.errors import ErrorResponse
 
@@ -19,3 +19,4 @@ router.include_router(operations.router)
 router.include_router(organizations.router)
 router.include_router(users.router)
 router.include_router(registries.router)
+router.include_router(payments.router)

@@ -26,6 +26,35 @@ Registry.
 | ------ | ---------------------------- | -------------------------- |
 | Stable | `ghcr.io/xlonglink/longlink` | `v<major>.<minor>.<patch>` |
 
+
+
+<br />
+
+## Develop the Platform
+
+### Stripe
+
+```bash
+make stripe         # From the root folder
+```
+
+Use any future expiry, such as `12/30`, any three-digit CVC, such as `123`, and any test name and address. 
+See [Stripe's testing documentation](https://docs.stripe.com/testing) for more scenarios.
+
+| Card number           |                                          |
+| --------------------- | ------------------------------------------------ |
+| `4242 4242 4242 4242` | Visa: successful registration and payments       |
+| `5555 5555 5555 4444` | Mastercard: successful registration and payments |
+| `4000 0000 0000 0341` | Can be saved, but subsequent payments decline    |
+
+
+### MCP 
+
+TODO
+
+
+<br />
+
 <br />
 
 ---

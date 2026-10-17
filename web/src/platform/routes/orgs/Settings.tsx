@@ -1,13 +1,16 @@
 import { z } from 'zod';
+import Usage from './Usage';
 import { api } from '@/lib/api';
 import { useState } from 'react';
+import Invoices from './Invoices';
 import Registries from './Registries';
 import { useApiError } from '@/lib/errors';
 import { useApi } from '@/lib/hooks/use-api';
+import PaymentMethods from './PaymentMethods';
 import { NoIndex } from '@/components/NoIndex';
-import { Card } from '@astryxdesign/core/Card';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
+import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
@@ -18,8 +21,6 @@ import { Selector } from '@astryxdesign/core/Selector';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { DialogClose } from '@/components/ui/DialogClose';
 import { SideNavItem } from '@/components/ui/SideNavItem';
-import { Stack, StackItem } from '@astryxdesign/core/Stack';
-import { ProgressBar } from '@astryxdesign/core/ProgressBar';
 import { useLocation, useOutletContext } from 'react-router';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DeletionDialog } from '@/platform/components/Deletion';
@@ -27,12 +28,17 @@ import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 import { SideNav, SideNavSection } from '@astryxdesign/core/SideNav';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
-import { ArrowUp, Boxes, Building2, CheckCheck, EyeOff, Users, UserRound, Wrench } from 'lucide-react';
+import { ArrowUp, Boxes, Building2, CheckCheck, CreditCard, EyeOff, Users, Wrench } from 'lucide-react';
 
 const organizationSections = [
     { id: 'general', label: 'General' },
-    { id: 'billing', label: 'Billing' },
     { id: 'private-registries', label: 'Private registries' },
+];
+
+const billingSections = [
+    { id: 'usage', label: 'Usage' },
+    { id: 'payment-methods', label: 'Payment Methods' },
+    { id: 'invoices', label: 'Invoices' },
 ];
 
 const peopleSections = [
@@ -49,8 +55,8 @@ export default function OrganizationSettings() {
 
     // Unknown fragments select General; inactive sections never mount their queries or drafts.
     const section =
-        [...organizationSections, ...peopleSections, { id: 'solutions', label: 'Solutions' }].find(
-            (item) => `#${item.id}` === (location.hash === '#usage' ? '#billing' : location.hash)
+        [...organizationSections, ...billingSections, ...peopleSections, { id: 'solutions', label: 'Solutions' }].find(
+            (item) => `#${item.id}` === location.hash
         )?.id ?? 'general';
 
     // Share the layout-resolved identity and permissions without loading inactive sections.
@@ -96,6 +102,20 @@ export default function OrganizationSettings() {
                                     ))}
                                 </SideNavItem>
                                 <SideNavItem
+                                    collapsible={{ defaultIsCollapsed: false }}
+                                    icon={<CreditCard className="size-4" aria-hidden="true" />}
+                                    label="Billing"
+                                >
+                                    {billingSections.map((item) => (
+                                        <SideNavItem
+                                            href={`${location.pathname}${location.search}#${item.id}`}
+                                            isSelected={section === item.id}
+                                            key={item.id}
+                                            label={item.label}
+                                        />
+                                    ))}
+                                </SideNavItem>
+                                <SideNavItem
                                     collapsible={{ defaultIsCollapsed: true }}
                                     icon={<Users className="size-4" aria-hidden="true" />}
                                     label="People"
@@ -121,37 +141,33 @@ export default function OrganizationSettings() {
                 }
             >
                 <Stack gap={3}>
-                    {section === 'billing' ? (
-                        <BillingSection base={base} />
-                    ) : section === 'private-registries' ? (
-                        <ApiBoundary key="registries">
+                    <ApiBoundary key={section}>
+                        {section === 'usage' ? (
+                            <Usage base={base} />
+                        ) : section === 'payment-methods' ? (
+                            <PaymentMethods base={base} canManage={membership.role === 'owner'} />
+                        ) : section === 'invoices' ? (
+                            <Invoices base={base} canManage={membership.role === 'owner'} />
+                        ) : section === 'private-registries' ? (
                             <Registries base={base} canMaintain={canMaintain} />
-                        </ApiBoundary>
-                    ) : section === 'members' ? (
-                        <ApiBoundary key="members">
+                        ) : section === 'members' ? (
                             <MembersSection base={base} canAdminister={canAdminister} />
-                        </ApiBoundary>
-                    ) : section === 'invitations' ? (
-                        <ApiBoundary key="invitations">
+                        ) : section === 'invitations' ? (
                             <InvitationsSection base={base} canMaintain={canMaintain} />
-                        </ApiBoundary>
-                    ) : section === 'solutions' ? (
-                        <ApiBoundary key="solutions">
+                        ) : section === 'solutions' ? (
                             <SolutionManagement
                                 organization={membership.organization}
                                 canMaintain={canMaintain}
                                 presentation="settings"
                             />
-                        </ApiBoundary>
-                    ) : (
-                        <ApiBoundary>
+                        ) : (
                             <GeneralSection
                                 base={base}
                                 name={membership.organization.name}
                                 canDelete={membership.role === 'owner'}
                             />
-                        </ApiBoundary>
-                    )}
+                        )}
+                    </ApiBoundary>
                 </Stack>
             </Layout>
         </Stack>
@@ -214,12 +230,12 @@ function GeneralSection({ base, name, canDelete }: { base: string; name: string;
     );
 }
 
-/** Owns role-change confirmation only while the members section is active. */
+/** Owns role-change and seat-removal confirmations only while the members section is active. */
 function MembersSection({ base, canAdminister }: { base: string; canAdminister: boolean }) {
     const [member, setMember] = useState<{
         id: string;
         name: string;
-        role: string;
+        action: { kind: 'role'; role: string } | { kind: 'remove' };
     } | null>(null);
 
     // Load and invalidate People data only while the members section is active.
@@ -267,22 +283,34 @@ function MembersSection({ base, canAdminister }: { base: string; canAdminister: 
                                       renderCell: (row: z.output<typeof schemas.zOrganizationMemberAccessResponse>) => (
                                           <MoreMenu
                                               alignment="end"
-                                              items={['read', 'write', 'maintain', 'admin'].flatMap((role) =>
-                                                  role === row.role
-                                                      ? []
-                                                      : [
-                                                            {
-                                                                id: role,
-                                                                label: `Set as ${role[0].toUpperCase() + role.slice(1)}`,
-                                                                onClick: () =>
-                                                                    setMember({
-                                                                        id: row.user.id,
-                                                                        name: row.user.name,
-                                                                        role,
-                                                                    }),
-                                                            },
-                                                        ]
-                                              )}
+                                              items={[
+                                                  ...['read', 'write', 'maintain', 'admin'].flatMap((role) =>
+                                                      role === row.role
+                                                          ? []
+                                                          : [
+                                                                {
+                                                                    id: role,
+                                                                    label: `Set as ${role[0].toUpperCase() + role.slice(1)}`,
+                                                                    onClick: () =>
+                                                                        setMember({
+                                                                            id: row.user.id,
+                                                                            name: row.user.name,
+                                                                            action: { kind: 'role', role },
+                                                                        }),
+                                                                },
+                                                            ]
+                                                  ),
+                                                  {
+                                                      id: 'remove',
+                                                      label: 'Remove member',
+                                                      onClick: () =>
+                                                          setMember({
+                                                              id: row.user.id,
+                                                              name: row.user.name,
+                                                              action: { kind: 'remove' },
+                                                          }),
+                                                  },
+                                              ]}
                                           />
                                       ),
                                   },
@@ -299,23 +327,32 @@ function MembersSection({ base, canAdminister }: { base: string; canAdminister: 
                         if (!open) setMember(null);
                     }}
                 >
-                    <DialogHeader title="Change role" onOpenChange={() => setMember(null)} />
+                    <DialogHeader
+                        title={member.action.kind === 'remove' ? 'Remove member' : 'Change role'}
+                        onOpenChange={() => setMember(null)}
+                    />
                     <Stack gap={3}>
                         <Text color="secondary">
-                            Change {member.name} to {member.role}?
+                            {member.action.kind === 'remove'
+                                ? `Remove ${member.name} from this organization? Access is revoked immediately.`
+                                : `Change ${member.name} to ${member.action.role}?`}
                         </Text>
                         <Stack direction="horizontal" gap={2} justify="end">
                             <Button label="Cancel" variant="ghost" onClick={() => setMember(null)} />
                             <Button
-                                label="Confirm"
-                                variant="primary"
+                                label={member.action.kind === 'remove' ? 'Remove member' : 'Confirm'}
+                                variant={member.action.kind === 'remove' ? 'destructive' : 'primary'}
                                 clickAction={async () => {
                                     // Update access on the server before refreshing the member list.
-                                    await api.patch(`${base}/members/${member.id}`, {
-                                        json: schemas.zOrganizationMemberUpdate.parse({
-                                            role: member.role,
-                                        }),
-                                    });
+                                    if (member.action.kind === 'remove') {
+                                        await api.delete(`${base}/members/${member.id}`);
+                                    } else {
+                                        await api.patch(`${base}/members/${member.id}`, {
+                                            json: schemas.zOrganizationMemberUpdate.parse({ role: member.action.role }),
+                                        });
+                                    }
+
+                                    // Refresh members only after the confirmed access change succeeds.
                                     await invalidateDetails();
                                     setMember(null);
                                 }}
@@ -515,148 +552,5 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
                 </Stack>
             </Dialog>
         </>
-    );
-}
-
-/** Shows the Free plan with independent reads for each resource's current usage. */
-function BillingSection({ base }: { base: string }) {
-    // Retain the settings shell's 260px navigation and fill the remaining content region with the plan card.
-    return (
-        <Stack gap={4}>
-            <Stack justify="end" minHeight="var(--size-element-md)">
-                <Heading level={2} hasCapsize>
-                    Billing
-                </Heading>
-            </Stack>
-            <Divider />
-            <Card padding={0} className="overflow-hidden">
-                <Stack gap={0}>
-                    <Stack
-                        direction="horizontal"
-                        gap={3}
-                        align="center"
-                        paddingInline={4}
-                        paddingBlock={2}
-                        className="bg-muted"
-                    >
-                        <UserRound className="size-6 shrink-0 text-accent" aria-hidden="true" />
-                        <StackItem size="fill">
-                            <Stack gap={0}>
-                                <Heading level={3} className="text-base" weight="medium">
-                                    LongLink Free
-                                </Heading>
-                                <Text type="supporting">The basics for organizations</Text>
-                            </Stack>
-                        </StackItem>
-                        <Button href="/pricing/" label="Upgrade" size="sm" variant="primary" />
-                    </Stack>
-                    <Divider />
-                    <Stack gap={4} padding={4}>
-                        {(['users', 'storage', 'database'] as const).map((resource) => (
-                            <ApiBoundary
-                                key={resource}
-                                fallback={<Text color="secondary">Loading {resource} usage…</Text>}
-                                fallbackRender={({ resetErrorBoundary }) => (
-                                    <Stack direction="horizontal" align="center" justify="between" gap={4}>
-                                        <Text color="secondary">
-                                            {resource === 'users'
-                                                ? 'User'
-                                                : resource === 'storage'
-                                                  ? 'Storage'
-                                                  : 'Database'}{' '}
-                                            usage unavailable.
-                                        </Text>
-                                        <Button label="Retry" onClick={resetErrorBoundary} />
-                                    </Stack>
-                                )}
-                            >
-                                {resource === 'users' ? (
-                                    <UsersUsageMeter base={base} />
-                                ) : (
-                                    <UsageMeter base={base} resource={resource} />
-                                )}
-                            </ApiBoundary>
-                        ))}
-                    </Stack>
-                </Stack>
-            </Card>
-            {/* Keep billing tables empty until payment records are connected. */}
-            <Stack gap={3} paddingBlock={2}>
-                <Heading level={3}>Connected cards</Heading>
-                <Table<{ id: string; card: string; expires: string; status: string }>
-                    data={[]}
-                    idKey="id"
-                    density="compact"
-                    columns={[
-                        { key: 'card', header: 'Card', width: proportional(2) },
-                        { key: 'expires', header: 'Expires', width: proportional(1) },
-                        { key: 'status', header: 'Status', width: proportional(1) },
-                    ]}
-                />
-            </Stack>
-            <Stack gap={3} paddingBlock={2}>
-                <Heading level={3}>Invoices</Heading>
-                <Table<{ id: string; date: string; amount: string; status: string }>
-                    data={[]}
-                    idKey="id"
-                    density="compact"
-                    columns={[
-                        { key: 'id', header: 'Invoice', width: proportional(2) },
-                        { key: 'date', header: 'Date', width: proportional(1) },
-                        {
-                            key: 'amount',
-                            header: 'Amount',
-                            align: 'end',
-                            width: proportional(1),
-                        },
-                        { key: 'status', header: 'Status', width: proportional(1) },
-                    ]}
-                />
-            </Stack>
-        </Stack>
-    );
-}
-
-/** Shows accepted members against the advertised Free plan's five-user allowance. */
-function UsersUsageMeter({ base }: { base: string }) {
-    // Count current members, not pending invitations, using the organization details endpoint.
-    const [{ members }] = useApi(base, schemas.zOrganizationDetails);
-
-    return (
-        <ProgressBar
-            label="Users"
-            value={members.length}
-            max={5}
-            hasValueLabel
-            formatValueLabel={() => `${members.length} / 5 users`}
-        />
-    );
-}
-
-/** Shows measured bytes against configured capacity without hiding other resource meters. */
-function UsageMeter({ base, resource }: { base: string; resource: 'storage' | 'database' }) {
-    const [usage] = useApi(
-        `${base}/${resource}`,
-        resource === 'storage' ? schemas.zOrganizationStorageUsageResponse : schemas.zOrganizationDatabaseUsageResponse
-    );
-
-    /** Formats byte counts with binary units matching the resource capacity. */
-    function formatStorage(bytes: number) {
-        // Keep zero explicit and preserve readable precision for small usage amounts.
-        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
-
-        const unit = bytes === 0 ? 0 : Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-
-        return `${(bytes / 1024 ** unit).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${units[unit]}`;
-    }
-
-    return (
-        <ProgressBar
-            label={resource === 'storage' ? 'File storage' : 'Database storage'}
-            value={usage.space_used}
-            max={usage.quota_bytes}
-            hasValueLabel
-            formatValueLabel={() => `${formatStorage(usage.space_used)} / ${formatStorage(usage.quota_bytes)}`}
-        />
     );
 }

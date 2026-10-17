@@ -1929,6 +1929,73 @@
         }
       }
     },
+    "/api/v1/organizations/{organization_id}/usage": {
+      "get": {
+        "summary": "Get Organization Usage",
+        "description": "Show current accepted users and the same monthly rates used for invoicing.",
+        "operationId": "get_organization_usage_api_v1_organizations__organization_id__usage_get",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationUsage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organization_id}/quotas": {
       "get": {
         "summary": "Get Organization Quotas",
@@ -2323,6 +2390,74 @@
             }
           }
         },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove Organization Member",
+        "description": "Revoke access so the member no longer counts toward month-end usage.",
+        "operationId": "remove_organization_member_api_v1_organizations__organization_id__members__member_id__delete",
+        "parameters": [
+          {
+            "name": "member_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Member Id"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -2836,6 +2971,247 @@
               }
             },
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/cards": {
+      "get": {
+        "summary": "Get Cards",
+        "description": "List masked saved cards for the current Organization owner.",
+        "operationId": "get_cards_api_v1_organizations__organization_id__cards_get",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentCard"
+                  },
+                  "title": "Response Get Cards Api V1 Organizations  Organization Id  Cards Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/invoices": {
+      "get": {
+        "summary": "Get Invoices",
+        "description": "List issued invoices and hosted documents for the current Organization owner.",
+        "operationId": "get_invoices_api_v1_organizations__organization_id__invoices_get",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentInvoice"
+                  },
+                  "title": "Response Get Invoices Api V1 Organizations  Organization Id  Invoices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/cards/checkout": {
+      "post": {
+        "summary": "Create Checkout",
+        "description": "Save an invoice payment method without taking an immediate payment.",
+        "operationId": "create_checkout_api_v1_organizations__organization_id__cards_checkout_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRedirect"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/stripe/webhook": {
+      "post": {
+        "summary": "Receive Webhook",
+        "description": "Verify card-registration events and apply them directly to the Organization.",
+        "operationId": "receive_webhook_api_v1_stripe_webhook_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -4450,6 +4826,56 @@
         "title": "OrganizationStorageUsageResponse",
         "description": "Report current logical object usage and quota for one Organization bucket."
       },
+      "OrganizationUsage": {
+        "properties": {
+          "free_users": {
+            "type": "integer",
+            "title": "Free Users",
+            "default": 5
+          },
+          "free_storage_bytes": {
+            "type": "integer",
+            "title": "Free Storage Bytes",
+            "default": 1073741824
+          },
+          "free_database_bytes": {
+            "type": "integer",
+            "title": "Free Database Bytes",
+            "default": 104857600
+          },
+          "user_monthly_price": {
+            "type": "integer",
+            "title": "User Monthly Price",
+            "default": 500
+          },
+          "storage_gib_monthly_price": {
+            "type": "integer",
+            "title": "Storage Gib Monthly Price",
+            "default": 10
+          },
+          "database_gib_monthly_price": {
+            "type": "integer",
+            "title": "Database Gib Monthly Price",
+            "default": 100
+          },
+          "users": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Users"
+          },
+          "stripe_enabled": {
+            "type": "boolean",
+            "title": "Stripe Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "users",
+          "stripe_enabled"
+        ],
+        "title": "OrganizationUsage",
+        "description": "Describe current membership usage and its month-end pricing."
+      },
       "Page_AdminUserSummary_": {
         "properties": {
           "items": {
@@ -4598,6 +5024,150 @@
         ],
         "title": "PasswordResetComplete",
         "description": "Validate a new password supplied with browser-only reset proof."
+      },
+      "PaymentCard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "brand": {
+            "type": "string",
+            "title": "Brand"
+          },
+          "last4": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$",
+            "title": "Last4"
+          },
+          "exp_year": {
+            "type": "integer",
+            "title": "Exp Year"
+          },
+          "exp_month": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Exp Month"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "brand",
+          "last4",
+          "exp_year",
+          "exp_month",
+          "is_default"
+        ],
+        "title": "PaymentCard",
+        "description": "Expose only the saved card details needed to identify it."
+      },
+      "PaymentInvoice": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[a-z]{3}$",
+            "title": "Currency"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "invoice_pdf": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Pdf"
+          },
+          "hosted_invoice_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hosted Invoice Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "total",
+          "number",
+          "status",
+          "currency",
+          "created_at",
+          "invoice_pdf",
+          "hosted_invoice_url"
+        ],
+        "title": "PaymentInvoice",
+        "description": "Expose issued Stripe invoices without customer or payment-method identifiers."
+      },
+      "PaymentRedirect": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PaymentRedirect",
+        "description": "Return a hosted Stripe card-registration URL."
       },
       "RegisteredClient": {
         "properties": {

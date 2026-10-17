@@ -6,6 +6,7 @@ from sqlmodel import Field
 from sqlalchemy import Enum, Column, BigInteger
 from src.environments import env
 from src.database.types import EncryptedType
+from src.models.pricing import FREE_STORAGE_BYTES, FREE_DATABASE_BYTES
 from src.models.statuses import Status
 from src.database.models.base import AuditTable, PlatformModel
 from src.models.organizations import DatabaseState
@@ -31,7 +32,7 @@ class Organization(AuditTable, table=True):
 
     # Database
     database_password: str = Field(default_factory=token_urlsafe, sa_column=Column(EncryptedType(env.ENCRYPTION_KEY), nullable=False))
-    database_size_mib: int = Field(default=100, ge=100)
+    database_size_mib: int = Field(default=FREE_DATABASE_BYTES // 1024**2, ge=100)
     database_instances: int = Field(default=1, ge=1)
     database_state: DatabaseState = Field(
         default=DatabaseState.failed,
@@ -41,7 +42,16 @@ class Organization(AuditTable, table=True):
         ),
     )
     # Storage
-    storage_quota_bytes: int = Field(default=1073741824, ge=1073741824, sa_type=BigInteger)
+    storage_quota_bytes: int = Field(default=FREE_STORAGE_BYTES, ge=1073741824, sa_type=BigInteger)
+
+    # Stripe customer and durable card-registration attempt
+    stripe_customer_id: str | None = Field(default=None, max_length=255, unique=True)
+    stripe_checkout_id: str | None = Field(default=None, max_length=255)
+    stripe_checkout_key: UUID | None = None
+    stripe_payment_method_id: str | None = Field(default=None, max_length=255)
+
+    # Monthly usage snapshot deadline
+    invoice_due_at: datetime | None = Field(default=None, index=True)
 
     # State
     status: Status = Field(

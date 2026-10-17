@@ -1,4 +1,4 @@
-.PHONY: install apt check format build test up image down clear api tunnel web sdk seed main
+.PHONY: install apt check format build test up image down clear api stripe tunnel web sdk seed main
 
 # Keep user-installed development tools available across separate make invocations.
 export PATH := $(HOME)/.vite-plus/bin:$(HOME)/.local/bin:$(PATH)
@@ -37,7 +37,6 @@ install:
 	cd api && uv sync --locked --extra dev
 	cd sdk && uv sync --locked --group dev
 	cd web && vp install --frozen-lockfile
-	cd web && bun add --global --trust @stripe/cli
 
 
 # Reset local main to origin and remove branches absent from origin.
@@ -149,6 +148,23 @@ api:
 	@umask 077; cp --update=none api/.env.sample api/.env
 	cd api && uv run --locked alembic upgrade head
 	cd api && uv run --locked uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+
+
+# Install the pinned Stripe CLI locally and forward card-registration webhooks.
+stripe: dev/bin/stripe
+	@umask 077; cp --update=none api/.env.sample api/.env
+	dev/bin/stripe listen --events checkout.session.completed --forward-to http://localhost:8000/api/v1/stripe/webhook
+
+dev/bin/stripe:
+	@set -eu; \
+	[ "$$(uname -s)-$$(uname -m)" = "Linux-x86_64" ] || { echo "This local Stripe CLI installer requires Linux AMD64." >&2; exit 1; }; \
+	download=$$(mktemp); \
+	trap 'rm -f "$$download"' EXIT; \
+	curl --fail --location --silent --show-error --output "$$download" https://github.com/stripe/stripe-cli/releases/download/v1.54.0/stripe_1.54.0_linux_x86_64.tar.gz; \
+	printf '%s  %s\n' 7e8b0693b56b3690bf0bd5d50f1f8a96bd8b84ad4efd1f08c493220b191e074b "$$download" | sha256sum --check --status; \
+	install -d dev/bin; \
+	tar --extract --gzip --file "$$download" --directory dev/bin stripe; \
+	chmod 0755 dev/bin/stripe
 
 
 # Install cloudflared when missing and expose the running local API through a temporary HTTPS URL.

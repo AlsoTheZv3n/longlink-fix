@@ -32,8 +32,8 @@ const article = {
         },
         { id: 'acceptable-use', label: '5. Acceptable use', level: 2 },
         {
-            id: 'plans-fees-and-managed-services',
-            label: '6. Plans and payments',
+            id: 'usage-and-payments',
+            label: '6. Usage and payments',
             level: 2,
         },
         {
@@ -201,7 +201,7 @@ function TermsContent() {
                 <Heading id="acceptable-use" level={2}>
                     5. Acceptable use
                 </Heading>
-                <Text as="p">Use the Service lawfully and within the limits of your plan. You must not:</Text>
+                <Text as="p">Use the Service lawfully and within your configured resource limits. You must not:</Text>
                 <List listStyle="disc">
                     <ListItem
                         label={
@@ -259,13 +259,14 @@ function TermsContent() {
             </Stack>
 
             <Stack as="section" gap={3}>
-                <Heading id="plans-fees-and-managed-services" level={2}>
-                    6. Plans and payments
+                <Heading id="usage-and-payments" level={2}>
+                    6. Usage and payments
                 </Heading>
                 <Text as="p">
-                    The currently advertised Free plan has no subscription fee. If you order a paid service, the price,
-                    limits, billing period, and any usage charges disclosed before you order apply. Prices are in Swiss
-                    francs (CHF) unless stated otherwise, with taxes identified as required by law.
+                    Usage within the published free allowances has no fee. Usage above those allowances is measured at
+                    month-end and charged monthly to your saved payment method at the published rates, without
+                    proration. If you order another paid service, the disclosed price and limits apply. Prices are in
+                    Swiss francs (CHF) unless stated otherwise, with taxes identified as required by law.
                 </Text>
                 <Text as="p">
                     You owe valid charges incurred through your account or order. Contact us promptly about billing

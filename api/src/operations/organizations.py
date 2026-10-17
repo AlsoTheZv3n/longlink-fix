@@ -1,6 +1,7 @@
 import src.database.services.organizations
 from uuid import UUID
 from sqlmodel import col
+from src.utils import stripe
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import select, update
 from src.errors import ForbiddenError
@@ -40,6 +41,11 @@ async def reconcile(organization_id: UUID) -> None:
         compute.kubeconfig,
     )
     async with cluster:
+        # Card registration can expand capacity independently of the free pricing allowance.
+        if organization.stripe_payment_method_id is not None:
+            await database_resources.resize(
+                cluster, organization.id, size_mib=organization.database_size_mib, instances=organization.database_instances
+            )
         storage = Storage(compute, cluster)
         await storage.apply(organization.id, quota_bytes=organization.storage_quota_bytes)
         await organizations.apply(cluster, organization.id)
@@ -63,6 +69,20 @@ async def reconcile(organization_id: UUID) -> None:
 
 async def delete(organization_id: UUID) -> None:
     """Drain runtime activity before destroying the Organization's boundaries."""
+
+    # Expire hosted card-registration attempts before removing the Organization.
+    async with session_scope() as session:
+        existing = await session.get(Organization, organization_id)
+        if existing is None:
+            return
+        if existing.deleted_at is None:
+            raise ForbiddenError("Active Organizations cannot be deleted by lifecycle cleanup")
+        if existing.stripe_customer_id is not None:
+            async with stripe.client() as connection:
+                checkouts = await connection.v1.checkout.sessions.list_async({"customer": existing.stripe_customer_id, "limit": 100})
+                async for hosted in checkouts.auto_paging_iter():
+                    if hosted.status == "open":
+                        await connection.v1.checkout.sessions.expire_async(hosted.id)
 
     # Delegate deletion eligibility and lease admission to the locked database scope.
     async with databases.deleting(organization_id):

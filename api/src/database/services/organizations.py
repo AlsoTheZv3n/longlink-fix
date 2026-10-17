@@ -10,6 +10,7 @@ from sqlalchemy.orm import load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
+from src.models.pricing import FREE_USERS
 from src.database.services import operations
 from src.models.operations import OperationKind
 from src.models.pagination import Pagination
@@ -354,6 +355,31 @@ async def members(session: AsyncSession, organization_id: UUID) -> Sequence[User
     return result.all()
 
 
+async def member_count(session: AsyncSession, organization_id: UUID) -> int:
+    """Count accepted active members, excluding invitations and deleted users."""
+
+    result = await session.execute(
+        select(func.count())
+        .select_from(UserOrganization)
+        .join(User, col(User.id) == col(UserOrganization.user_id))
+        .where(col(UserOrganization.organization_id) == organization_id, col(User.deleted_at).is_(None))
+    )
+    return result.scalar_one()
+
+
+async def lock(session: AsyncSession, organization_id: UUID) -> Organization:
+    """Serialize organization commands and membership admission on every supported database."""
+
+    # A no-op write also takes a lock on SQLite, where FOR UPDATE is ignored.
+    await session.execute(
+        sql_update(Organization).where(col(Organization.id) == organization_id).values(updated_at=col(Organization.updated_at))
+    )
+    organization = await session.get(Organization, organization_id, populate_existing=True)
+    if organization is None:
+        raise ForbiddenError("Organization unavailable")
+    return organization
+
+
 async def locked_membership(
     session: AsyncSession, user_id: UUID, organization_id: UUID, minimum_role: OrganizationRoles
 ) -> UserOrganization:
@@ -445,6 +471,40 @@ async def update_member_role(
     membership.role = role
 
 
+async def remove_member(session: AsyncSession, organization_id: UUID, member_id: UUID, user_id: UUID) -> None:
+    """Remove access without removing historical user records or charging the organization."""
+
+    # Serialize member changes and revalidate the caller after taking the organization lock.
+    organization = await lock(session, organization_id)
+    if organization.deleted_at is not None:
+        raise ForbiddenError("Access required")
+    caller = await locked_membership(session, user_id, organization_id, OrganizationRoles.admin)
+    membership = await session.get(UserOrganization, (member_id, organization_id), populate_existing=True, with_for_update=True)
+    if membership is None:
+        raise NotFoundError("Organization member not found")
+
+    # Only owners can remove owners, and every organization must retain an active owner.
+    if membership.role == OrganizationRoles.owner:
+        if caller.role != OrganizationRoles.owner:
+            raise ForbiddenError("Owner management permissions required")
+        other_owner = await session.scalar(
+            select(col(UserOrganization.user_id))
+            .join(User, col(User.id) == col(UserOrganization.user_id))
+            .where(
+                col(UserOrganization.organization_id) == organization_id,
+                col(UserOrganization.role) == OrganizationRoles.owner,
+                col(UserOrganization.user_id) != member_id,
+                col(User.deleted_at).is_(None),
+            )
+            .limit(1)
+        )
+        if other_owner is None:
+            raise ConflictError("Organization must have at least one owner")
+
+    # Revoke membership without creating automatic charges or refunds.
+    await session.delete(membership)
+
+
 async def create(
     session: AsyncSession,
     name: str,
@@ -529,9 +589,16 @@ async def create_invitation(
     """Authorize and create one Organization invitation."""
 
     # Lock the Organization before revalidating the caller's active invitation permission.
-    membership = await _lock_active_membership(session, user_id, organization_id, OrganizationRoles.maintain)
+    organization = await lock(session, organization_id)
+    if organization.deleted_at is not None:
+        raise ForbiddenError("Access required")
+    membership = await locked_membership(session, user_id, organization_id, OrganizationRoles.maintain)
     if not roles.atleast(membership.role, payload.role):
         raise ForbiddenError("Invitation role permissions required")
+
+    # Pending invitations do not count against the organization's member allowance.
+    if organization.stripe_payment_method_id is None and await member_count(session, organization_id) >= FREE_USERS:
+        raise ConflictError(f"Register a card before adding more than {FREE_USERS} members.")
 
     # Reject emails that already belong to the locked Organization.
     if (
