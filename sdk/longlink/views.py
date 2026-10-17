@@ -87,8 +87,8 @@ def discover(views_directory: Path) -> list[tuple[ViewDefinition, bytes]]:
         # Read source without parsing or executing JavaScript.
         content = view_file.read_text(encoding="utf-8")
         encoded_content = content.encode("utf-8")
-        if not content.strip() or len(encoded_content) > 1_000_000:
-            raise ValueError(f"View source must contain between 1 and 1000000 bytes: {view_file}")
+        if not content.strip():
+            raise ValueError(f"View source must contain non-whitespace text: {view_file}")
 
         # Normalize static case and dynamic parameter names for collision detection.
         view_route = view_stem_route(path_without_suffix)

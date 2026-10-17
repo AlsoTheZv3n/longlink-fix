@@ -1,14 +1,7 @@
 import type { Options } from 'ky';
 import { api, ApiError } from '@/lib/api';
 import { resolveRequestUrl } from '@/lib/url';
-import {
-    MAX_MESSAGE_SIZE,
-    REQUEST_TIMEOUT,
-    responseSchema,
-    type ViewData,
-    type RequestCommand,
-    type DownloadCommand,
-} from './protocol';
+import { REQUEST_TIMEOUT, responseSchema, type ViewData, type RequestCommand, type DownloadCommand } from './protocol';
 
 /** Resolves a capability URL without permitting redirects or proxy-prefix traversal. */
 export function requestUrl(base: string, path: string): string {
@@ -20,11 +13,10 @@ export function requestUrl(base: string, path: string): string {
     return resolveRequestUrl(base, path);
 }
 
-/** Loads a bounded response without redirects and releases its stream within the request lifetime. */
+/** Loads a response without redirects within the request lifetime. */
 export async function load(
     url: string,
-    options: Pick<Options, 'headers' | 'method' | 'json' | 'body'> & { signal: AbortSignal },
-    limit: number = MAX_MESSAGE_SIZE
+    options: Pick<Options, 'headers' | 'method' | 'json' | 'body'> & { signal: AbortSignal }
 ): Promise<Blob> {
     // Bound the complete response lifetime, including a server that stalls after sending headers.
     const response = await api(url, {
@@ -41,32 +33,10 @@ export async function load(
         ? media
         : 'application/octet-stream';
 
-    const reader = response.body?.getReader();
+    // Read the complete response within the request lifetime.
+    const body = await response.blob();
 
-    if (!reader) return new Blob([], { type });
-    const chunks: Uint8Array<ArrayBuffer>[] = [];
-    let size = 0;
-
-    // Bound decoded response bytes rather than trusting a missing or compressed Content-Length.
-    try {
-        while (true) {
-            const chunk = await reader.read();
-
-            if (chunk.done) break;
-            size += chunk.value.byteLength;
-
-            if (size > limit) throw new ApiError('Solution response is too large', 413);
-            chunks.push(chunk.value);
-        }
-    } catch (error) {
-        // Cancel incomplete reads before releasing the lock, preserving cancellation-error precedence.
-        await reader.cancel();
-        throw error;
-    } finally {
-        reader.releaseLock();
-    }
-
-    return new Blob(chunks, { type });
+    return body.slice(0, body.size, type);
 }
 
 /** Executes one validated request using only host-owned credentials and fixed options. */
@@ -81,7 +51,7 @@ export async function request(base: string, command: RequestCommand, signal: Abo
         for (const [name, value] of command.form) form.append(name, value);
     }
 
-    // Apply the same bounded response policy used to load the manifest and JSX source.
+    // Apply the same response policy used to load the manifest and JSX source.
     const body = await load(url, {
         method: command.method,
         json: command.json,
@@ -96,7 +66,7 @@ export async function request(base: string, command: RequestCommand, signal: Abo
     return text ? responseSchema.parse(JSON.parse(text)) : null;
 }
 
-/** Downloads bounded Solution bytes in the host without granting sandbox navigation or downloads. */
+/** Downloads Solution bytes in the host without granting sandbox navigation or downloads. */
 export async function download(base: string, command: DownloadCommand, signal: AbortSignal): Promise<null> {
     // Treat every download as inert attachment bytes, including HTML and SVG documents.
     const body = await load(requestUrl(base, command.path), { signal });

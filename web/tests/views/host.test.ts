@@ -34,7 +34,7 @@ describe('Solution request URLs', () => {
     });
 });
 
-describe('Solution response limits', () => {
+describe('Solution response loading', () => {
     it.each(['caller', 'deadline'] as const)(
         'interrupts a stalled response body on $0 cancellation',
         async (source) => {
@@ -49,7 +49,7 @@ describe('Solution response limits', () => {
 
             const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal);
 
-            let getReader: ReturnType<typeof vi.spyOn> | undefined;
+            let consumeBody: ReturnType<typeof vi.spyOn> | undefined;
             let transportClosed = false;
 
             const fetch = globalThis.fetch;
@@ -58,9 +58,7 @@ describe('Solution response limits', () => {
             vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, options) => {
                 const response = await fetch(input, options);
 
-                if (!response.body) throw new Error('Missing streaming response body');
-
-                getReader = vi.spyOn(response.body, 'getReader');
+                consumeBody = vi.spyOn(response, 'blob');
 
                 return response;
             });
@@ -96,7 +94,7 @@ describe('Solution response limits', () => {
             );
 
             try {
-                await vi.waitFor(() => expect(getReader).toHaveBeenCalled());
+                await vi.waitFor(() => expect(consumeBody).toHaveBeenCalled());
 
                 // Act
                 if (source === 'caller') caller.abort(failure);
@@ -120,7 +118,7 @@ describe('Solution response limits', () => {
         }
     );
 
-    it('accepts a multi-chunk response exactly at the byte limit and releases its reader', async () => {
+    it('accepts a complete multi-chunk response', async () => {
         // Arrange
         const body = new ReadableStream<Uint8Array>({
             start(controller) {
@@ -134,40 +132,34 @@ describe('Solution response limits', () => {
         const controller = new AbortController();
 
         // Act
-        const response = await load('https://solution.example/items', { signal: controller.signal }, 4);
+        const response = await load('https://solution.example/items', { signal: controller.signal });
 
         // Assert
         expect(await response.text()).toBe('abcd');
         expect(response.size).toBe(4);
-        expect(body.locked).toBe(false);
     });
 
     it.each([
         { name: 'missing Content-Length', headers: new Headers() },
         { name: 'underreported Content-Length', headers: new Headers({ 'Content-Length': '1' }) },
-    ])('rejects cumulative overflow with $name and cancels its stream', async ({ headers }) => {
+    ])('accepts a complete response with $name', async ({ headers }) => {
         // Arrange
-        const cancel = vi.fn();
-
         const body = new ReadableStream<Uint8Array>({
             start(controller) {
                 controller.enqueue(new TextEncoder().encode('ab'));
                 controller.enqueue(new TextEncoder().encode('cde'));
+                controller.close();
             },
-            cancel,
         });
 
         vi.stubGlobal('fetch', async () => new Response(body, { headers }));
         const controller = new AbortController();
 
         // Act
-        const response = load('https://solution.example/items', { signal: controller.signal }, 4);
+        const response = await load('https://solution.example/items', { signal: controller.signal });
 
         // Assert
-        await expect(response).rejects.toBeInstanceOf(ApiError);
-        await expect(response).rejects.toMatchObject({ message: 'Solution response is too large', status: 413 });
-        expect(cancel).toHaveBeenCalledOnce();
-        expect(body.locked).toBe(false);
+        expect(await response.text()).toBe('abcde');
     });
 });
 

@@ -4,7 +4,6 @@ import { startCase } from 'es-toolkit/compat';
 import { JsxView } from '@/components/JsxView';
 import { PageError } from '@/components/Utils';
 import { manifestSchema } from '@/views/manifest';
-import { MAX_SOURCE_SIZE } from '@/views/protocol';
 import { Center } from '@astryxdesign/core/Center';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { skipToken, useQuery } from '@tanstack/react-query';
@@ -72,7 +71,7 @@ export function SolutionRuntime({ children, navigationBaseUrl = '/', viewsUrl = 
         queryFn: activeView
             ? async ({ signal }) => {
                   const viewUrl = resolveRequestUrl(requestBaseUrl, activeView.path);
-                  const body = await host.load(viewUrl, { headers: { Accept: 'text/plain' }, signal }, MAX_SOURCE_SIZE);
+                  const body = await host.load(viewUrl, { headers: { Accept: 'text/plain' }, signal });
 
                   return body.text();
               }

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { it, expect, vi } from 'vitest';
-import { commandSchema, MAX_PENDING_IMAGES, type ViewReply } from '@/views/protocol';
+import { commandSchema, type ViewReply } from '@/views/protocol';
 
 it('ignores a mismatched session and releases an admitted port when its mount is absent', async () => {
     // Arrange
@@ -43,7 +43,7 @@ it('ignores a mismatched session and releases an admitted port when its mount is
     }
 });
 
-it('queues gallery images beyond the request budget instead of failing them', async () => {
+it('loads gallery images concurrently without a request cap', async () => {
     // Arrange
     vi.resetModules();
     window.__VIEW_SESSION__ = 'gallery-test-session';
@@ -99,7 +99,7 @@ it('queues gallery images beyond the request budget instead of failing them', as
         await vi.waitFor(() => expect(mount.querySelectorAll('img')).toHaveLength(12), { timeout: 10_000 });
         expect(mount.textContent).not.toContain('Photo unavailable');
         expect(new Set(requested).size).toBe(12);
-        expect(peak).toBeLessThanOrEqual(MAX_PENDING_IMAGES);
+        expect(peak).toBe(12);
     } finally {
         window.dispatchEvent(new Event('pagehide'));
         channel.port1.close();

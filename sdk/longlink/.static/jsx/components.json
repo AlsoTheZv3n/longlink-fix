@@ -941,8 +941,8 @@
                 },
                 {
                     "name": "method",
-                    "type": "\"post\"",
-                    "description": "Only POST is supported; defaults to post. Use request() for other methods."
+                    "type": "\"delete\" | \"post\" | \"put\" | \"patch\"",
+                    "description": "Write method used to submit the form; defaults to post."
                 },
                 {
                     "name": "id",

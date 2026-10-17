@@ -1,19 +1,5 @@
 import { z } from 'zod';
 
-export const MAX_RUNTIME_SIZE = 8_000_000;
-
-export const MAX_SOURCE_SIZE = 1_000_000;
-
-export const MAX_MESSAGE_SIZE = 2_000_000;
-
-export const MAX_PENDING_REQUESTS = 8;
-
-// Icon loading has its own small budget so a gallery cannot consume Solution request slots.
-export const MAX_PENDING_ICONS = 4;
-
-// Image previews queue within part of the operation budget so a gallery cannot starve data requests.
-export const MAX_PENDING_IMAGES = 4;
-
 // Allow the Platform's 120-second Solution proxy timeout to finish, including cold starts.
 export const REQUEST_TIMEOUT = 130_000;
 
@@ -23,13 +9,10 @@ export const requestSchema = z
     .object({
         type: z.literal('request'),
         id: z.number().int().nonnegative(),
-        path: z.string().min(1).max(4096),
+        path: z.string().min(1),
         method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
         json: z.json().optional(),
-        form: z
-            .array(z.tuple([z.string().max(256), z.union([z.string(), z.instanceof(Blob)])]))
-            .max(32)
-            .optional(),
+        form: z.array(z.tuple([z.string(), z.union([z.string(), z.instanceof(Blob)])])).optional(),
         binary: z.boolean().optional(),
     })
     .strict()
@@ -48,7 +31,7 @@ export const downloadSchema = z
     .object({
         type: z.literal('download'),
         id: z.number().int().nonnegative(),
-        path: z.string().min(1).max(4096),
+        path: z.string().min(1),
         filename: z
             .string()
             .min(1)
@@ -61,10 +44,7 @@ export const iconSchema = z
     .object({
         type: z.literal('icon'),
         id: z.number().int().nonnegative(),
-        name: z
-            .string()
-            .max(64)
-            .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        name: z.string().min(1),
     })
     .strict();
 
@@ -107,9 +87,7 @@ export const commandSchema = z.discriminatedUnion('type', [
     requestSchema,
     // Only bounded dimensions cross the sandbox boundary; the host owns page scrolling.
     z.object({ type: z.literal('resize'), height: z.number().int().min(1).max(1_000_000) }).strict(),
-    z
-        .object({ type: z.literal('navigate'), path: z.string().min(1).max(4096), newTab: z.boolean().optional() })
-        .strict(),
+    z.object({ type: z.literal('navigate'), path: z.string().min(1), newTab: z.boolean().optional() }).strict(),
     downloadSchema,
     iconSchema,
 ]);
@@ -120,7 +98,7 @@ export type DownloadCommand = z.output<typeof downloadSchema>;
 
 export type IconCommand = z.output<typeof iconSchema>;
 
-// Replies contain only backend JSON or bounded binary responses, never arbitrary runtime objects.
+// Replies contain only backend JSON or binary responses, never arbitrary runtime objects.
 export const responseSchema = z.union([z.json(), z.instanceof(Blob)]);
 
 export type ViewData = z.output<typeof responseSchema>;
@@ -128,20 +106,3 @@ export type ViewData = z.output<typeof responseSchema>;
 export type ViewReply =
     | { id: number; ok: true; data: ViewData }
     | { id: number; ok: false; error: string; status?: number; notified?: boolean };
-
-/** Bounds bridge payloads before allowing them to consume host resources. */
-export function messageSize(command: RequestCommand): number {
-    // Count UTF-8 bytes consistently with the SDK source and host response limits.
-    const encoder = new TextEncoder();
-
-    return (
-        encoder.encode(JSON.stringify(command.json ?? null)).byteLength +
-        (command.form ?? []).reduce(
-            (size, [name, value]) =>
-                size +
-                encoder.encode(name).byteLength +
-                (value instanceof Blob ? value.size : encoder.encode(value).byteLength),
-            0
-        )
-    );
-}

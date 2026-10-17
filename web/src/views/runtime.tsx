@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import * as React from 'react';
 import { transform } from 'sucrase';
-import { limitAsync } from 'es-toolkit';
 import * as components from './components';
 import { ReportedError } from '@/lib/errors';
 import { createRoot } from 'react-dom/client';
@@ -21,11 +20,6 @@ import { QueryClient, QueryClientProvider, QueryErrorResetBoundary, useSuspenseQ
 import {
     requestSchema,
     parametersSchema,
-    messageSize,
-    MAX_MESSAGE_SIZE,
-    MAX_PENDING_REQUESTS,
-    MAX_PENDING_ICONS,
-    MAX_PENDING_IMAGES,
     REQUEST_TIMEOUT,
     type RequestCommand,
     type DownloadCommand,
@@ -33,7 +27,6 @@ import {
     downloadSchema,
     type ViewReply,
     type ViewData,
-    responseSchema,
     iconSchema,
     iconDataSchema,
 } from './protocol';
@@ -86,7 +79,6 @@ const lifetime = new AbortController();
 const pending = new Map<
     number,
     {
-        budget: 'icon' | 'operation';
         resolve: (value: ViewData) => void;
         reject: (error: Error) => void;
         timer: ReturnType<typeof setTimeout>;
@@ -105,9 +97,7 @@ async function request(
     const id = sequence++;
     const command = requestSchema.parse({ ...options, type: 'request', id, path, method: options.method ?? 'GET' });
 
-    if (messageSize(command) > MAX_MESSAGE_SIZE) throw new Error('Solution request is too large');
-
-    // Chromium cannot upload disk-backed files received from an opaque-origin frame; copy bounded bytes here.
+    // Chromium cannot upload disk-backed files received from an opaque-origin frame; copy bytes here.
     for (const entry of command.form ?? []) {
         const value = entry[1];
 
@@ -128,15 +118,9 @@ async function request(
     return data;
 }
 
-/** Owns the pending slot, deadline, and channel transfer for each scoped operation. */
+/** Owns the deadline and channel transfer for each scoped operation. */
 async function exchange(command: RequestCommand | DownloadCommand | IconCommand): Promise<ViewData> {
-    // Keep icon admission separate from the existing Solution operation budget.
     lifetime.signal.throwIfAborted();
-    const budget = command.type === 'icon' ? 'icon' : 'operation';
-    const count = [...pending.values()].filter((entry) => entry.budget === budget).length;
-
-    if (count >= (budget === 'icon' ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS))
-        throw new Error('Too many pending requests');
     const { id } = command;
 
     return new Promise<ViewData>((resolve, reject) => {
@@ -145,7 +129,7 @@ async function exchange(command: RequestCommand | DownloadCommand | IconCommand)
             reject(new Error('Solution request timed out'));
         }, REQUEST_TIMEOUT);
 
-        pending.set(id, { budget, resolve, reject, timer });
+        pending.set(id, { resolve, reject, timer });
 
         // A failed transfer must release its slot and timer immediately, not at timeout.
         try {
@@ -158,24 +142,24 @@ async function exchange(command: RequestCommand | DownloadCommand | IconCommand)
     });
 }
 
-// Queue excess glyphs locally rather than overwhelming the host's bounded icon capability.
-const loadIcon = limitAsync(async (name: string) => {
+/** Requests validated icon geometry from the host. */
+async function loadIcon(name: string) {
     const command = iconSchema.parse({ type: 'icon', id: sequence++, name });
     const data = await exchange(command);
 
     // Validate icon geometry at the receiving boundary before giving it to Lucide's renderer.
     return iconDataSchema.parse(data);
-}, MAX_PENDING_ICONS);
+}
 
-// Queue excess previews locally so a gallery waits for Solution request slots instead of failing them.
-const requestImage = limitAsync(async (path: string): Promise<Blob> => {
+/** Supplies binary previews without limiting concurrent image loads. */
+async function requestImage(path: string): Promise<Blob> {
     // Binary previews must remain inert file data rather than arbitrary response objects.
     const data = await request(path, { binary: true });
 
     return z.instanceof(Blob).parse(data);
-}, MAX_PENDING_IMAGES);
+}
 
-/** Asks the host to save a bounded attachment without opening a document inside the sandbox. */
+/** Asks the host to save an attachment without opening a document inside the sandbox. */
 async function download(path: string, filename: string): Promise<void> {
     const command = downloadSchema.parse({ type: 'download', id: sequence++, path, filename });
     await exchange(command);
@@ -230,11 +214,7 @@ function initialize(event: MessageEvent<unknown>): void {
         clearTimeout(waiter.timer);
 
         if (reply.data.ok) {
-            // Validate the response at the receiving boundary before exposing it to a View.
-            const data = responseSchema.safeParse(reply.data.data);
-
-            if (data.success) waiter.resolve(data.data);
-            else waiter.reject(new Error('The Solution returned an invalid response.'));
+            waiter.resolve(reply.data.data);
         } else {
             // Preserve host notification ownership when this failure reaches a form or other workflow.
             const error = reply.data.notified ? new ReportedError(reply.data.error) : new Error(reply.data.error);

@@ -8,17 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ViewRuntime } from '@/views/manifest';
 import { useEffect, useRef, useState } from 'react';
 import { PageError, PageLoading } from '@/components/Utils';
-import {
-    commandSchema,
-    parametersSchema,
-    MAX_PENDING_REQUESTS,
-    MAX_PENDING_ICONS,
-    MAX_MESSAGE_SIZE,
-    MAX_RUNTIME_SIZE,
-    messageSize,
-    iconDataSchema,
-    type ViewData,
-} from '@/views/protocol';
+import { commandSchema, parametersSchema, iconDataSchema, type ViewData } from '@/views/protocol';
 
 const BOOTSTRAP_TIMEOUT_MS = 10_000;
 
@@ -71,7 +61,7 @@ export function JsxView({
 
             const assets = await Promise.all(
                 urls.map(async (url) => {
-                    const body = await host.load(url, { signal }, MAX_RUNTIME_SIZE);
+                    const body = await host.load(url, { signal });
 
                     return body.text();
                 })
@@ -102,7 +92,7 @@ export function JsxView({
         const controller = new AbortController();
         const channel = new MessageChannel();
         const session = crypto.randomUUID();
-        const pending = new Map<number, 'icon' | 'operation'>();
+        const pending = new Set<number>();
         let handshakeTimer: ReturnType<typeof setTimeout> | undefined;
 
         /** Reports safe Solution failures once in the page and returns them to the requesting View. */
@@ -220,24 +210,10 @@ export function JsxView({
 
             if (pending.has(command.id)) return;
 
-            // Bound icons independently so on-demand glyphs cannot starve Solution operations.
-            const budget = command.type === 'icon' ? 'icon' : 'operation';
-            const count = [...pending.values()].filter((entry) => entry === budget).length;
-
-            if (count >= (budget === 'icon' ? MAX_PENDING_ICONS : MAX_PENDING_REQUESTS)) {
-                rejectRequest(command, host.requestError(new ApiError('Too many pending requests', 429)));
-
-                return;
-            }
-
-            pending.set(command.id, budget);
+            pending.add(command.id);
 
             // The frame chooses a catalog icon or Solution-relative operation, never URLs or fetch options.
             try {
-                if (command.type === 'request' && messageSize(command) > MAX_MESSAGE_SIZE) {
-                    throw new ApiError('Solution request is too large', 413);
-                }
-
                 let data: ViewData;
 
                 if (command.type === 'icon') {
