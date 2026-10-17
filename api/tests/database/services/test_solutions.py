@@ -2,11 +2,11 @@ import pytest
 import asyncio
 from uuid import uuid4
 from alembic import command
+from fastapi import HTTPException
 from conftest import create_client
 from sqlmodel import col
 from factories import create_solution, create_organization
 from sqlalchemy import delete, update
-from src.errors import ConflictError, NotFoundError, ForbiddenError
 from src.database import session as database_session
 from alembic.config import Config
 from sqlalchemy.exc import IntegrityError
@@ -37,7 +37,7 @@ async def test_create_rejects_tombstoned_organization(users: tuple[User, User, U
 
     # Act and assert
     async with session_scope() as session:
-        with pytest.raises(ConflictError, match="Organization is not available"):
+        with pytest.raises(HTTPException, match="409: Organization is not available"):
             await solutions.create(
                 session,
                 organization.id,
@@ -48,7 +48,7 @@ async def test_create_rejects_tombstoned_organization(users: tuple[User, User, U
 
     # Assert
     async with session_scope() as session:
-        fetched, total = await solutions.fetch_page(session, Pagination())
+        fetched, total = await solutions.fetch(session, Pagination())
     assert fetched == []
     assert total == 0
 
@@ -58,7 +58,7 @@ async def test_create_rejects_missing_organization() -> None:
 
     # Act and assert
     async with session_scope() as session:
-        with pytest.raises(NotFoundError, match="Organization not found"):
+        with pytest.raises(HTTPException, match="404: Organization not found"):
             await solutions.create(
                 session,
                 uuid4(),
@@ -92,7 +92,7 @@ async def test_create_refreshes_cached_maintainer_access_before_authorizing(user
             await concurrent_session.commit()
 
         # Act and assert the demoted maintainer cannot create a Solution, while the owner still can.
-        with pytest.raises(ForbiddenError, match="Permission required"):
+        with pytest.raises(HTTPException, match="403: Permission required"):
             await solutions.create(
                 session,
                 organization.id,
@@ -125,7 +125,7 @@ async def test_delete_rejects_read_member_without_mutating_solution(users: tuple
 
     # Act and assert
     async with session_scope() as session:
-        with pytest.raises(ForbiddenError, match="Permission required"):
+        with pytest.raises(HTTPException, match="403: Permission required"):
             await solutions.delete(session, solution.id, caller.id)
 
     # Assert the denied deletion left the Solution unchanged in a fresh session.

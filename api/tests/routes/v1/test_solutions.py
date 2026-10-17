@@ -5,11 +5,11 @@ import asyncio
 import zipfile
 from uuid import UUID, uuid4
 from httpx2 import AsyncClient, ASGITransport
+from fastapi import HTTPException
 from conftest import DatabaseKubernetes
 from sqlmodel import col
 from factories import add_member, create_solution, fetch_operations, create_organization, assert_no_new_operations
 from sqlalchemy import func, event, select
-from src.errors import NotFoundError
 from sqlalchemy.orm import Mapper, selectinload
 from src.environments import env
 from src.models.roles import OrganizationRoles
@@ -1340,7 +1340,9 @@ async def test_local_registry_release_roundtrip(
     source = Image("localhost:15000/sample:latest")
     try:
         metadata = await images.required_metadata(source)
-    except NotFoundError:
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
         pytest.skip("Local sample registry image is unavailable")
     organization = await create_organization(users[0])
     envs = {item.name: "integration-value" for item in metadata.environments}

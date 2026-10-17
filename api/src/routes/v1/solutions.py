@@ -5,7 +5,6 @@ from src import auth
 from uuid import UUID
 from fastapi import Query, Depends, Response, APIRouter, HTTPException
 from src.utils import roles, images
-from src.errors import NotFoundError, ForbiddenError
 from src.logger import logger
 from src.kubernetes import solutions as solution_resources
 from src.environments import env
@@ -62,7 +61,7 @@ async def list_solutions(
     """Return all solutions for administrator views."""
 
     # Search the full administrator listing before pagination.
-    items, total = await solutions.fetch_page(session, pagination, search.strip())
+    items, total = await solutions.fetch(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 
@@ -106,7 +105,9 @@ async def check_update(solution_id: UUID, user: auth.CurrentUser, session: auth.
         try:
             current_metadata = await images.required_metadata(current_image, connection)
             current_version = current_metadata.version
-        except (NotFoundError, ForbiddenError):
+        except HTTPException as exc:
+            if exc.status_code not in (403, 404):
+                raise
             current_version = None
 
         # Reject stale reviews or revoked access after the additional registry lookup.

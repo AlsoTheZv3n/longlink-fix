@@ -14,7 +14,7 @@ from src.database.models.operations import Operation
 from src.database.models.organizations import Organization
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[dict[str, object]], int]:
+async def fetch(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[dict[str, object]], int]:
     """Return one newest-first page of platform operations."""
 
     # Resolve names by operation kind while retaining missing and tombstoned targets.

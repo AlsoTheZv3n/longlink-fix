@@ -16,5 +16,5 @@ async def list_operations(
     """Return Platform reconciliation history for administrators."""
 
     # Search the full administrator listing before pagination.
-    items, total = await operations.fetch_page(session, pagination, search.strip())
+    items, total = await operations.fetch(session, pagination, search.strip())
     return {"items": items, "total": total}

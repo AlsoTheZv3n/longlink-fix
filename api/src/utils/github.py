@@ -1,6 +1,6 @@
 import httpx2
+from fastapi import HTTPException
 from pydantic import Field, BaseModel, SecretStr
-from src.errors import InvalidError, ForbiddenError, UnavailableError
 
 
 class Profile(BaseModel):
@@ -16,7 +16,7 @@ async def username(credential: SecretStr) -> str:
     # Reject characters that cannot safely form a bearer authorization header.
     token = credential.get_secret_value()
     if not token.isascii() or not token.isprintable():
-        raise InvalidError("GitHub token has an invalid format")
+        raise HTTPException(status_code=422, detail="GitHub token has an invalid format")
 
     # Send the credential only to GitHub's fixed HTTPS endpoint, never through redirects or environment proxies.
     client = httpx2.AsyncClient(
@@ -35,19 +35,19 @@ async def username(credential: SecretStr) -> str:
                 },
             )
     except httpx2.HTTPError as exc:
-        raise UnavailableError("GitHub account lookup is unavailable. Try again later.") from exc
+        raise HTTPException(status_code=503, detail="GitHub account lookup is unavailable. Try again later.") from exc
 
     # Reject invalid credentials and surface provider failures before persisting a connection.
     if response.status_code == 401:
-        raise InvalidError("GitHub token is invalid or expired")
+        raise HTTPException(status_code=422, detail="GitHub token is invalid or expired")
     if response.status_code == 403:
-        raise ForbiddenError("GitHub denied account access. Check the token permissions or try again later.")
+        raise HTTPException(status_code=403, detail="GitHub denied account access. Check the token permissions or try again later.")
     if not response.is_success:
-        raise UnavailableError("GitHub account lookup is unavailable. Try again later.")
+        raise HTTPException(status_code=503, detail="GitHub account lookup is unavailable. Try again later.")
 
     # Validate the provider's username before it becomes a registry authentication identity.
     try:
         profile = Profile.model_validate(response.json())
     except ValueError as exc:
-        raise UnavailableError("GitHub returned an invalid account profile") from exc
+        raise HTTPException(status_code=503, detail="GitHub returned an invalid account profile") from exc
     return profile.login

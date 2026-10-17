@@ -2,8 +2,7 @@ import asyncio
 from src import auth
 from kr8s import ServerError, NotFoundError
 from uuid import UUID
-from fastapi import Query, Depends, APIRouter
-from src.errors import InvalidError, ConflictError, UnavailableError
+from fastapi import Query, Depends, APIRouter, HTTPException
 from src.logger import logger
 from sqlalchemy.exc import IntegrityError
 from src.kubernetes import tls, gateway, storageclasses
@@ -34,11 +33,11 @@ async def create_compute_registry(payload: ComputeRegistryCreate, session: auth.
                     gateway_certificate = await tls.certificate(cluster, "knative-serving", "longlink-gateway-tls")
                     storage_certificate = await tls.certificate(cluster, "rustfs", "longlink-storage-tls")
                 except ValueError as exc:
-                    raise InvalidError(str(exc)) from exc
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
                 except (NotFoundError, ServerError, TimeoutError, OSError) as exc:
                     logger.warning("Compute infrastructure unavailable: %s", exc)
-                    raise UnavailableError(
-                        "Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
+                    raise HTTPException(
+                        status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
                     ) from exc
                 candidate = ComputeRegistry(
                     **payload.model_dump(),
@@ -62,12 +61,14 @@ async def create_compute_registry(payload: ComputeRegistryCreate, session: auth.
                 except Exception as exc:
                     # Any verification failure means unreachable infrastructure.
                     logger.warning("Compute infrastructure unavailable: %s", exc)
-                    raise UnavailableError(
-                        "Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
+                    raise HTTPException(
+                        status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
                     ) from exc
     except TimeoutError as exc:
         logger.warning("Compute infrastructure unavailable: registration timed out")
-        raise UnavailableError("Compute infrastructure is unavailable; verify endpoints, credentials, and certificates") from exc
+        raise HTTPException(
+            status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
+        ) from exc
 
     # Persist the verified connection as immediately assignable.
     session.add(candidate)
@@ -76,7 +77,7 @@ async def create_compute_registry(payload: ComputeRegistryCreate, session: auth.
     try:
         await session.flush()
     except IntegrityError as exc:
-        raise ConflictError("Compute registry already exists") from exc
+        raise HTTPException(status_code=409, detail="Compute registry already exists") from exc
     await session.commit()
     return candidate
 
@@ -90,7 +91,7 @@ async def list_compute_registries(
     """Return all registered compute backends."""
 
     # Search the full administrator listing before pagination.
-    items, total = await compute.fetch_page(session, pagination, search.strip())
+    items, total = await compute.fetch(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 

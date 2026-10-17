@@ -29,7 +29,7 @@ async def active(session: AsyncSession, user_id: UUID) -> User | None:
     )
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[User], int]:
+async def fetch(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[User], int]:
     """Return one newest-first page of Platform users for administrators."""
 
     # Match literal text without changing visibility of tombstoned users.

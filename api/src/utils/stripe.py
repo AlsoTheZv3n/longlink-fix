@@ -1,7 +1,7 @@
 import stripe
 import asyncio
 import contextlib
-from src.errors import UnavailableError
+from fastapi import HTTPException
 from src.logger import logger
 from collections.abc import AsyncGenerator
 from src.environments import env
@@ -13,7 +13,7 @@ async def client() -> AsyncGenerator[stripe.StripeClient]:
 
     # Unconfigured deployments cannot create customers or issue invoices.
     if not env.stripe_enabled or env.STRIPE_SECRET_KEY is None:
-        raise UnavailableError("Stripe is not configured on this deployment")
+        raise HTTPException(status_code=503, detail="Stripe is not configured on this deployment")
     transport = stripe.HTTPXClient(
         timeout=10,
     )
@@ -29,6 +29,6 @@ async def client() -> AsyncGenerator[stripe.StripeClient]:
             yield connection
     except (stripe.StripeError, TimeoutError) as exc:
         logger.warning("Stripe request failed: %s", type(exc).__name__)
-        raise UnavailableError("Payment provider unavailable. Please try again.") from None
+        raise HTTPException(status_code=503, detail="Payment provider unavailable. Please try again.") from None
     finally:
         await transport.close_async()

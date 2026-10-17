@@ -1,8 +1,8 @@
 import pytest
 from uuid import UUID
+from fastapi import HTTPException
 from factories import create_organization
 from src.utils import images
-from src.errors import InvalidError, ForbiddenError
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
 from src.database.session import session_scope
@@ -37,7 +37,7 @@ async def test_private_image_fallback_never_uses_foreign_credentials(
         assert requested == image
         attempts.append(connection.credential if connection is not None else None)
         if connection is None or connection.id == denied.id:
-            raise ForbiddenError("Registry denied access")
+            raise HTTPException(status_code=403, detail="Registry denied access")
         assert connection.organization_id == organization.id
         assert connection.id == accepted.id
         return metadata
@@ -66,7 +66,7 @@ async def test_private_image_fallback_stops_on_invalid_metadata(
     async with session_scope() as session:
         session.add_all([first, later])
         await session.commit()
-    failure = InvalidError("Image is missing required LongLink metadata")
+    failure = HTTPException(status_code=422, detail="Image is missing required LongLink metadata")
     attempts: list[str | None] = []
 
     async def required_metadata(image: Image, connection: RegistryConnection | None = None) -> LongLinkMetadata:
@@ -74,14 +74,14 @@ async def test_private_image_fallback_stops_on_invalid_metadata(
 
         attempts.append(connection.credential if connection is not None else None)
         if connection is None and failure_after_authentication:
-            raise ForbiddenError("Registry denied access")
+            raise HTTPException(status_code=403, detail="Registry denied access")
         raise failure
 
     monkeypatch.setattr(images, "required_metadata", required_metadata)
 
     # Act
     async with session_scope() as session:
-        with pytest.raises(InvalidError, match="missing required LongLink metadata") as raised:
+        with pytest.raises(HTTPException, match="422: Image is missing required LongLink metadata") as raised:
             await registries.inspect(session, organization.id, Image("ghcr.io/acme/private:latest"))
 
     # Assert

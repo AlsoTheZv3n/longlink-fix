@@ -1,12 +1,7 @@
 from . import auth, image, proxy, users, health, computes, payments, solutions, operations, registries, organizations
 from fastapi import APIRouter
-from src.errors import ErrorResponse
 
-# Keep the OpenAPI description independent of Python's HTTP status phrases.
-router = APIRouter(
-    prefix="/api/v1",
-    responses={422: {"model": ErrorResponse, "description": "Unprocessable Entity"}, "default": {"model": ErrorResponse}},
-)
+router = APIRouter(prefix="/api/v1")
 
 # Compose the internal Platform routes under one prefix.
 router.include_router(auth.router)

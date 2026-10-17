@@ -1,7 +1,7 @@
 import pytest
 from uuid import uuid4
+from fastapi import HTTPException
 from factories import create_compute, fetch_operations, create_organization
-from src.errors import ConflictError, ForbiddenError
 from src.models.roles import OrganizationRoles
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
@@ -29,7 +29,7 @@ async def test_fetch_ignores_deleted_organizations(users: tuple[User, User, User
         await session.commit()
 
         # Act
-        fetched, total = await organizations.fetch_page(session, Pagination())
+        fetched, total = await organizations.fetch(session, Pagination())
 
     # Assert
     assert [organization.id for organization in fetched] == [active_organization.id]
@@ -48,7 +48,7 @@ async def test_update_member_role_rejects_owner_changes_from_non_owners(users: t
 
     # Act and assert
     async with session_scope() as session:
-        with pytest.raises(ForbiddenError, match="Owner management permissions required"):
+        with pytest.raises(HTTPException, match="403: Owner management permissions required"):
             await organizations.update_member_role(
                 session,
                 organization.id,
@@ -98,16 +98,16 @@ async def test_membership_mutation_services_revalidate_demoted_administrator_acc
             await concurrent_session.commit()
 
         # Act and assert every service refreshes the persisted membership under its Organization lock.
-        with pytest.raises(ForbiddenError, match="Permission required"):
+        with pytest.raises(HTTPException, match="403: Permission required"):
             await organizations.create_invitation(
                 create_invitation_session,
                 organization.id,
                 OrganizationInvitationCreate(email="blocked-invited@example.com", role=OrganizationRoles.read),
                 administrator.id,
             )
-        with pytest.raises(ForbiddenError, match="Permission required"):
+        with pytest.raises(HTTPException, match="403: Permission required"):
             await organizations.revoke_invitation(revoke_invitation_session, organization.id, invitation_id, administrator.id)
-        with pytest.raises(ForbiddenError, match="Permission required"):
+        with pytest.raises(HTTPException, match="403: Permission required"):
             await organizations.update_member_role(
                 role_session,
                 organization.id,
@@ -144,7 +144,7 @@ async def test_soft_delete_revalidates_demoted_owner_access(users: tuple[User, U
 
     # Act and assert the demoted owner cannot tombstone the Organization.
     async with session_scope() as session:
-        with pytest.raises(ForbiddenError, match="Permission required"):
+        with pytest.raises(HTTPException, match="403: Permission required"):
             await organizations.soft_delete(session, organization.id, owner)
 
     async with session_scope() as session:
@@ -180,13 +180,13 @@ async def test_create_rejects_duplicate_organization_name(users: tuple[User, Use
 
     # Act and assert
     async with session_scope() as session:
-        with pytest.raises(ConflictError, match="Organization already exists"):
+        with pytest.raises(HTTPException, match="409: Organization already exists"):
             await organizations.create(session, "acme", users[0])
         await session.commit()
 
     # The savepoint retains the original Organization and owner without queueing duplicate work.
     async with session_scope() as session:
-        fetched, total = await organizations.fetch_page(session, Pagination())
+        fetched, total = await organizations.fetch(session, Pagination())
         memberships = await organizations.members(session, organization.id)
     assert [item.id for item in fetched] == [organization.id]
     assert total == 1

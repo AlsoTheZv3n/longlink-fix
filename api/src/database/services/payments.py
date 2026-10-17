@@ -1,8 +1,8 @@
 import stripe
 from uuid import UUID, uuid4
+from fastapi import HTTPException
 from datetime import UTC, datetime
 from src.utils import dates
-from src.errors import ConflictError, ForbiddenError, UnavailableError
 from src.models import pricing
 from src.environments import env
 from src.models.roles import OrganizationRoles
@@ -29,7 +29,7 @@ async def save_card(
         return
     intent = await connection.v1.setup_intents.retrieve_async(hosted.setup_intent)
     if intent.status != "succeeded" or intent.customer != organization.stripe_customer_id or not isinstance(intent.payment_method, str):
-        raise ConflictError("Card registration is not complete")
+        raise HTTPException(status_code=409, detail="Card registration is not complete")
 
     # Stripe retains payment details; the local reference permits usage beyond the free allowance.
     await connection.v1.customers.update_async(
@@ -58,7 +58,7 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
 
     # Persist the Organization's customer before creating its hosted card-registration attempt.
     if organization.deleted_at is not None:
-        raise ForbiddenError("Organization unavailable")
+        raise HTTPException(status_code=403, detail="Organization unavailable")
     if organization.stripe_customer_id is None:
         customer = await connection.v1.customers.create_async(
             {"name": organization.name, "metadata": {"organization_id": str(organization.id)}},
@@ -69,14 +69,14 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
         organization = await organizations.lock(session, organization.id)
         await organizations.locked_membership(session, user_id, organization.id, OrganizationRoles.owner)
         if organization.deleted_at is not None:
-            raise ForbiddenError("Organization unavailable")
+            raise HTTPException(status_code=403, detail="Organization unavailable")
 
     # Reuse open attempts and recover completed setup when a webhook was delayed.
     if organization.stripe_checkout_id is not None:
         existing = await connection.v1.checkout.sessions.retrieve_async(organization.stripe_checkout_id)
         if existing.status == "open":
             if existing.url is None:
-                raise UnavailableError("Checkout URL unavailable")
+                raise HTTPException(status_code=503, detail="Checkout URL unavailable")
             return existing.url
         await save_card(session, organization, existing, connection)
         organization.stripe_checkout_id = None
@@ -89,12 +89,12 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
     organization = await organizations.lock(session, organization.id)
     await organizations.locked_membership(session, user_id, organization.id, OrganizationRoles.owner)
     if organization.deleted_at is not None:
-        raise ForbiddenError("Organization unavailable")
+        raise HTTPException(status_code=403, detail="Organization unavailable")
     if organization.stripe_checkout_id is not None:
         existing = await connection.v1.checkout.sessions.retrieve_async(organization.stripe_checkout_id)
         if existing.status == "open" and existing.url is not None:
             return existing.url
-        raise ConflictError("Card registration already started. Refresh usage.")
+        raise HTTPException(status_code=409, detail="Card registration already started. Refresh usage.")
 
     # Hosted consent covers the published month-end usage charges, not a subscription or immediate payment.
     return_url = f"{env.PUBLIC_URL}/orgs/{organization.slug}/settings#payment-methods"
@@ -124,5 +124,5 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
         await save_card(session, organization, hosted, connection)
         return return_url
     if hosted.url is None:
-        raise UnavailableError("Checkout URL unavailable")
+        raise HTTPException(status_code=503, detail="Checkout URL unavailable")
     return hosted.url

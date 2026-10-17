@@ -1,17 +1,17 @@
 import httpx2
 import pytest
+from fastapi import HTTPException
 from pydantic import SecretStr
 from src.utils import github
-from src.errors import InvalidError, ForbiddenError, UnavailableError
 
 pytestmark = pytest.mark.no_db
 
 PROVIDER_FAILURES = [
-    (401, {}, InvalidError, "invalid or expired"),
-    (403, {}, ForbiddenError, "denied account access"),
-    (302, {}, UnavailableError, "unavailable"),
-    (500, {}, UnavailableError, "unavailable"),
-    (200, {"login": "invalid/name"}, UnavailableError, "invalid account profile"),
+    (401, {}, 422, "invalid or expired"),
+    (403, {}, 403, "denied account access"),
+    (302, {}, 503, "unavailable"),
+    (500, {}, 503, "unavailable"),
+    (200, {"login": "invalid/name"}, 503, "invalid account profile"),
 ]
 
 
@@ -39,9 +39,9 @@ async def test_github_lookup_uses_fixed_authenticated_endpoint(monkeypatch: pyte
     assert requests[0].headers["authorization"] == "Bearer private-token"
 
 
-@pytest.mark.parametrize(("status", "payload", "error", "message"), PROVIDER_FAILURES)
+@pytest.mark.parametrize(("status", "payload", "error_status", "message"), PROVIDER_FAILURES)
 async def test_github_provider_failures_are_classified(
-    monkeypatch: pytest.MonkeyPatch, status: int, payload: dict, error: type[Exception], message: str
+    monkeypatch: pytest.MonkeyPatch, status: int, payload: dict, error_status: int, message: str
 ) -> None:
     """Expose stable domain failures instead of trusting unusable provider responses."""
 
@@ -54,5 +54,6 @@ async def test_github_provider_failures_are_classified(
     monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", send)
 
     # Act / Assert
-    with pytest.raises(error, match=message):
+    with pytest.raises(HTTPException, match=message) as raised:
         await github.username(SecretStr("private-token"))
+    assert raised.value.status_code == error_status

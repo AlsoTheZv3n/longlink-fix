@@ -3,7 +3,7 @@ from httpx2 import AsyncClient, ASGITransport
 from factories import create_organization
 from collections.abc import Mapping, Sequence
 from src.database.session import session_scope
-from src.database.services import organizations as organization_service
+from src.database.services import organizations
 from src.models.organizations import DatabaseState
 from src.database.models.users import User
 from src.database.models.organizations import Organization
@@ -61,7 +61,7 @@ async def test_get_my_organizations_excludes_soft_deleted_organizations(
     active = await create_organization(user, name="active")
     deleted = await create_organization(user, name="deleted")
     async with session_scope() as session:
-        await organization_service.soft_delete(session, deleted.id, user)
+        await organizations.soft_delete(session, deleted.id, user)
         await session.commit()
     client = clients[0]
 

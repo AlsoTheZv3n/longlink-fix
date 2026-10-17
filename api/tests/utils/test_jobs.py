@@ -3,11 +3,11 @@ import asyncio
 import pytest_asyncio
 from uuid import UUID
 from types import SimpleNamespace
+from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from factories import claim_operation, queue_operation, fetch_operations
 from functools import partial
 from src.utils import jobs as operation_worker
-from src.errors import ForbiddenError
 from src.models.operations import OperationKind, OperationStatus
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.operations import Operation
@@ -125,14 +125,14 @@ async def operation() -> Operation:
 
 
 HANDLER_FAILURES = [
-    pytest.param(ForbiddenError("workload deployment failed"), "workload deployment failed", id="service-error"),
+    pytest.param(HTTPException(status_code=403, detail="workload deployment failed"), "workload deployment failed", id="http-error"),
     pytest.param(RuntimeError("provider unavailable"), "RuntimeError: provider unavailable", id="unexpected-error"),
 ]
 
 
 @pytest.mark.parametrize(("failure", "expected_reason"), HANDLER_FAILURES)
 async def test_execute_persists_handler_failure(
-    monkeypatch: pytest.MonkeyPatch, operation: Operation, failure: ForbiddenError | RuntimeError, expected_reason: str
+    monkeypatch: pytest.MonkeyPatch, operation: Operation, failure: HTTPException | RuntimeError, expected_reason: str
 ) -> None:
     """Persist a handler failure as the one claimed Operation's terminal outcome."""
 
