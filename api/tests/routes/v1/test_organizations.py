@@ -1,10 +1,11 @@
 import pytest
+import aiosmtplib
 from uuid import UUID, uuid4
 from httpx2 import AsyncClient
 from datetime import UTC, datetime
 from sqlmodel import col, select
 from factories import create_compute, create_solution, fetch_operations, create_organization, assert_no_new_operations
-from src.utils import s3
+from src.utils import s3, mail
 from sqlalchemy import func
 from urllib.parse import urlencode
 from src.models.roles import OrganizationRoles
@@ -697,6 +698,40 @@ async def test_organization_member_creates_organization_invitation(
     assert captured_mail[0][0] == invitee.email
     assert f"http://localhost:5173/auth/register?{urlencode({'email': invitee.email})}" in captured_mail[0][2]
     assert captured_mail[0][3] is not None
+
+
+async def test_organization_invitation_reports_email_delivery_failure_and_keeps_invitation(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
+    users: tuple[User, User, User],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tell the inviter when SMTP rejects delivery while keeping the saved invitation resendable."""
+
+    # Arrange
+    owner, _, invitee = users
+    organization = await create_organization(owner)
+
+    async def refuse(*_args: object) -> None:
+        """Simulate an unreachable SMTP server."""
+
+        raise aiosmtplib.SMTPConnectError("Connection refused")
+
+    monkeypatch.setattr(mail, "send_mail", refuse)
+
+    # Act
+    response = await clients[0].post(
+        f"/api/v1/organizations/{organization.id}/invitations",
+        json={"email": invitee.email, "role": "write"},
+    )
+
+    # Assert
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "The invitation was saved, but its email could not be sent. Invite the same address again to resend it."
+    }
+    async with session_scope() as session:
+        invitations_list = await organizations.invitations(session, organization.id)
+    assert [(item.email, item.role) for item in invitations_list] == [(invitee.email, OrganizationRoles.write)]
 
 
 @pytest.mark.parametrize("payload", [{"email": "not-an-email", "role": "write"}, {"email": "invitee@example.com", "role": "unknown"}])
