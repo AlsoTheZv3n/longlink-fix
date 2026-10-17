@@ -55,15 +55,6 @@ export const zAuthorizationRedirect = z.object({
 });
 
 /**
- * BillingRedirect
- *
- * Return a hosted Stripe session URL.
- */
-export const zBillingRedirect = z.object({
-    url: z.url().min(1).max(2083)
-});
-
-/**
  * Body_request_password_reset_api_v1_auth_forgot_password_post
  */
 export const zBodyRequestPasswordResetApiV1AuthForgotPasswordPost = z.object({
@@ -83,15 +74,6 @@ export const zBodyRequestRegistrationApiV1AuthRegisterPost = z.object({
 export const zBodyRevokeApiV1McpRevokePost = z.object({
     token: z.string().max(128),
     client_id: z.uuid()
-});
-
-/**
- * CheckoutRequest
- *
- * Choose a supported paid plan without accepting Stripe identifiers or seat quantities.
- */
-export const zCheckoutRequest = z.object({
-    plan: z.literal('team')
 });
 
 /**
@@ -332,6 +314,22 @@ export const zOrganizationStorageUsageResponse = z.object({
 });
 
 /**
+ * OrganizationUsage
+ *
+ * Describe current membership usage and its month-end pricing.
+ */
+export const zOrganizationUsage = z.object({
+    free_users: z.int().optional().default(5),
+    free_storage_bytes: z.int().optional().default(1073741824),
+    free_database_bytes: z.int().optional().default(104857600),
+    user_monthly_price: z.int().optional().default(500),
+    storage_gib_monthly_price: z.int().optional().default(10),
+    database_gib_monthly_price: z.int().optional().default(100),
+    users: z.int().gte(0),
+    stripe_enabled: z.boolean()
+});
+
+/**
  * Page[AdminUserSummary]
  */
 export const zPageAdminUserSummary = z.object({
@@ -375,27 +373,42 @@ export const zPasswordResetComplete = z.object({
 });
 
 /**
- * Plan
+ * PaymentCard
  *
- * Supported organization plans.
+ * Expose only the saved card details needed to identify it.
  */
-export const zPlan = z.enum(['free', 'team']);
+export const zPaymentCard = z.object({
+    id: z.string(),
+    brand: z.string(),
+    last4: z.string().regex(/^[0-9]{4}$/),
+    exp_year: z.int(),
+    exp_month: z.int().gte(1).lte(12),
+    is_default: z.boolean()
+});
 
 /**
- * BillingResponse
+ * PaymentInvoice
  *
- * Expose billing state without customer identifiers or payment details.
+ * Expose issued Stripe invoices without customer or payment-method identifiers.
  */
-export const zBillingResponse = z.object({
-    plan: zPlan,
-    seats: z.int().gte(0),
-    status: z.string(),
-    enabled: z.boolean(),
-    subscribed: z.boolean(),
-    payment_required: z.boolean(),
-    cancel_at_period_end: z.boolean(),
-    period_end: z.iso.datetime().nullable(),
-    seat_limit: z.int().nullable()
+export const zPaymentInvoice = z.object({
+    id: z.string(),
+    total: z.int(),
+    number: z.string().nullable(),
+    status: z.string().nullable(),
+    currency: z.string().regex(/^[a-z]{3}$/),
+    created_at: z.iso.datetime(),
+    invoice_pdf: z.url().min(1).max(2083).nullable(),
+    hosted_invoice_url: z.url().min(1).max(2083).nullable()
+});
+
+/**
+ * PaymentRedirect
+ *
+ * Return a hosted Stripe card-registration URL.
+ */
+export const zPaymentRedirect = z.object({
+    url: z.url().min(1).max(2083)
 });
 
 /**
@@ -622,6 +635,20 @@ export const zTokenSummary = z.object({
     client_id: z.uuid(),
     expires_at: z.iso.datetime(),
     solution_id: z.uuid()
+});
+
+/**
+ * UsageRates
+ *
+ * Describe included usage and month-end prices in CHF centimes.
+ */
+export const zUsageRates = z.object({
+    free_users: z.int().optional().default(5),
+    free_storage_bytes: z.int().optional().default(1073741824),
+    free_database_bytes: z.int().optional().default(104857600),
+    user_monthly_price: z.int().optional().default(500),
+    storage_gib_monthly_price: z.int().optional().default(10),
+    database_gib_monthly_price: z.int().optional().default(100)
 });
 
 /**

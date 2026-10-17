@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import Field, BaseModel, ConfigDict
 from src.models.roles import OrganizationRoles
 from src.models.users import UserIdentity
+from src.models.pricing import UsageRates
 from src.models.resources import OrganizationIdentity
 from longlink.shared.models import Email
 
@@ -20,6 +21,14 @@ class OrganizationCreate(BaseModel):
 
     # Metadata
     name: str = Field(min_length=1, max_length=128)
+
+
+class OrganizationUsage(UsageRates):
+    """Describe current membership usage and its month-end pricing."""
+
+    # Usage and payments
+    users: int = Field(ge=0)
+    stripe_enabled: bool
 
 
 class OrganizationQuotasResponse(BaseModel):

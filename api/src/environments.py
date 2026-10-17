@@ -10,12 +10,9 @@ class Env(BaseSettings):
     # Runtime scheduling
     OPERATION_TIMEOUT_SECONDS: int = Field(default=180, ge=60, le=1740)
 
-    # Optional organization billing
-    BILLING_ENABLED: bool = False
+    # Optional Organization payments
     STRIPE_SECRET_KEY: str | None = Field(default=None, min_length=1)
     STRIPE_WEBHOOK_SECRET: str | None = Field(default=None, min_length=1)
-    STRIPE_TEAM_PRICE_ID: str | None = Field(default=None, pattern=r"^price_[A-Za-z0-9]+$")
-    STRIPE_PORTAL_CONFIGURATION_ID: str | None = Field(default=None, pattern=r"^bpc_[A-Za-z0-9]+$")
 
     # Authentication
     PUBLIC_URL: str = Field(default="http://localhost:5173", pattern=r"^https?://")
@@ -51,6 +48,12 @@ class Env(BaseSettings):
         extra="ignore",
     )
 
+    @property
+    def stripe_enabled(self) -> bool:
+        """Enable Stripe only when both credentials are configured."""
+
+        return bool(self.STRIPE_SECRET_KEY and self.STRIPE_WEBHOOK_SECRET)
+
     @model_validator(mode="after")
     def validate_authentication(self) -> Self:
         """Validate authentication email-delivery configuration."""
@@ -64,16 +67,9 @@ class Env(BaseSettings):
         self.PUBLIC_URL = str(public).rstrip("/")
 
         # Paid deployments require a complete Stripe configuration; unconfigured installations remain free.
-        if self.BILLING_ENABLED:
-            if not all(
-                (
-                    self.STRIPE_SECRET_KEY,
-                    self.STRIPE_WEBHOOK_SECRET,
-                    self.STRIPE_TEAM_PRICE_ID,
-                    self.STRIPE_PORTAL_CONFIGURATION_ID,
-                )
-            ):
-                raise ValueError("Billing requires Stripe keys, a Team price, and a Portal configuration")
+        if self.STRIPE_SECRET_KEY or self.STRIPE_WEBHOOK_SECRET:
+            if not self.stripe_enabled:
+                raise ValueError("Stripe requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET")
             if not self.STRIPE_SECRET_KEY.startswith(("sk_test_", "sk_live_", "rk_test_", "rk_live_")):
                 raise ValueError("STRIPE_SECRET_KEY must be a Stripe secret or restricted key")
             if not self.STRIPE_WEBHOOK_SECRET.startswith("whsec_"):

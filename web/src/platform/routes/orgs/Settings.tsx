@@ -1,9 +1,11 @@
 import { z } from 'zod';
-import Billing from './Billing';
+import Usage from './Usage';
 import { api } from '@/lib/api';
 import { useState } from 'react';
+import Invoices from './Invoices';
 import Registries from './Registries';
 import { useApi } from '@/lib/hooks/use-api';
+import PaymentMethods from './PaymentMethods';
 import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
@@ -25,12 +27,17 @@ import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 import { SideNav, SideNavSection } from '@astryxdesign/core/SideNav';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
-import { ArrowUp, Boxes, Building2, CheckCheck, EyeOff, Users, Wrench } from 'lucide-react';
+import { ArrowUp, Boxes, Building2, CheckCheck, CreditCard, EyeOff, Users, Wrench } from 'lucide-react';
 
 const organizationSections = [
     { id: 'general', label: 'General' },
-    { id: 'billing', label: 'Billing' },
     { id: 'private-registries', label: 'Private registries' },
+];
+
+const billingSections = [
+    { id: 'usage', label: 'Usage' },
+    { id: 'payment-methods', label: 'Payment Methods' },
+    { id: 'invoices', label: 'Invoices' },
 ];
 
 const peopleSections = [
@@ -47,8 +54,8 @@ export default function OrganizationSettings() {
 
     // Unknown fragments select General; inactive sections never mount their queries or drafts.
     const section =
-        [...organizationSections, ...peopleSections, { id: 'solutions', label: 'Solutions' }].find(
-            (item) => `#${item.id}` === (location.hash === '#usage' ? '#billing' : location.hash)
+        [...organizationSections, ...billingSections, ...peopleSections, { id: 'solutions', label: 'Solutions' }].find(
+            (item) => `#${item.id}` === location.hash
         )?.id ?? 'general';
 
     // Share the layout-resolved identity and permissions without loading inactive sections.
@@ -94,6 +101,20 @@ export default function OrganizationSettings() {
                                     ))}
                                 </SideNavItem>
                                 <SideNavItem
+                                    collapsible={{ defaultIsCollapsed: false }}
+                                    icon={<CreditCard className="size-4" aria-hidden="true" />}
+                                    label="Billing"
+                                >
+                                    {billingSections.map((item) => (
+                                        <SideNavItem
+                                            href={`${location.pathname}${location.search}#${item.id}`}
+                                            isSelected={section === item.id}
+                                            key={item.id}
+                                            label={item.label}
+                                        />
+                                    ))}
+                                </SideNavItem>
+                                <SideNavItem
                                     collapsible={{ defaultIsCollapsed: true }}
                                     icon={<Users className="size-4" aria-hidden="true" />}
                                     label="People"
@@ -119,9 +140,17 @@ export default function OrganizationSettings() {
                 }
             >
                 <Stack gap={3}>
-                    {section === 'billing' ? (
-                        <ApiBoundary key="billing">
-                            <Billing base={base} canManage={membership.role === 'owner'} />
+                    {section === 'usage' ? (
+                        <ApiBoundary key="usage">
+                            <Usage base={base} />
+                        </ApiBoundary>
+                    ) : section === 'payment-methods' ? (
+                        <ApiBoundary key="payment-methods">
+                            <PaymentMethods base={base} canManage={membership.role === 'owner'} />
+                        </ApiBoundary>
+                    ) : section === 'invoices' ? (
+                        <ApiBoundary key="invoices">
+                            <Invoices base={base} canManage={membership.role === 'owner'} />
                         </ApiBoundary>
                     ) : section === 'private-registries' ? (
                         <ApiBoundary key="registries">
@@ -318,7 +347,7 @@ function MembersSection({ base, canAdminister }: { base: string; canAdminister: 
                     <Stack gap={3}>
                         <Text color="secondary">
                             {member.action.kind === 'remove'
-                                ? `Remove ${member.name} from this organization? Access is revoked immediately and the next renewal uses the reduced seat count.`
+                                ? `Remove ${member.name} from this organization? Access is revoked immediately.`
                                 : `Change ${member.name} to ${member.action.role}?`}
                         </Text>
                         <Stack direction="horizontal" gap={2} justify="end">

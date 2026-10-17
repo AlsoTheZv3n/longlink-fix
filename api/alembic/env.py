@@ -3,9 +3,9 @@ import logging.config
 from alembic import context
 from src.utils import urls
 from sqlalchemy import Enum, pool
+from src.database import models
 from src.environments import env
 from sqlalchemy.engine import Connection
-from src.database.models import registry
 from sqlalchemy.ext.asyncio import create_async_engine
 from alembic.runtime.environment import NameFilterType, NameFilterParentNames
 
@@ -18,7 +18,7 @@ if config.config_file_name is not None:
     logging.config.fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Expose the complete Platform model registry to migration autogeneration.
-target_metadata = registry.metadata
+target_metadata = models.metadata
 
 # Track type-bound enum checks, which Alembic excludes from model-side constraint comparison.
 enum_check_constraints = {

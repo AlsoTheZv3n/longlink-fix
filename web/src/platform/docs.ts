@@ -2,6 +2,7 @@ import componentCatalog from '../lib/catalog';
 import { documentationCategories } from '../lib/documentation';
 import {
     Database,
+    CreditCard,
     FileCode2,
     FlaskConical,
     Globe,
@@ -58,7 +59,10 @@ export const documentationSections: Array<{ title: string; pages: Array<Document
     },
     {
         title: 'Platform',
-        pages: [{ path: '/docs/api', label: 'Overview', icon: ShieldCheck }],
+        pages: [
+            { path: '/docs/api', label: 'Overview', icon: ShieldCheck },
+            { path: '/docs/api/billing', label: 'Billing', icon: CreditCard },
+        ],
     },
     {
         title: 'Alternatives',

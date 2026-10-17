@@ -6,8 +6,10 @@ from uuid import UUID
 from fastapi import Query, Depends, APIRouter, HTTPException, BackgroundTasks
 from src.utils import s3, mail, roles
 from src.logger import logger
+from src.models import pricing
 from sqlalchemy.exc import SQLAlchemyError
 from src.kubernetes import databases
+from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.models.users import UserOrganizationMembership
 from botocore.exceptions import ClientError, BotoCoreError
@@ -20,6 +22,7 @@ from src.models.pagination import Page, Pagination
 from src.kubernetes.storage import Storage
 from src.models.organizations import (
     DatabaseState,
+    OrganizationUsage,
     OrganizationCreate,
     OrganizationDetails,
     OrganizationMemberUpdate,
@@ -90,6 +93,16 @@ async def get_organization_solutions(
     """Return solutions visible to the current organization member."""
 
     return await organizations.solutions(session, membership.organization_id)
+
+
+@router.get("/organizations/{organization_id}/usage", response_model=OrganizationUsage)
+async def get_organization_usage(organization_id: UUID, user: auth.CurrentUser, session: auth.Session):
+    """Show current accepted users and the same monthly rates used for invoicing."""
+
+    # Membership is required even though the rates themselves are public.
+    await organizations.require_membership(session, user.id, organization_id)
+    users = await organizations.member_count(session, organization_id)
+    return {"users": users, "stripe_enabled": env.stripe_enabled, **pricing.RATES.model_dump()}
 
 
 @router.get("/organizations/{organization_id}/quotas", response_model=OrganizationQuotasResponse)
@@ -246,7 +259,7 @@ async def update_organization_member(
 
 @router.delete("/organizations/{organization_id}/members/{member_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationAdmin.
 async def remove_organization_member(member_id: UUID, membership: auth.OrganizationAdmin, session: auth.Session):
-    """Revoke one member's organization access and synchronize the billable seat count."""
+    """Revoke access so the member no longer counts toward month-end usage."""
 
     # The service revalidates permissions and protects the last owner under the organization lock.
     await organizations.remove_member(session, membership.organization_id, member_id, membership.user_id)

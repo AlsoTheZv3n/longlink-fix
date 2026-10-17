@@ -1,7 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
 from sqlalchemy import delete, select
-from src.database.services import billing, organizations
+from src.models.pricing import FREE_USERS
+from src.database.services import organizations
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
 from src.database.models.association import UserOrganization
@@ -40,8 +41,8 @@ async def accept(session: AsyncSession, user: User) -> None:
             continue
         membership = await session.get(UserOrganization, (user.id, organization.id))
         if membership is None:
-            if not await billing.admit_member(session, organization.id):
-                # Retain blocked invitations and allow login; owners can upgrade or remove a member.
+            if organization.stripe_payment_method_id is None and await organizations.member_count(session, organization.id) >= FREE_USERS:
+                # Retain blocked invitations until an owner registers a card or removes a member.
                 continue
             membership = UserOrganization(
                 user_id=user.id,
@@ -49,7 +50,6 @@ async def accept(session: AsyncSession, user: User) -> None:
                 role=invitation.role,
             )
             session.add(membership)
-            await billing.update_seats(session, organization.id)
         consumed_ids.append(invitation.id)
 
     # Delete only consumed and expired grants, never grants blocked by the current plan.

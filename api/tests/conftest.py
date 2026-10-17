@@ -41,12 +41,11 @@ os.environ.pop("GITHUB_OAUTH_CLIENT_SECRET", None)
 os.environ.pop("GOOGLE_OAUTH_CLIENT_SECRET", None)
 
 from src.utils import mail, token
-from src.database import session
+from src.database import models, session
 from src.utils.s3 import Credentials
 from src.kubernetes import storage
 from src.kubernetes import databases as database_resources
 from src.environments import env
-from src.database.models import registry
 from src.kubernetes.client import Kubernetes
 from src.database.models.users import User
 
@@ -287,7 +286,7 @@ def database_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
     path = tmp_path_factory.mktemp("database") / "empty.db"
     engine = create_engine(f"sqlite:///{path}")
     try:
-        registry.metadata.create_all(engine)
+        models.metadata.create_all(engine)
     finally:
         engine.dispose()
     return path

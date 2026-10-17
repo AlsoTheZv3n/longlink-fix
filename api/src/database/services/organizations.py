@@ -10,13 +10,13 @@ from sqlalchemy.orm import load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
 from src.models.roles import OrganizationRoles
 from src.database.types import attr
-from src.database.services import billing, operations
+from src.models.pricing import FREE_USERS
+from src.database.services import operations
 from src.models.operations import OperationKind
 from src.models.pagination import Pagination
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.organizations import OrganizationInvitationCreate
 from src.database.models.users import User
-from src.database.models.billing import BillingAccount
 from src.database.models.computes import ComputeRegistry
 from src.database.models.solutions import Revision, Solution
 from src.database.models.operations import Operation
@@ -355,6 +355,20 @@ async def members(session: AsyncSession, organization_id: UUID) -> Sequence[User
     return result.all()
 
 
+async def member_count(session: AsyncSession, organization_id: UUID) -> int:
+    """Count accepted active members, excluding invitations and deleted users."""
+
+    return (
+        await session.scalar(
+            select(func.count())
+            .select_from(UserOrganization)
+            .join(User, col(User.id) == col(UserOrganization.user_id))
+            .where(col(UserOrganization.organization_id) == organization_id, col(User.deleted_at).is_(None))
+        )
+        or 0
+    )
+
+
 async def lock(session: AsyncSession, organization_id: UUID) -> Organization:
     """Serialize organization commands and membership admission on every supported database."""
 
@@ -460,7 +474,7 @@ async def update_member_role(
 
 
 async def remove_member(session: AsyncSession, organization_id: UUID, member_id: UUID, user_id: UUID) -> None:
-    """Remove access and update Stripe seats without removing historical user records."""
+    """Remove access without removing historical user records or charging the organization."""
 
     # Serialize member changes and revalidate the caller after taking the organization lock.
     organization = await lock(session, organization_id)
@@ -489,9 +503,8 @@ async def remove_member(session: AsyncSession, organization_id: UUID, member_id:
         if other_owner is None:
             raise ConflictError("Organization must have at least one owner")
 
-    # Update Stripe before committing access removal; provider failures roll back the membership change.
+    # Revoke membership without creating automatic charges or refunds.
     await session.delete(membership)
-    await billing.update_seats(session, organization_id)
 
 
 async def create(
@@ -585,9 +598,9 @@ async def create_invitation(
     if not roles.atleast(membership.role, payload.role):
         raise ForbiddenError("Invitation role permissions required")
 
-    # Pending invitations are not billed, but full or delinquent organizations cannot invite more members.
-    if not await billing.admit_member(session, organization_id):
-        raise ConflictError("Member limit reached or billing requires attention. Upgrade or remove a member first.")
+    # Pending invitations do not count against the organization's member allowance.
+    if organization.stripe_payment_method_id is None and await member_count(session, organization_id) >= FREE_USERS:
+        raise ConflictError(f"Register a card before adding more than {FREE_USERS} members.")
 
     # Reject emails that already belong to the locked Organization.
     if (
@@ -694,9 +707,6 @@ async def soft_delete(session: AsyncSession, organization_id: UUID, user: User) 
         )
 
     # Keep tombstones and Organization cleanup in one transaction.
-    account = await session.get(BillingAccount, organization.id)
-    if account is not None:
-        account.next_action_at = datetime.now(UTC)
     await operations.enqueue(session, kind=OperationKind.organization_delete, target_id=organization.id)
 
     return organization

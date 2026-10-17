@@ -1,27 +1,48 @@
-import { Card } from '@astryxdesign/core/Card';
-import { Grid } from '@astryxdesign/core/Grid';
 import { Text } from '@astryxdesign/core/Text';
 import { Seo } from '@/platform/components/Seo';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
-import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Section } from '@astryxdesign/core/Section';
-import { UserRound, UsersRound } from 'lucide-react';
+import { Table, proportional } from '@astryxdesign/core/Table';
+import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
-/** Renders the public pricing page. */
+/** Publishes usage pricing from generated backend defaults without introducing plans. */
 export default function Pricing() {
-    // Keep organization resource allowances separate from per-user pricing.
+    // Schema defaults come from the same constants used to calculate monthly invoices.
+    const rates = schemas.zUsageRates.parse({});
+
+    const resources = [
+        {
+            id: 'users',
+            resource: 'Users',
+            included: `First ${rates.free_users} users`,
+            rate: `CHF ${(rates.user_monthly_price / 100).toFixed(2)} per additional user`,
+        },
+        {
+            id: 'database',
+            resource: 'Database',
+            included: `${rates.free_database_bytes / 1024 ** 2} MiB database storage`,
+            rate: `CHF ${(rates.database_gib_monthly_price / 100).toFixed(2)} per additional GiB`,
+        },
+        {
+            id: 'storage',
+            resource: 'File storage',
+            included: `${rates.free_storage_bytes / 1024 ** 3} GiB file storage`,
+            rate: `CHF ${(rates.storage_gib_monthly_price / 100).toFixed(2)} per additional GiB`,
+        },
+    ];
+
     return (
         <>
             <Seo
-                description="Explore LongLink plans for building and deploying dedicated business software."
+                description="Usage-based pricing for LongLink, with free users and storage included."
                 title="Pricing | LongLink"
             />
             <main>
                 <Section variant="transparent" padding={6}>
                     <Stack className="mx-auto" width="100%" maxWidth={1000} gap={10} align="center">
-                        <Stack className="text-center" gap={3} hAlign="center" width="100%">
+                        <Stack gap={3} align="center">
                             <Heading
                                 className="font-(family-name:--font-family-handwritten) tracking-wide uppercase"
                                 justify="center"
@@ -31,85 +52,22 @@ export default function Pricing() {
                             >
                                 Pricing
                             </Heading>
-                            <Text as="p" className="text-lg sm:text-xl" color="secondary" textWrap="pretty">
+                            <Text as="p" color="secondary">
                                 Billed per Organization
                             </Text>
                         </Stack>
-                        <Grid columns={{ minWidth: 280, max: 2, repeat: 'fit' }} gap={0} width="100%">
-                            <Card className="-mb-px -mr-px rounded-none bg-transparent" minHeight={640}>
-                                <Stack gap={0}>
-                                    <Stack className="pt-12" gap={2} align="center">
-                                        <UserRound aria-hidden="true" className="text-accent" size={20} />
-                                        <Stack gap={2} align="center">
-                                            <Heading level={2} justify="center">
-                                                Free
-                                            </Heading>
-                                            <Text as="p" className="px-6" type="supporting" justify="center">
-                                                The basics for individuals
-                                                <br />
-                                                and organizations
-                                            </Text>
-                                        </Stack>
-                                    </Stack>
-
-                                    <Divider className="my-10 w-1/3 self-center" />
-                                    <Stack gap={2} paddingInline={4}>
-                                        <Text as="p" color="secondary" justify="center">
-                                            Up to 5 users
-                                        </Text>
-                                        <Text as="p" color="secondary" justify="center">
-                                            100 MiB database storage
-                                        </Text>
-                                        <Text as="p" color="secondary" justify="center">
-                                            1 GiB file storage
-                                        </Text>
-                                    </Stack>
-                                    <Divider className="my-10 w-1/3 self-center" />
-                                    <Stack align="center">
-                                        <Button href="/login/" label="Get started" variant="primary" />
-                                    </Stack>
-                                </Stack>
-                            </Card>
-                            <Card className="-mb-px -mr-px rounded-none bg-transparent" minHeight={640}>
-                                <Stack gap={0}>
-                                    <Stack className="pt-12" gap={2} align="center">
-                                        <UsersRound aria-hidden="true" className="text-accent" size={20} />
-                                        <Stack gap={2} align="center">
-                                            <Heading level={2} justify="center">
-                                                Team
-                                            </Heading>
-                                            <Text as="p" className="px-6" type="supporting" justify="center">
-                                                Advanced collaboration for
-                                                <br />
-                                                individuals and organizations
-                                            </Text>
-                                        </Stack>
-                                    </Stack>
-
-                                    <Divider className="my-10 w-1/3 self-center" />
-                                    <Stack gap={2} paddingInline={4}>
-                                        <Text as="p" color="secondary" justify="center" weight="semibold">
-                                            CHF 5 per user per month
-                                        </Text>
-                                        <Text as="p" color="secondary" justify="center">
-                                            5 GiB database storage
-                                        </Text>
-                                        <Text as="p" color="secondary" justify="center">
-                                            25 GiB file storage
-                                        </Text>
-                                    </Stack>
-                                    <Divider className="my-10 w-1/3 self-center" />
-                                    <Stack align="center">
-                                        <Button href="/user/organizations/" label="Choose Team" variant="primary" />
-                                    </Stack>
-                                </Stack>
-                            </Card>
-                        </Grid>
-
+                        <Table
+                            data={resources}
+                            idKey="id"
+                            columns={[
+                                { key: 'resource', header: 'Resource', width: proportional(1) },
+                                { key: 'included', header: 'Included free', width: proportional(2) },
+                                { key: 'rate', header: 'Monthly excess usage', width: proportional(2) },
+                            ]}
+                        />
+                        <Button href="/user/organizations/" label="Get started" variant="primary" />
                         <Text as="p" type="supporting" justify="center">
-                            LongLink is currently in beta
-                            <br />
-                            Pricing, limits, and included features may change as the platform evolves
+                            LongLink is currently in beta. Pricing, limits, and included usage may change.
                         </Text>
                     </Stack>
                 </Section>
