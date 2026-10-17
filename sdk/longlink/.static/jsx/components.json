@@ -714,7 +714,7 @@
                 {
                     "name": "label",
                     "type": "ReactNode",
-                    "description": "Optional label centered on the divider."
+                    "description": "Optional label centered on the divider. Numeric zero is preserved; null, booleans, and empty strings render no label."
                 },
                 {
                     "name": "variant",
