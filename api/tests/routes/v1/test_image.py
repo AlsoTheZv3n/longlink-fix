@@ -1,8 +1,9 @@
-import httpx2
 import pytest
 import pytest_asyncio
 from httpx2 import AsyncClient
 from conftest import create_client
+from src.utils import images
+from src.errors import NotFoundError
 from collections.abc import AsyncIterator
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata, EnvironmentMetadata
@@ -44,15 +45,13 @@ async def test_inspect_image_returns_404_when_metadata_missing(authenticated_cli
     """Return a not-found error when the image has no LongLink metadata."""
 
     # Arrange
-    def respond(request: httpx2.Request) -> httpx2.Response:
-        """Return an unavailable image without permitting later registry requests."""
+    async def missing_metadata(image: Image, _connection: object | None = None) -> LongLinkMetadata:
+        """Report unavailable metadata for the requested image."""
 
-        assert str(request.url) == "https://ghcr.io/token?service=ghcr.io&scope=repository%3Alonglink%2Fdashboard%3Apull"
-        assert "Authorization" not in request.headers
-        return httpx2.Response(503)
+        assert image == Image("ghcr.io/longlink/dashboard:latest")
+        raise NotFoundError("Image metadata not found")
 
-    transport = httpx2.MockTransport(respond)
-    monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", transport.handle_async_request)
+    monkeypatch.setattr(images, "required_metadata", missing_metadata)
 
     # Act
     response = await authenticated_client.get("/api/v1/image?image=ghcr.io/longlink/dashboard:latest")

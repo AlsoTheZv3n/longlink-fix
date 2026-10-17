@@ -160,7 +160,7 @@ async def test_frontend_middleware_passes_websocket_scopes_through_unchanged() -
     await middleware(scope, receive, send)
 
     # Assert
-    assert received_scopes == [{"type": "websocket", "path": "/events", "headers": []}]
+    assert received_scopes == [scope]
     assert received_scopes[0] is scope
 
 

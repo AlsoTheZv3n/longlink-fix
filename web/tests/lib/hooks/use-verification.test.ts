@@ -5,7 +5,7 @@ import { withMounted } from '../../render';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useVerification, type VerificationRequest } from '@/lib/hooks/use-verification';
 
-it('cancels the credential exchange when its owning page unmounts', async () => {
+it('publishes successful verification and cleans up its signal on unmount', async () => {
     // Arrange
     const attempts: VerificationRequest[] = [];
 
@@ -26,5 +26,34 @@ it('cancels the credential exchange when its owning page unmounts', async () => 
         expect(attempts[0]?.signal.aborted).toBe(false);
     });
     expect(attempts[0]?.token).toBe('proof');
+    expect(attempts[0]?.signal.aborted).toBe(true);
+});
+
+it('cancels a pending credential exchange when its owning page unmounts', async () => {
+    // Arrange
+    const attempts: VerificationRequest[] = [];
+
+    /** Keep the exchange pending until its signal is aborted. */
+    function verify(request: VerificationRequest): Promise<string> {
+        attempts.push(request);
+
+        return new Promise((resolve) => {
+            request.signal.addEventListener('abort', () => resolve('verified'), { once: true });
+        });
+    }
+
+    /** Show whether verification completed before the page unmounts. */
+    function Probe() {
+        return useVerification('proof', verify).verification ?? 'Pending';
+    }
+
+    // Act
+    await withMounted(createElement(ErrorBoundary, { fallback: 'Failure' }, createElement(Probe)), async (output) => {
+        // Assert
+        expect(output.textContent).toBe('Pending');
+        expect(attempts).toHaveLength(1);
+        expect(attempts[0]?.token).toBe('proof');
+        expect(attempts[0]?.signal.aborted).toBe(false);
+    });
     expect(attempts[0]?.signal.aborted).toBe(true);
 });

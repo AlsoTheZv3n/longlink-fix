@@ -41,7 +41,7 @@ async def test_sync_users_projects_active_organization_members(
         await databases._project_users(session, organization.id, DatabasePostgres())
 
     # Assert
-    conn, rows = synchronized[0]
+    ((conn, rows),) = synchronized
     assert conn.database == organization.id.hex
     assert conn.search_path == "shared"
     (row,) = rows

@@ -83,8 +83,7 @@ async def test_send_mail_delivers_multipart_message_with_configured_smtp(
     await mail.send_mail("user@example.com", "Welcome", "Plain message", "<p>HTML message</p>")
 
     # Assert
-    assert len(sent_mail) == 1
-    message, options = sent_mail[0]
+    [(message, options)] = sent_mail
     assert message["From"] == "LongLink <mailer@example.com>"
     assert message["To"] == "user@example.com"
     assert message["Subject"] == "Welcome"
@@ -118,8 +117,7 @@ async def test_password_reset_email_keeps_credential_in_url_fragment(
 
     # Assert
     reset_url = "https://longlink.dev/auth/reset-password#token=token+with+spaces"
-    assert len(sent_mail) == 1
-    message, _ = sent_mail[0]
+    [(message, _)] = sent_mail
     assert message["To"] == "user@example.com"
     assert message["Subject"] == "Reset your LongLink password"
     plain_body = message.get_body(("plain",))
@@ -142,8 +140,7 @@ async def test_organization_invitation_email_prefills_the_recipient(
     await mail.send_organization_invitation_email("user+team@example.com", "Engineering", OrganizationRoles.maintain)
 
     # Assert
-    assert len(sent_mail) == 1
-    message, _ = sent_mail[0]
+    [(message, _)] = sent_mail
     assert message["To"] == "user+team@example.com"
     assert message["Subject"] == "Invitation to join Engineering on LongLink"
     plain_body = message.get_body(("plain",))

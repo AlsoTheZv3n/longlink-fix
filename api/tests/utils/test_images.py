@@ -37,26 +37,32 @@ async def test_metadata_fetches_digest_image_references(
         description="Demo app",
         environments=[EnvironmentMetadata(name="API_KEY", required=True)],
     )
-    captured: dict[str, object] = {}
+    captured: list[tuple[str, dict[str, str]]] = []
 
     def respond(request: httpx2.Request) -> httpx2.Response:
         """Capture GHCR requests and return the matching public image resource."""
 
         if request.url.path == "/token":
-            captured["token"] = {"url": str(request.url)}
+            assert "Authorization" not in request.headers
+            captured.append(("token", {"url": str(request.url)}))
             return httpx2.Response(200, json={"token": "pull-token"})
         if "/manifests/" in request.url.path:
-            captured["manifest"] = {
-                "url": str(request.url),
-                "accept": request.headers["Accept"],
-                "authorization": request.headers["Authorization"],
-            }
+            captured.append(
+                (
+                    "manifest",
+                    {
+                        "url": str(request.url),
+                        "accept": request.headers["Accept"],
+                        "authorization": request.headers["Authorization"],
+                    },
+                )
+            )
             return httpx2.Response(
                 200,
                 json={"config": {"digest": "sha256:config"}},
                 headers=manifest_headers,
             )
-        captured["blob"] = {"url": str(request.url), "authorization": request.headers["Authorization"]}
+        captured.append(("blob", {"url": str(request.url), "authorization": request.headers["Authorization"]}))
         return httpx2.Response(
             200,
             json={
@@ -76,20 +82,27 @@ async def test_metadata_fetches_digest_image_references(
 
     # Assert
     assert image_metadata == expected_metadata
-    assert captured == {
-        "token": {
-            "url": "https://ghcr.io/token?service=ghcr.io&scope=repository%3Alonglink%2Fdashboard%3Apull",
-        },
-        "manifest": {
-            "url": "https://ghcr.io/v2/longlink/dashboard/manifests/sha256:deadbeef",
-            "accept": images.MANIFEST_ACCEPT,
-            "authorization": "Bearer pull-token",
-        },
-        "blob": {
-            "url": "https://ghcr.io/v2/longlink/dashboard/blobs/sha256:config",
-            "authorization": "Bearer pull-token",
-        },
-    }
+    assert captured == [
+        (
+            "token",
+            {"url": "https://ghcr.io/token?service=ghcr.io&scope=repository%3Alonglink%2Fdashboard%3Apull"},
+        ),
+        (
+            "manifest",
+            {
+                "url": "https://ghcr.io/v2/longlink/dashboard/manifests/sha256:deadbeef",
+                "accept": images.MANIFEST_ACCEPT,
+                "authorization": "Bearer pull-token",
+            },
+        ),
+        (
+            "blob",
+            {
+                "url": "https://ghcr.io/v2/longlink/dashboard/blobs/sha256:config",
+                "authorization": "Bearer pull-token",
+            },
+        ),
+    ]
 
 
 async def test_metadata_rejects_mismatched_registry_digest(monkeypatch: pytest.MonkeyPatch) -> None:

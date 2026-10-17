@@ -588,21 +588,51 @@ def test_build_solution_filters_expanded_context(chdir_project: Path) -> None:
     assert "WORKDIR /workspace/solution\n" in dockerfile
 
 
-@pytest.mark.parametrize(
-    ("source_kind", "directory_suffix"),
-    [
-        ("none", ""),
-        ("path", ""),
-        ("workspace", ""),
-        ("build", ""),
-        ("path-list", ""),
-        ("workspace-list", ""),
-        ("build-list", ""),
-        pytest.param("path-list", " with spaces 'single' \"double\" $HOME \\backslash", id="literal-path"),
-    ],
-)
+WORKSPACE_SOURCE_CASES = [
+    pytest.param("{ workspace = true }", "", "", False, id="none"),
+    pytest.param(
+        "{ workspace = true }",
+        'dependencies = ["shared"]\n[tool.uv.sources]\nshared = {{ path = {shared_path} }}\n',
+        "",
+        True,
+        id="path",
+    ),
+    pytest.param("{ workspace = true }", 'dependencies = ["shared"]\n', "", True, id="workspace"),
+    pytest.param(
+        "{ workspace = true }",
+        '[build-system]\nrequires = ["shared"]\nbuild-backend = "shared"\n',
+        "",
+        True,
+        id="build",
+    ),
+    pytest.param(
+        "[{ workspace = true }]",
+        'dependencies = ["shared"]\n[tool.uv.sources]\nshared = [{{ path = {shared_path} }}]\n',
+        "",
+        True,
+        id="path-list",
+    ),
+    pytest.param("[{ workspace = true }]", 'dependencies = ["shared"]\n', "", True, id="workspace-list"),
+    pytest.param(
+        "[{ workspace = true }]",
+        '[build-system]\nrequires = ["shared"]\nbuild-backend = "shared"\n',
+        "",
+        True,
+        id="build-list",
+    ),
+    pytest.param(
+        "[{ workspace = true }]",
+        'dependencies = ["shared"]\n[tool.uv.sources]\nshared = [{{ path = {shared_path} }}]\n',
+        " with spaces 'single' \"double\" $HOME \\backslash",
+        True,
+        id="literal-path",
+    ),
+]
+
+
+@pytest.mark.parametrize(("workspace_source", "project_configuration", "directory_suffix", "shared_source_present"), WORKSPACE_SOURCE_CASES)
 def test_build_solution_preserves_workspace_manifests_without_unrelated_sources(
-    build_project: Path, source_kind: str, directory_suffix: str
+    build_project: Path, workspace_source: str, project_configuration: str, directory_suffix: str, shared_source_present: bool
 ) -> None:
     """Use the workspace lock and retain discovery metadata without copying unrelated code."""
 
@@ -611,7 +641,6 @@ def test_build_solution_preserves_workspace_manifests_without_unrelated_sources(
     member_directories = {name: f"{name}{directory_suffix}" for name in ("solution", "shared", "unrelated")}
     if directory_suffix:
         build_project = build_project.rename(workspace / member_directories["solution"])
-    workspace_source = "[{ workspace = true }]" if source_kind.endswith("-list") else "{ workspace = true }"
     workspace.joinpath("pyproject.toml").write_text(
         f"[tool.uv.workspace]\nmembers = {json.dumps(list(member_directories.values()))}\n[tool.uv.sources]\nshared = {workspace_source}\n",
         encoding="utf-8",
@@ -622,16 +651,11 @@ def test_build_solution_preserves_workspace_manifests_without_unrelated_sources(
         project.mkdir()
         project.joinpath("pyproject.toml").write_text(f'[project]\nname = "{name}"\nversion = "0.1.0"\n', encoding="utf-8")
         project.joinpath("source.py").write_text("VALUE = 1\n", encoding="utf-8")
-    dependencies = 'dependencies = ["shared"]\n' if source_kind in {"path", "workspace", "path-list", "workspace-list"} else ""
     shared_path = "../" + member_directories["shared"]
-    path_source = f"{{ path = {json.dumps(shared_path)} }}"
-    if source_kind == "path-list":
-        path_source = f"[{path_source}]"
-    sources = f"[tool.uv.sources]\nshared = {path_source}\n" if source_kind in {"path", "path-list"} else ""
-    build_system = '[build-system]\nrequires = ["shared"]\nbuild-backend = "shared"\n' if source_kind in {"build", "build-list"} else ""
     build_project.joinpath("pyproject.toml").write_text(
-        f'[project]\nname = "demo"\nversion = "0.1.0"\n{dependencies}'
-        f'[tool.longlink]\nenvironments = "src.envs:Env"\n{sources}{build_system}',
+        '[project]\nname = "demo"\nversion = "0.1.0"\n'
+        f"{project_configuration.format(shared_path=json.dumps(shared_path))}"
+        '[tool.longlink]\nenvironments = "src.envs:Env"\n',
         encoding="utf-8",
     )
     context = workspace / "context"
@@ -663,7 +687,7 @@ def test_build_solution_preserves_workspace_manifests_without_unrelated_sources(
             == workspace.joinpath(name, "pyproject.toml").read_bytes()
         )
     assert context.joinpath("uv.lock").read_text(encoding="utf-8") == "workspace lock"
-    assert context.joinpath(member_directories["shared"], "source.py").exists() is (source_kind != "none")
+    assert context.joinpath(member_directories["shared"], "source.py").exists() is shared_source_present
     assert not context.joinpath(member_directories["unrelated"], "source.py").exists()
 
 
