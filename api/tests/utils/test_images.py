@@ -1,7 +1,7 @@
 import httpx2
 import pytest
+from fastapi import HTTPException
 from src.utils import images
-from src.errors import NotFoundError, ForbiddenError
 from collections.abc import Callable, AsyncIterator
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata, EnvironmentMetadata
@@ -131,7 +131,7 @@ async def test_metadata_rejects_mismatched_registry_digest(monkeypatch: pytest.M
     mock_async_client(monkeypatch, respond)
 
     # Act
-    with pytest.raises(NotFoundError, match=r"^Image metadata not found$"):
+    with pytest.raises(HTTPException, match=r"^404: Image metadata not found$"):
         await images.required_metadata(Image(f"ghcr.io/longlink/dashboard@{digest}"))
 
     # Assert
@@ -293,7 +293,7 @@ async def test_metadata_stops_when_registry_responses_are_invalid(
     mock_async_client(monkeypatch, respond)
 
     # Act
-    with pytest.raises(NotFoundError, match=r"^Image metadata not found$"):
+    with pytest.raises(HTTPException, match=r"^404: Image metadata not found$"):
         await images.required_metadata(Image("ghcr.io/longlink/dashboard:latest"))
 
     # Assert
@@ -366,7 +366,7 @@ async def test_metadata_rejects_malformed_config_metadata(monkeypatch: pytest.Mo
     mock_async_client(monkeypatch, respond)
 
     # Act
-    with pytest.raises(NotFoundError, match=r"^Image metadata not found$"):
+    with pytest.raises(HTTPException, match=r"^404: Image metadata not found$"):
         await images.required_metadata(Image("ghcr.io/longlink/dashboard:latest"))
 
     # Assert
@@ -421,7 +421,7 @@ def test_missing_envs_sorts_reserved_and_unconfigured_requirements() -> None:
 async def test_registry_allowlist_is_exact(registry: str) -> None:
     """Reject alternate spellings and unsupported registries before networking."""
 
-    with pytest.raises(ForbiddenError, match="not allowed"):
+    with pytest.raises(HTTPException, match="403: Image registry is not allowed"):
         await images.required_metadata(Image(f"{registry}/sample:dev"))
 
 
@@ -500,7 +500,7 @@ async def test_registry_rejects_arbitrary_blob_redirects(monkeypatch: pytest.Mon
         return httpx2.Response(307, headers={"Location": location})
 
     mock_async_client(monkeypatch, respond)
-    with pytest.raises(NotFoundError, match=r"^Image metadata not found$"):
+    with pytest.raises(HTTPException, match=r"^404: Image metadata not found$"):
         await images.required_metadata(Image("ghcr.io/owner/sample:latest"))
 
 
@@ -509,7 +509,7 @@ async def test_registry_denial_is_explicit(monkeypatch: pytest.MonkeyPatch, stat
     """Distinguish denied anonymous registry access from absent metadata or an unchanged source."""
 
     mock_async_client(monkeypatch, lambda _request: httpx2.Response(status))
-    with pytest.raises(ForbiddenError, match="denied image access"):
+    with pytest.raises(HTTPException, match="403: Registry denied image access"):
         await images.required_metadata(Image("ghcr.io/owner/private:latest"))
 
 
@@ -529,7 +529,7 @@ async def test_registry_rejects_indexes_without_supported_platform(monkeypatch: 
     mock_async_client(monkeypatch, respond)
 
     # Act
-    with pytest.raises(NotFoundError, match=r"^Image metadata not found$"):
+    with pytest.raises(HTTPException, match=r"^404: Image metadata not found$"):
         await images.required_metadata(Image("localhost:15000/sample:dev"))
 
     # Assert

@@ -2,8 +2,8 @@ import json
 import httpx2
 import asyncio
 import pydantic_core
+from fastapi import HTTPException
 from pydantic import TypeAdapter
-from src.errors import NotFoundError, ForbiddenError
 from src.logger import logger
 from collections.abc import Mapping
 from src.models.types import IMAGE_DIGEST_PATTERN, Image
@@ -56,7 +56,7 @@ async def registry_json(
                 return await registry_json(client, str(destination))
             return None
         if response.status_code in (401, 403):
-            raise ForbiddenError("Registry denied image access. Check package permissions and registry credentials.")
+            raise HTTPException(status_code=403, detail="Registry denied image access. Check package permissions and registry credentials.")
         if not response.is_success:
             return None
 
@@ -86,9 +86,9 @@ async def required_metadata(image: Image, connection: RegistryConnection | None 
     # Only supported registry origins may receive image requests.
     base = {"ghcr.io": GHCR_ORIGIN, "localhost:15000": LOCAL_ORIGIN}.get(image.registry)
     if base is None:
-        raise ForbiddenError("Image registry is not allowed")
+        raise HTTPException(status_code=403, detail="Image registry is not allowed")
     if connection is not None and connection.host != image.registry:
-        raise ForbiddenError("Registry connection does not match the image host")
+        raise HTTPException(status_code=403, detail="Registry connection does not match the image host")
 
     # Keep registry inspection and transport cleanup within one client lifetime.
     async with httpx2.AsyncClient(follow_redirects=False, timeout=5.0, trust_env=False) as client:
@@ -102,7 +102,7 @@ async def required_metadata(image: Image, connection: RegistryConnection | None 
 
     # Require declared metadata before callers mutate durable Solution state.
     if result is None:
-        raise NotFoundError("Image metadata not found")
+        raise HTTPException(status_code=404, detail="Image metadata not found")
     return result
 
 

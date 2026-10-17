@@ -6,7 +6,6 @@ from kr8s import ServerError, NotFoundError, APITimeoutError, ConnectionClosedEr
 from uuid import UUID
 from fastapi import Query, Depends, APIRouter, HTTPException
 from src.utils import s3, mail, roles
-from src.errors import UnavailableError
 from src.logger import logger
 from sqlalchemy.exc import SQLAlchemyError
 from src.kubernetes import databases
@@ -47,7 +46,7 @@ async def list_organizations(
     """Return all organizations for administrator views."""
 
     # Search the full administrator listing before pagination.
-    items, total = await organizations.fetch_page(session, pagination, search.strip())
+    items, total = await organizations.fetch(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 
@@ -226,7 +225,10 @@ async def create_organization_invitation(
         await mail.send_organization_invitation_email(payload.email, organization_name, payload.role)
     except aiosmtplib.SMTPException as exc:
         logger.warning("Invitation email delivery failed for organization '%s': %s", membership.organization_id, exc)
-        raise UnavailableError("The invitation was saved, but its email could not be sent. Invite the same address again to resend it.") from exc
+        raise HTTPException(
+            status_code=503,
+            detail="The invitation was saved, but its email could not be sent. Invite the same address again to resend it.",
+        ) from exc
 
 
 @router.delete("/organizations/{organization_id}/invitations/{invitation_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.

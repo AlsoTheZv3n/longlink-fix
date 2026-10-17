@@ -8,7 +8,7 @@ from collections.abc import Callable, Awaitable, AsyncIterator
 from src.models.roles import OrganizationRoles
 from longlink.database import audit
 from src.utils.cookies import AUTH_COOKIE
-from src.database.services import organizations as organization_service
+from src.database.services import organizations
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
 from src.database.models.association import UserOrganization
@@ -78,7 +78,7 @@ def require_organization_role(minimum_role: OrganizationRoles) -> Callable[[UUID
         """Resolve active membership for the Organization identified by the route."""
 
         # Resolve the required role before supplying membership data to the handler.
-        return await organization_service.require_membership(session, user.id, organization_id, minimum_role)
+        return await organizations.require_membership(session, user.id, organization_id, minimum_role)
 
     return dependency
 

@@ -1,7 +1,7 @@
 from uuid import UUID
+from fastapi import HTTPException
 from sqlmodel import col
 from sqlalchemy import or_, func, select
-from src.errors import ConflictError, NotFoundError
 from sqlalchemy.orm import load_only
 from collections.abc import Sequence
 from src.database.types import attr
@@ -11,7 +11,7 @@ from src.database.models.computes import ComputeRegistry
 from src.database.models.organizations import Organization
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[ComputeRegistry], int]:
+async def fetch(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[ComputeRegistry], int]:
     """Return one newest-first page of compute registries."""
 
     # Match literal names and infrastructure endpoints before pagination.
@@ -58,11 +58,11 @@ async def delete(session: AsyncSession, registry_id: UUID) -> None:
         with_for_update=True,
     )
     if registry is None:
-        raise NotFoundError("Compute registry not found")
+        raise HTTPException(status_code=404, detail="Compute registry not found")
 
     # Organizations must retain a valid registered compute assignment.
     if await session.scalar(select(col(Organization.id)).where(col(Organization.compute_id) == registry_id).limit(1)) is not None:
-        raise ConflictError("Compute registry is used by organizations")
+        raise HTTPException(status_code=409, detail="Compute registry is used by organizations")
 
     # Delete only after no Organization depends on the registration.
     await session.delete(registry)

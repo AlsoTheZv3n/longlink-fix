@@ -1,10 +1,10 @@
 from uuid import UUID
+from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
 from src.utils import names, roles
 from sqlalchemy import Select, or_, func, delete, select
 from sqlalchemy import update as sql_update
-from src.errors import ConflictError, NotFoundError, ForbiddenError, UnavailableError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
@@ -66,9 +66,9 @@ async def require_membership(
     # Resolve active access before checking its minimum required role.
     access = await membership(session, user_id, organization_id)
     if access is None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
     if not roles.atleast(access.role, minimum_role):
-        raise ForbiddenError("Permission required")
+        raise HTTPException(status_code=403, detail="Permission required")
     return access
 
 
@@ -254,7 +254,7 @@ async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> t
     return result.tuples().one_or_none()
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Organization], int]:
+async def fetch(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Organization], int]:
     """Return one newest-first page of active organizations for administrator views."""
 
     # Match literal names and slugs while retaining active Organization visibility.
@@ -376,7 +376,7 @@ async def lock(session: AsyncSession, organization_id: UUID) -> Organization:
     )
     organization = await session.get(Organization, organization_id, populate_existing=True)
     if organization is None:
-        raise ForbiddenError("Organization unavailable")
+        raise HTTPException(status_code=403, detail="Organization unavailable")
     return organization
 
 
@@ -393,9 +393,9 @@ async def locked_membership(
         with_for_update=True,
     )
     if membership is None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
     if not roles.atleast(membership.role, minimum_role):
-        raise ForbiddenError("Permission required")
+        raise HTTPException(status_code=403, detail="Permission required")
     return membership
 
 
@@ -407,7 +407,7 @@ async def _lock_active_membership(
     # Lock and refresh the Organization before checking active access.
     organization = await session.get(Organization, organization_id, populate_existing=True, with_for_update=True)
     if organization is None or organization.deleted_at is not None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
 
     # Refresh and authorize caller access only after locking the active Organization.
     return await locked_membership(session, user_id, organization_id, minimum_role)
@@ -441,11 +441,11 @@ async def update_member_role(
     result = await session.scalars(statement)
     membership = result.one_or_none()
     if membership is None:
-        raise NotFoundError("Organization member not found")
+        raise HTTPException(status_code=404, detail="Organization member not found")
 
     # Only owners may grant or change owner access.
     if OrganizationRoles.owner in (membership.role, role) and caller_membership.role != OrganizationRoles.owner:
-        raise ForbiddenError("Owner management permissions required")
+        raise HTTPException(status_code=403, detail="Owner management permissions required")
 
     # Repeated role assignments do not require persistence or reconciliation.
     if membership.role == role:
@@ -465,7 +465,7 @@ async def update_member_role(
             .with_for_update()
         )
         if other_owner_id is None:
-            raise ConflictError("Organization must have at least one owner")
+            raise HTTPException(status_code=409, detail="Organization must have at least one owner")
 
     # Persist the role change.
     membership.role = role
@@ -477,16 +477,16 @@ async def remove_member(session: AsyncSession, organization_id: UUID, member_id:
     # Serialize member changes and revalidate the caller after taking the organization lock.
     organization = await lock(session, organization_id)
     if organization.deleted_at is not None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
     caller = await locked_membership(session, user_id, organization_id, OrganizationRoles.admin)
     membership = await session.get(UserOrganization, (member_id, organization_id), populate_existing=True, with_for_update=True)
     if membership is None:
-        raise NotFoundError("Organization member not found")
+        raise HTTPException(status_code=404, detail="Organization member not found")
 
     # Only owners can remove owners, and every organization must retain an active owner.
     if membership.role == OrganizationRoles.owner:
         if caller.role != OrganizationRoles.owner:
-            raise ForbiddenError("Owner management permissions required")
+            raise HTTPException(status_code=403, detail="Owner management permissions required")
         other_owner = await session.scalar(
             select(col(UserOrganization.user_id))
             .join(User, col(User.id) == col(UserOrganization.user_id))
@@ -499,7 +499,7 @@ async def remove_member(session: AsyncSession, organization_id: UUID, member_id:
             .limit(1)
         )
         if other_owner is None:
-            raise ConflictError("Organization must have at least one owner")
+            raise HTTPException(status_code=409, detail="Organization must have at least one owner")
 
     # Revoke membership without creating automatic charges or refunds.
     await session.delete(membership)
@@ -517,7 +517,7 @@ async def create(
         select(col(User.id)).where(col(User.id) == user.id, col(User.deleted_at).is_(None)).with_for_update()
     )
     if locked_user_id is None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
 
     organization_limit_result = await session.execute(
         select(1)
@@ -530,7 +530,9 @@ async def create(
         .with_for_update()
     )
     if organization_limit_result.scalar_one_or_none() is not None:
-        raise ConflictError("Organization limit reached during the beta. Contact LongLink to request additional organizations.")
+        raise HTTPException(
+            status_code=409, detail="Organization limit reached during the beta. Contact LongLink to request additional organizations."
+        )
 
     # Lock the least-assigned Compute until the Organization assignment is committed.
     compute_assignments = (
@@ -540,14 +542,14 @@ async def create(
         select(col(ComputeRegistry.id)).order_by(compute_assignments, col(ComputeRegistry.name)).limit(1).with_for_update()
     )
     if compute_id is None:
-        raise UnavailableError("No ready compute registry available")
+        raise HTTPException(status_code=503, detail="No ready compute registry available")
 
     # A no-op write serializes admission on every supported backend, including SQLite.
     result = await session.execute(
         sql_update(ComputeRegistry).where(col(ComputeRegistry.id) == compute_id).values(name=col(ComputeRegistry.name))
     )
     if result.rowcount != 1:
-        raise UnavailableError("No compute registry available")
+        raise HTTPException(status_code=503, detail="No compute registry available")
 
     # Build the Organization with its immutable infrastructure assignments.
     organization = Organization(
@@ -573,7 +575,7 @@ async def create(
             await session.flush()
     # Keep Organization uniqueness collisions at the service boundary as an API conflict.
     except IntegrityError as exc:
-        raise ConflictError("Organization already exists") from exc
+        raise HTTPException(status_code=409, detail="Organization already exists") from exc
 
     # Queue infrastructure creation in the caller's transaction after persisting the Organization.
     await operations.enqueue(session, kind=OperationKind.organization_create, target_id=organization.id)
@@ -591,14 +593,14 @@ async def create_invitation(
     # Lock the Organization before revalidating the caller's active invitation permission.
     organization = await lock(session, organization_id)
     if organization.deleted_at is not None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
     membership = await locked_membership(session, user_id, organization_id, OrganizationRoles.maintain)
     if not roles.atleast(membership.role, payload.role):
-        raise ForbiddenError("Invitation role permissions required")
+        raise HTTPException(status_code=403, detail="Invitation role permissions required")
 
     # Pending invitations do not count against the organization's member allowance.
     if organization.stripe_payment_method_id is None and await member_count(session, organization_id) >= FREE_USERS:
-        raise ConflictError(f"Register a card before adding more than {FREE_USERS} members.")
+        raise HTTPException(status_code=409, detail=f"Register a card before adding more than {FREE_USERS} members.")
 
     # Reject emails that already belong to the locked Organization.
     if (
@@ -612,7 +614,7 @@ async def create_invitation(
         )
         is not None
     ):
-        raise ConflictError("User is already a member")
+        raise HTTPException(status_code=409, detail="User is already a member")
 
     # Re-inviting replaces the existing active grant and refreshes its delivery timestamp.
     invitation_statement = (
@@ -636,7 +638,7 @@ async def create_invitation(
         except IntegrityError as exc:
             invitation = await session.scalar(invitation_statement)
             if invitation is None:
-                raise ConflictError("Invitation could not be created") from exc
+                raise HTTPException(status_code=409, detail="Invitation could not be created") from exc
 
     invitation.role = payload.role
     invitation.created_at = datetime.now(UTC)
@@ -651,9 +653,9 @@ async def revoke_invitation(session: AsyncSession, organization_id: UUID, invita
     # Resolve only an invitation belonging to the locked Organization.
     invitation = await session.get(OrganizationInvitation, invitation_id, with_for_update=True)
     if invitation is None or invitation.organization_id != organization_id:
-        raise NotFoundError("Invitation not found")
+        raise HTTPException(status_code=404, detail="Invitation not found")
     if not roles.atleast(membership.role, invitation.role):
-        raise ForbiddenError("Invitation role permissions required")
+        raise HTTPException(status_code=403, detail="Invitation role permissions required")
 
     await session.delete(invitation)
 
@@ -666,15 +668,15 @@ async def soft_delete(session: AsyncSession, organization_id: UUID, user: User) 
     if organization is None:
         if user.administrator:
             return None
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
 
     # Revalidate active owners while the Organization is locked for deletion and retries.
     if not user.administrator:
         membership = await session.get(UserOrganization, (user.id, organization_id), with_for_update=True)
         if membership is None:
-            raise ForbiddenError("Access required")
+            raise HTTPException(status_code=403, detail="Access required")
         if not roles.atleast(membership.role, OrganizationRoles.owner):
-            raise ForbiddenError("Permission required")
+            raise HTTPException(status_code=403, detail="Permission required")
 
     # Record nested tombstones once; repeated requests only ensure cleanup remains queued.
     if organization.deleted_at is None:

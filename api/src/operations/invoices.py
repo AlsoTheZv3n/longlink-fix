@@ -1,11 +1,11 @@
 import asyncio
 from uuid import UUID
 from decimal import ROUND_HALF_UP, Decimal
+from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
 from src.utils import s3, dates, stripe
 from sqlalchemy import select, update
-from src.errors import ConflictError, UnavailableError
 from src.logger import logger
 from src.models import pricing
 from src.kubernetes import databases
@@ -49,7 +49,7 @@ async def snapshot(session: AsyncSession, organization_id: UUID, period_end: dat
         return
     target = await organizations.infrastructure(session, organization_id)
     if target is None or organization.database_state != DatabaseState.available:
-        raise UnavailableError("Organization usage is unavailable for invoicing")
+        raise HTTPException(status_code=503, detail="Organization usage is unavailable for invoicing")
     organization, compute = target
     users = await organizations.member_count(session, organization_id)
 
@@ -101,7 +101,7 @@ async def issue(session: AsyncSession, invoice_id: UUID) -> None:
             async for candidate in existing.auto_paging_iter():
                 if candidate.metadata.get("longlink_invoice_id") == str(invoice.id):
                     if remote is not None:
-                        raise ConflictError("Duplicate Stripe invoices require administrator review")
+                        raise HTTPException(status_code=409, detail="Duplicate Stripe invoices require administrator review")
                     remote = candidate
         if remote is None:
             remote = await connection.v1.invoices.create_async(
@@ -117,9 +117,9 @@ async def issue(session: AsyncSession, invoice_id: UUID) -> None:
             )
         invoice.stripe_invoice_id = remote.id
         if remote.customer != invoice.customer_id or remote.currency != "chf":
-            raise ConflictError("Stripe invoice customer or currency does not match")
+            raise HTTPException(status_code=409, detail="Stripe invoice customer or currency does not match")
         if remote.status not in {"draft", "open", "paid", "void", "uncollectible"}:
-            raise ConflictError("Stripe invoice state requires administrator review")
+            raise HTTPException(status_code=409, detail="Stripe invoice state requires administrator review")
 
         # Already finalized invoices remain Stripe's responsibility; never create a replacement charge.
         if remote.status == "draft":
@@ -140,7 +140,7 @@ async def issue(session: AsyncSession, invoice_id: UUID) -> None:
                         or matched[0].amount != amount
                         or matched[0].metadata.get("longlink_invoice_id") != str(invoice.id)
                     ):
-                        raise ConflictError("Stripe invoice items require administrator review")
+                        raise HTTPException(status_code=409, detail="Stripe invoice items require administrator review")
                     continue
 
                 # Each line belongs to this invoice, never to a customer's unrelated pending invoice items.
@@ -160,7 +160,7 @@ async def issue(session: AsyncSession, invoice_id: UUID) -> None:
             # Unexpected edits must not silently change the amount authorized by the usage snapshot.
             remote = await connection.v1.invoices.retrieve_async(remote.id)
             if remote.total != invoice.user_amount + invoice.database_amount + invoice.storage_amount:
-                raise ConflictError("Stripe invoice total does not match measured usage")
+                raise HTTPException(status_code=409, detail="Stripe invoice total does not match measured usage")
             await connection.v1.invoices.finalize_invoice_async(
                 remote.id, {"auto_advance": True}, options={"idempotency_key": f"invoice:{invoice.id}:finalize"}
             )

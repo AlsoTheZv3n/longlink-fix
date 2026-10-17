@@ -1,6 +1,6 @@
 import pytest
+from fastapi import HTTPException
 from factories import create_compute, create_organization
-from src.errors import ConflictError
 from src.database.session import session_scope
 from src.database.services import compute
 from src.models.pagination import Pagination
@@ -22,7 +22,7 @@ async def test_compute_search_treats_sql_wildcards_as_literal_characters() -> No
 
     # Act
     async with session_scope() as session:
-        items, total = await compute.fetch_page(session, Pagination(page_size=1), search="%")
+        items, total = await compute.fetch(session, Pagination(page_size=1), search="%")
 
     # Assert
     assert [item.id for item in items] == [matching.id]
@@ -38,7 +38,7 @@ async def test_assigned_compute_cannot_be_deleted(users: tuple[User, User, User]
 
     # Act / Assert
     async with session_scope() as session:
-        with pytest.raises(ConflictError, match="Compute registry is used by organizations"):
+        with pytest.raises(HTTPException, match="409: Compute registry is used by organizations"):
             await compute.delete(session, organization.compute_id)
         await session.commit()
 

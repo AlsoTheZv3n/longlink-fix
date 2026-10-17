@@ -3,10 +3,10 @@ import base64
 import hashlib
 import secrets
 from uuid import UUID
+from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from src.utils import token
 from sqlalchemy import delete, select
-from src.errors import ForbiddenError
 from src.models import mcp
 from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
 from sqlalchemy.orm import load_only
@@ -100,7 +100,7 @@ async def _permitted_solution(session: AsyncSession, user: User, solution_id: UU
         .where(Solution.id == solution_id)
     )
     if solution is None or solution.deleted_at is not None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
     await organizations.require_membership(session, user.id, solution.organization_id, OrganizationRoles.write)
     return solution
 
@@ -207,7 +207,9 @@ async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[st
         raise OAuthError("invalid_grant", "Authorization is no longer valid")
     try:
         await _permitted_solution(session, user, solution_id)
-    except ForbiddenError as exc:
+    except HTTPException as exc:
+        if exc.status_code != 403:
+            raise
         raise OAuthError("invalid_grant", "Authorization is no longer valid") from exc
 
     # Exactly one overlapping exchange may consume this code and issue a token.

@@ -1,9 +1,9 @@
 import pytest
 import pytest_asyncio
 from httpx2 import AsyncClient
+from fastapi import HTTPException
 from conftest import create_client
 from src.utils import images
-from src.errors import NotFoundError
 from collections.abc import AsyncIterator
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata, EnvironmentMetadata
@@ -49,7 +49,7 @@ async def test_inspect_image_returns_404_when_metadata_missing(authenticated_cli
         """Report unavailable metadata for the requested image."""
 
         assert image == Image("ghcr.io/longlink/dashboard:latest")
-        raise NotFoundError("Image metadata not found")
+        raise HTTPException(status_code=404, detail="Image metadata not found")
 
     monkeypatch.setattr(images, "required_metadata", missing_metadata)
 

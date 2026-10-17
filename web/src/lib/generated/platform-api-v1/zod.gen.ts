@@ -146,15 +146,6 @@ export const zEnvironmentMetadata = z.object({
 });
 
 /**
- * ErrorResponse
- *
- * Describe the public error contract without internal diagnostics.
- */
-export const zErrorResponse = z.object({
-    detail: z.string()
-});
-
-/**
  * LongLinkMetadata
  *
  * Structured metadata extracted from OCI and LongLink image labels.

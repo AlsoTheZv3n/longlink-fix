@@ -1,14 +1,13 @@
 import asyncio
 import logging
 import contextlib
-from src import errors
 from fastapi import FastAPI, Request, Response
 from pathlib import Path
 from src.mcp import MCPMiddleware
 from longlink import errors as solution_errors
 from pydantic import TypeAdapter
 from src.utils import jobs
-from src.routes import v1, mcp, branding
+from src.routes import v1, mcp
 from src.kubernetes import client
 from src.operations import invoices
 from collections.abc import Callable, Awaitable, AsyncGenerator
@@ -79,8 +78,7 @@ AUTHENTICATION_COOKIES = frozenset(
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
-# Apply the same public contract to domain, HTTP, validation, and unexpected failures.
-app.exception_handler(errors.ServiceError)(errors.service_error_response)
+# Apply the same public contract to HTTP, validation, and unexpected failures.
 solution_errors.install_error_handlers(app)
 
 
@@ -136,7 +134,6 @@ async def redirect_public_hostname(
 
 # Register the versioned Platform API after constructing the application.
 app.include_router(v1.router)
-app.include_router(branding.router)
 app.include_router(mcp.router)
 static_dir = Path(__file__).resolve().parent / "src" / ".static" / "web"
 if static_dir.exists():

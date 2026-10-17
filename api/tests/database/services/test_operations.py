@@ -224,7 +224,7 @@ async def test_operations_service_failed_creation_updates_targets_and_resolves_r
     async with session_scope() as session:
         organization_row = await session.get(Organization, organization.id)
         solution_row = await session.get(Solution, solution.id)
-        items, total = await operations.fetch_page(session, Pagination())
+        items, total = await operations.fetch(session, Pagination())
 
     # Assert
     assert organization_row is not None

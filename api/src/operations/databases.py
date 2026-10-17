@@ -1,11 +1,11 @@
 import asyncio
 import contextlib
 from uuid import UUID
+from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
 from src.utils import postgres
 from sqlalchemy import text, delete, select, update
-from src.errors import ForbiddenError
 from dataclasses import dataclass
 from src.kubernetes import databases as database_resources
 from collections.abc import AsyncGenerator
@@ -164,7 +164,7 @@ async def deleting(organization_id: UUID) -> AsyncGenerator[None]:
             if organization is None:
                 break
             if organization.deleted_at is None:
-                raise ForbiddenError("Active Organizations cannot be deleted by lifecycle cleanup")
+                raise HTTPException(status_code=403, detail="Active Organizations cannot be deleted by lifecycle cleanup")
             lease = await _claim(session, organization_id)
             await session.commit()
         if lease is not None:

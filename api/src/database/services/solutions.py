@@ -1,9 +1,9 @@
 from uuid import UUID
+from fastapi import HTTPException
 from datetime import UTC, datetime
 from sqlmodel import col
 from src.utils import names, roles, images
 from sqlalchemy import or_, func, select, update
-from src.errors import InvalidError, ConflictError, NotFoundError, ForbiddenError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer, selectinload, contains_eager
 from collections.abc import Mapping, Sequence
@@ -21,7 +21,7 @@ from src.database.models.association import UserOrganization
 from src.database.models.organizations import Organization
 
 
-async def fetch_page(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Solution], int]:
+async def fetch(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Solution], int]:
     """Return one newest-first page of active solutions for administrator views."""
 
     # Match literal Solution details and owning Organization names before pagination.
@@ -80,9 +80,9 @@ async def create(
         )
     organization = await session.scalar(select(Organization).where(col(Organization.id) == organization_id).with_for_update())
     if organization is None:
-        raise NotFoundError("Organization not found")
+        raise HTTPException(status_code=404, detail="Organization not found")
     if organization.deleted_at is not None:
-        raise ConflictError("Organization is not available")
+        raise HTTPException(status_code=409, detail="Organization is not available")
 
     # Revalidate the caller after locking the Organization so revoked access cannot use stale request state.
     await organizations.locked_membership(session, user_id, organization_id, OrganizationRoles.maintain)
@@ -99,7 +99,9 @@ async def create(
         .with_for_update()
     )
     if solution_limit_result.scalar_one_or_none() is not None:
-        raise ConflictError("Solution limit reached during the beta. Contact LongLink to request additional solutions.")
+        raise HTTPException(
+            status_code=409, detail="Solution limit reached during the beta. Contact LongLink to request additional solutions."
+        )
 
     # Build the Solution row before checking its Organization-scoped uniqueness.
     solution = Solution(
@@ -116,7 +118,7 @@ async def create(
             session.add(solution)
             await session.flush()
     except IntegrityError as exc:
-        raise ConflictError("Solution slug already exists") from exc
+        raise HTTPException(status_code=409, detail="Solution slug already exists") from exc
 
     # Creation uses the same immutable release boundary as subsequent updates.
     await deploy(
@@ -159,10 +161,10 @@ async def access(session: AsyncSession, solution_id: UUID, user_id: UUID, *, loc
     result = await session.execute(statement)
     row = result.one_or_none()
     if row is None:
-        raise ForbiddenError("Access required")
+        raise HTTPException(status_code=403, detail="Access required")
     solution, role = row
     if not roles.atleast(role, OrganizationRoles.maintain):
-        raise ForbiddenError("Permission required")
+        raise HTTPException(status_code=403, detail="Permission required")
     return solution
 
 
@@ -203,10 +205,10 @@ async def deploy(
     try:
         validate_environment_variables(merged)
     except ValueError as exc:
-        raise InvalidError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     missing = images.missing_envs(metadata, merged)
     if missing:
-        raise InvalidError(f"Solution environment does not satisfy required image variables: {', '.join(missing)}")
+        raise HTTPException(status_code=422, detail=f"Solution environment does not satisfy required image variables: {', '.join(missing)}")
 
     # Preserve omitted scaling and validate it before queuing work.
     if min_scale is None:
@@ -216,7 +218,7 @@ async def deploy(
     try:
         validate_idle_seconds(idle_seconds)
     except ValueError as exc:
-        raise InvalidError(str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # Never change Solution-owned runtime credentials when appending a release.
     revision = Revision(

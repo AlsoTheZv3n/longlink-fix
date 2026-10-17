@@ -1,10 +1,10 @@
 import src.database.services.organizations
 from uuid import UUID
+from fastapi import HTTPException
 from sqlmodel import col
 from src.utils import stripe
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import select, update
-from src.errors import ForbiddenError
 from src.logger import logger
 from src.kubernetes import databases as database_resources
 from src.kubernetes import organizations
@@ -76,7 +76,7 @@ async def delete(organization_id: UUID) -> None:
         if existing is None:
             return
         if existing.deleted_at is None:
-            raise ForbiddenError("Active Organizations cannot be deleted by lifecycle cleanup")
+            raise HTTPException(status_code=403, detail="Active Organizations cannot be deleted by lifecycle cleanup")
         if existing.stripe_customer_id is not None:
             async with stripe.client() as connection:
                 checkouts = await connection.v1.checkout.sessions.list_async({"customer": existing.stripe_customer_id, "limit": 100})
@@ -96,7 +96,7 @@ async def delete(organization_id: UUID) -> None:
                 return
             organization, compute = target
             if organization.deleted_at is None:
-                raise ForbiddenError("Active Organizations cannot be deleted by lifecycle cleanup")
+                raise HTTPException(status_code=403, detail="Active Organizations cannot be deleted by lifecycle cleanup")
             result = await session.scalars(select(col(Solution.id)).where(col(Solution.organization_id) == organization_id))
             solution_ids = result.all()
 

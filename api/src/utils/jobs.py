@@ -1,8 +1,8 @@
 import asyncio
 from uuid import UUID
+from fastapi import HTTPException
 from datetime import UTC, datetime
 from functools import partial
-from src.errors import ServiceError
 from src.logger import logger
 from src.operations import handlers, databases
 from collections.abc import Callable, Awaitable
@@ -72,8 +72,8 @@ async def execute(operation: Operation) -> None:
         raise
     except TimeoutError:
         reason = f"Operation timed out after {env.OPERATION_TIMEOUT_SECONDS} seconds"
-    except ServiceError as exc:
-        reason = str(exc)
+    except HTTPException as exc:
+        reason = str(exc.detail)
     except Exception as exc:
         logger.exception("Operation exception id=%s kind=%s target_id=%s", operation.id, operation.kind, operation.target_id)
         reason = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__

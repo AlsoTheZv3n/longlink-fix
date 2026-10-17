@@ -1,8 +1,8 @@
 from uuid import UUID
+from fastapi import HTTPException
 from sqlmodel import col
 from src.utils import github, images
 from sqlalchemy import select, update
-from src.errors import InvalidError, ConflictError, NotFoundError, ForbiddenError
 from src.models.roles import OrganizationRoles
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
@@ -27,7 +27,7 @@ async def lock(session: AsyncSession, organization_id: UUID) -> None:
     # Lock and refresh Organization state before checking availability.
     organization = await session.get(Organization, organization_id, populate_existing=True, with_for_update=True)
     if organization is None or organization.deleted_at is not None:
-        raise ConflictError("Organization is not available")
+        raise HTTPException(status_code=409, detail="Organization is not available")
 
 
 async def create(session: AsyncSession, organization_id: UUID, payload: RegistryCreate, user_id: UUID) -> RegistryConnection:
@@ -68,12 +68,12 @@ async def delete(session: AsyncSession, organization_id: UUID, connection_id: UU
     # Resolve only registry credentials belonging to the authorized Organization.
     connection = await session.get(RegistryConnection, connection_id)
     if connection is None or connection.organization_id != organization_id:
-        raise NotFoundError("Registry connection not found")
+        raise HTTPException(status_code=404, detail="Registry connection not found")
 
     # Retained deployment revisions must keep their registry credentials available.
     dependency = await session.scalar(select(col(Revision.id)).where(col(Revision.registry_connection_id) == connection_id).limit(1))
     if dependency is not None:
-        raise ConflictError("Registry connection is used by retained Solution revisions")
+        raise HTTPException(status_code=409, detail="Registry connection is used by retained Solution revisions")
     await session.delete(connection)
 
     # Do not coalesce deletion with reconciliation that already applied its captured secrets.
@@ -90,9 +90,9 @@ async def resolve(session: AsyncSession, organization_id: UUID, connection_id: U
     # Never search other organizations or try unrelated credentials.
     connection = await session.get(RegistryConnection, connection_id, populate_existing=True)
     if connection is None or connection.organization_id != organization_id:
-        raise NotFoundError("Registry connection not found")
+        raise HTTPException(status_code=404, detail="Registry connection not found")
     if connection.host != image.registry:
-        raise InvalidError("Registry connection does not match the image host")
+        raise HTTPException(status_code=422, detail="Registry connection does not match the image host")
     return connection
 
 
@@ -103,8 +103,8 @@ async def inspect(session: AsyncSession, organization_id: UUID | None, image: Im
     try:
         metadata = await images.required_metadata(image)
         return metadata, None
-    except ForbiddenError:
-        if organization_id is None or image.registry != RegistryConnection.host:
+    except HTTPException as exc:
+        if exc.status_code != 403 or organization_id is None or image.registry != RegistryConnection.host:
             raise
 
     # Only matching credentials in the caller-authorized organization may reach this registry.
@@ -117,8 +117,9 @@ async def inspect(session: AsyncSession, organization_id: UUID | None, image: Im
         try:
             metadata = await images.required_metadata(image, connection)
             return metadata, connection.id
-        except ForbiddenError:
-            continue
+        except HTTPException as exc:
+            if exc.status_code != 403:
+                raise
 
     # Report a stable access error after every eligible credential has been denied.
-    raise ForbiddenError("Registry denied image access. Check package permissions and registry credentials.")
+    raise HTTPException(status_code=403, detail="Registry denied image access. Check package permissions and registry credentials.")

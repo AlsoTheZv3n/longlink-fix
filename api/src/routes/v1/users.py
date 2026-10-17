@@ -33,7 +33,7 @@ async def list_users(
     """Return all user summaries for administrator views."""
 
     # Search the full administrator listing before pagination.
-    items, total = await users.fetch_page(session, pagination, search.strip())
+    items, total = await users.fetch(session, pagination, search.strip())
     return {"items": items, "total": total}
 
 
