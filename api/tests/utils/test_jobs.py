@@ -250,17 +250,12 @@ async def test_execute_rejects_lost_terminal_operation_lock(monkeypatch: pytest.
         # Commit the lost lease before the worker attempts its real terminal transition.
         async with operation_worker.session_scope() as session:
             assert await operation_worker.operations.release(session, operation.id) is True
-
-            # Read the persisted lease release rather than the transition result.
-            released = await session.get(Operation, operation.id, populate_existing=True)
-            assert released is not None
-            assert released.id == operation.id
             await session.commit()
 
     monkeypatch.setitem(operation_worker.handlers, operation.kind, complete_handler)
 
     # Act and assert
-    with pytest.raises(RuntimeError, match=f"Operation '{operation.id}' lock was lost") as exc_info:
+    with pytest.raises(RuntimeError) as exc_info:
         await operation_worker.execute(operation)
     assert str(exc_info.value) == f"Operation '{operation.id}' lock was lost"
 

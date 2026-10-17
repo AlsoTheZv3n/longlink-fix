@@ -3,9 +3,23 @@ import pytest
 import contextlib
 from uuid import uuid4
 from src.utils import s3
+from collections.abc import Callable
 from src.utils.rustfs import Error, RustFS
 
 pytestmark = pytest.mark.no_db
+
+
+def create_client(handler: Callable[[httpx2.Request], httpx2.Response]) -> httpx2.AsyncClient:
+    """Create an isolated client for signed administrative requests."""
+
+    # Keep transport configuration consistent without sharing client state.
+    transport = httpx2.MockTransport(handler)
+    return httpx2.AsyncClient(
+        transport=transport,
+        trust_env=False,
+        timeout=30,
+        follow_redirects=False,
+    )
 
 
 def test_policy_scopes_solution_access_and_denies_acl_grants() -> None:
@@ -55,13 +69,7 @@ async def test_service_account_replaces_abandoned_credentials() -> None:
         calls.append(f"{request.method} {request.url.raw_path.decode()}")
         return next(responses)
 
-    transport = httpx2.MockTransport(respond)
-    client = httpx2.AsyncClient(
-        transport=transport,
-        trust_env=False,
-        timeout=30,
-        follow_redirects=False,
-    )
+    client = create_client(respond)
 
     # Act
     async with client:
@@ -95,13 +103,7 @@ async def test_service_account_reraises_unexpected_error() -> None:
         requests.append((request.method, request.url.raw_path.decode()))
         return httpx2.Response(500, text="internal error")
 
-    transport = httpx2.MockTransport(respond)
-    client = httpx2.AsyncClient(
-        transport=transport,
-        trust_env=False,
-        timeout=30,
-        follow_redirects=False,
-    )
+    client = create_client(respond)
 
     # Act
     async with client:
@@ -141,13 +143,7 @@ async def test_revoke_handles_administrative_errors(status_code: int, message: s
         requests.append((request.method, request.url.raw_path.decode()))
         return httpx2.Response(status_code, text=message)
 
-    transport = httpx2.MockTransport(respond)
-    client = httpx2.AsyncClient(
-        transport=transport,
-        trust_env=False,
-        timeout=30,
-        follow_redirects=False,
-    )
+    client = create_client(respond)
 
     # Act
     expectation = (

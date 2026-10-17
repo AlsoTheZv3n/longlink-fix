@@ -127,14 +127,7 @@ describe('SolutionRuntime', () => {
         const output = await renderRuntime('/issues/42');
 
         // Assert
-        await vi.waitFor(() => expect(output.querySelector('iframe')?.srcdoc).toContain('Content-Security-Policy'));
-        const frame = output.querySelector('iframe');
-
-        if (!frame?.contentWindow) throw new Error('Missing isolated frame');
-        const session = frame.srcdoc.match(/__VIEW_SESSION__="([^"]+)"/)?.[1];
-
-        // Observe the real initialization transfer without owning another message listener.
-        const transfer = vi.spyOn(frame.contentWindow, 'postMessage');
+        const { frame, session, transfer } = await observeView(output);
 
         // Authenticated window dispatch transfers the route parameters synchronously.
         window.dispatchEvent(
@@ -163,19 +156,7 @@ describe('SolutionRuntime', () => {
                 : sourceResponse(source)
         );
         const output = await renderRuntime('/home');
-        await vi.waitFor(async () => {
-            await act(async () => {});
-            expect(output.querySelector('iframe')?.srcdoc).toContain('Content-Security-Policy');
-        });
-        const frame = output.querySelector('iframe');
-
-        if (!frame?.contentWindow) throw new Error('Missing isolated frame');
-        const session = frame.srcdoc.match(/__VIEW_SESSION__="([^"]+)"/)?.[1];
-
-        if (!session) throw new Error('Missing bootstrap session');
-
-        // Observe the real capability transfer without replacing its implementation.
-        const transfer = vi.spyOn(frame.contentWindow, 'postMessage');
+        const { frame, session, transfer } = await observeView(output);
         const handshake = { source: frame.contentWindow, origin: 'null', data: session };
 
         // Act
@@ -354,8 +335,8 @@ describe('SolutionRuntime', () => {
         expect(response).toHaveBeenCalledOnce();
     });
 
-    /** Acquires the actual capability port through the authenticated bootstrap handshake. */
-    async function connectView(output: HTMLElement): Promise<MessagePort> {
+    /** Observes the ready frame's capability transfer without dispatching a handshake. */
+    async function observeView(output: HTMLElement) {
         await vi.waitFor(async () => {
             await act(async () => {});
             expect(output.querySelector('iframe')?.srcdoc).toContain('Content-Security-Policy');
@@ -367,6 +348,13 @@ describe('SolutionRuntime', () => {
 
         if (!session) throw new Error('Missing bootstrap session');
         const transfer = vi.spyOn(frame.contentWindow, 'postMessage');
+
+        return { frame, session, transfer };
+    }
+
+    /** Acquires the actual capability port through the authenticated bootstrap handshake. */
+    async function connectView(output: HTMLElement): Promise<MessagePort> {
+        const { frame, session, transfer } = await observeView(output);
         window.dispatchEvent(
             new MessageEvent('message', { source: frame.contentWindow, origin: 'null', data: session })
         );

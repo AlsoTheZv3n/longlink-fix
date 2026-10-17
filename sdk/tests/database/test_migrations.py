@@ -114,14 +114,13 @@ def test_production_migrations_upgrade_head_with_committed_revision(tmp_path: Pa
     migrations_path = tmp_path / "migrations"
     migrations_path.mkdir()
     migrations_path.joinpath("001_initial.py").write_text("", encoding="utf-8")
-    captured: dict[str, Config | str] = {}
+    captured: list[tuple[Config, str]] = []
     monkeypatch.chdir(tmp_path)
 
     def upgrade(config: Config, target: str) -> None:
         """Capture the Alembic configuration and revision target."""
 
-        captured["config"] = config
-        captured["target"] = target
+        captured.append((config, target))
 
     monkeypatch.setattr(database_migrations.command, "upgrade", upgrade)
 
@@ -129,8 +128,7 @@ def test_production_migrations_upgrade_head_with_committed_revision(tmp_path: Pa
     database_migrations.apply_migrations()
 
     # Assert
-    config = captured["config"]
-    assert isinstance(config, Config)
-    assert captured["target"] == "head"
+    [(config, target)] = captured
+    assert target == "head"
     assert config.get_main_option("script_location") == str(database_migrations.CURRENT_FILE.parent)
     assert config.get_main_option("version_locations") == str(migrations_path)

@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { useState } from 'react';
 import Invoices from './Invoices';
 import Registries from './Registries';
+import { useApiError } from '@/lib/errors';
 import { useApi } from '@/lib/hooks/use-api';
 import PaymentMethods from './PaymentMethods';
 import { NoIndex } from '@/components/NoIndex';
@@ -368,6 +369,7 @@ function MembersSection({ base, canAdminister }: { base: string; canAdminister: 
 function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: boolean }) {
     const [invitation, setInvitation] = useState({ email: '', role: 'write' });
     const [inviting, setInviting] = useState(false);
+    const reportError = useApiError();
 
     // Load and invalidate People data only while the invitations section is active.
     const [{ invitations }, invalidateDetails] = useApi(base, schemas.zOrganizationDetails);
@@ -376,15 +378,20 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
     async function inviteMember() {
         if (!invitation.email.trim()) return;
 
-        // Refresh organization access only after sending the invitation succeeds.
-        await api.post(`${base}/invitations`, {
-            json: schemas.zOrganizationInvitationCreate.parse({
-                ...invitation,
-                email: invitation.email.trim(),
-            }),
-        });
-        await invalidateDetails();
-        setInviting(false);
+        // Keep the dialog open on failure, but refresh either way because a failed email still saves the invitation.
+        try {
+            await api.post(`${base}/invitations`, {
+                json: schemas.zOrganizationInvitationCreate.parse({
+                    ...invitation,
+                    email: invitation.email.trim(),
+                }),
+            });
+            setInviting(false);
+        } catch (failure) {
+            reportError(failure);
+        } finally {
+            await invalidateDetails();
+        }
     }
 
     return (

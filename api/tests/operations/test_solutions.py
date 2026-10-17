@@ -479,9 +479,134 @@ async def test_solution_creation_skips_removed_solution_provider_construction(
     assert result is None
 
 
-@pytest.mark.parametrize("failure", ["initial", "error", "timeout", "shutdown", "restoration", "deleted_during_rollout", "deleted_before_recovery"])
+async def test_initial_deployment_failure_does_not_schedule_recovery(
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mark a failed first release without scheduling a nonexistent fallback."""
+
+    # Arrange
+    owner = users[0]
+    organization = await create_organization(owner)
+    solution = await create_solution(
+        organization,
+        envs={"KEY": "old"},
+        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+    )
+    setup = await claim_operation()
+    assert setup is not None
+    await complete_operation(setup.id)
+
+    async def apply(
+        client: object,
+        _organization_id: UUID,
+        _id: UUID,
+        image: str,
+        secrets: dict[str, str],
+        *,
+        revision_id: UUID,
+        min_scale: int,
+        idle_seconds: int = 60,
+        migrate: bool,
+        registry_connection_id: UUID | None = None,
+    ) -> None:
+        """Fail the initial Kubernetes rollout."""
+
+        assert min_scale == 0
+        raise RuntimeError("rollout failed")
+
+    monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
+    monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
+    initial = await claim_operation()
+    assert initial is not None
+
+    # Act
+    await execute(initial)
+
+    # Assert
+    async with session_scope() as session:
+        result = await session.get(Operation, initial.id)
+        assert result is not None
+        assert result.failed is not None
+        current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
+        assert current is not None
+        assert current.status == Status.failed
+        assert current.deployed_revision_id is None
+        assert current.desired_revision.failed
+    scheduled = await fetch_operations()
+    assert all(operation.kind != OperationKind.solution_deploy or operation.finished_at is not None for operation in scheduled)
+
+
+async def test_shutdown_keeps_deployment_resumable(users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Resume a cancelled update without marking its revision failed."""
+
+    # Arrange
+    owner = users[0]
+    organization = await create_organization(owner)
+    solution = await create_solution(
+        organization,
+        envs={"KEY": "old"},
+        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+    )
+    setup = await claim_operation()
+    assert setup is not None
+    await complete_operation(setup.id)
+
+    async def apply(
+        client: object,
+        _organization_id: UUID,
+        _id: UUID,
+        image: str,
+        secrets: dict[str, str],
+        *,
+        revision_id: UUID,
+        min_scale: int,
+        idle_seconds: int = 60,
+        migrate: bool,
+        registry_connection_id: UUID | None = None,
+    ) -> None:
+        """Complete the first rollout and cancel its replacement."""
+
+        assert min_scale == (1 if image.endswith("@sha256:new") else 0)
+        if image.endswith("@sha256:new") and migrate:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
+    monkeypatch.setattr(solution_operations.solution_resources, "apply", apply)
+    initial = await claim_operation()
+    assert initial is not None
+    await execute(initial)
+    async with session_scope() as session:
+        result = await session.get(Operation, initial.id)
+        assert result is not None
+        assert result.failed is None
+
+    metadata = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:new"))
+    async with session_scope() as session:
+        current = await solutions.access(session, solution.id, owner.id)
+        await solutions.deploy(session, current, owner.id, metadata, {"KEY": "new"}, min_scale=1)
+        await session.commit()
+        desired_id = current.desired_revision_id
+    update = await claim_operation()
+    assert update is not None
+    assert update.target_id == desired_id
+
+    # Act
+    with pytest.raises(asyncio.CancelledError):
+        await execute(update)
+
+    # Assert
+    resumed = await claim_operation()
+    assert resumed is not None
+    assert resumed.id == update.id
+    async with session_scope() as session:
+        revision = await session.get(Revision, desired_id)
+        assert revision is not None
+        assert not revision.failed
+
+
+@pytest.mark.parametrize("failure", ["error", "timeout", "restoration", "deleted_during_rollout", "deleted_before_recovery"])
 async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch, failure: str) -> None:
-    """Finalize timed-out rollouts before returning, recover failures, and resume shutdown."""
+    """Finalize timed-out rollouts before returning and recover failed updates."""
 
     # Arrange: use real persisted revisions and the actual worker; replace only Kubernetes.
     owner = users[0]
@@ -496,7 +621,7 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
     await complete_operation(setup.id)
     calls: list[tuple[str, dict[str, str], bool]] = []
     rollout_finalized = asyncio.Event()
-    failing = failure == "initial"
+    failing = False
 
     async def apply(
         client: object,
@@ -523,8 +648,6 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
                 await session.commit()
         if not migrate and failure != "restoration":
             return
-        if failure == "shutdown":
-            raise asyncio.CancelledError
         if failure == "timeout":
             # Suspend rollout until the real worker timeout cancels and finalizes it.
             try:
@@ -543,19 +666,6 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
     async with session_scope() as session:
         result = await session.get(Operation, initial.id)
         assert result is not None
-    if failure == "initial":
-        assert result.failed is not None
-        async with session_scope() as session:
-            current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
-            assert current is not None
-            assert current.status == Status.failed
-            assert current.deployed_revision_id is None
-            assert current.desired_revision.failed
-
-        # Inspect pending recovery without claiming or completing unrelated work.
-        scheduled = await fetch_operations()
-        assert all(operation.kind != OperationKind.solution_deploy or operation.finished_at is not None for operation in scheduled)
-        return
     assert result.failed is None
     good_id = initial.target_id
 
@@ -570,19 +680,6 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
     update = await claim_operation()
     assert update is not None
     assert update.target_id == desired_id
-
-    # Shutdown is resumable, not a failed deployment or recovery request.
-    if failure == "shutdown":
-        with pytest.raises(asyncio.CancelledError):
-            await execute(update)
-        resumed = await claim_operation()
-        assert resumed is not None
-        assert resumed.id == update.id
-        async with session_scope() as session:
-            revision = await session.get(Revision, desired_id)
-            assert revision is not None
-            assert not revision.failed
-        return
 
     # Act: limit the timeout override to the failing attempt, not recovery work.
     with monkeypatch.context() as timeout:

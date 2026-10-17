@@ -104,28 +104,6 @@ async def test_list_users_rejects_anonymous_requests(client: AsyncClient) -> Non
     assert response.json() == {"detail": "Not authenticated"}
 
 
-async def test_patch_me_persists_profile_name(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-) -> None:
-    """Persist an updated profile name."""
-
-    # Arrange
-    user = users[0]
-    expected_name = "Updated User"
-
-    # Act
-    response = await clients[0].patch("/api/v1/me", json={"name": expected_name})
-
-    # Assert
-    assert response.status_code == 200
-    assert response.json()["name"] == expected_name
-    async with session_scope() as session:
-        persisted_user = await session.get(User, user.id)
-        assert persisted_user is not None
-        assert persisted_user.name == expected_name
-
-
 async def test_patch_me_commits_before_shared_delivery_and_retries_unchanged_profile(
     clients: tuple[AsyncClient, AsyncClient, AsyncClient],
     users: tuple[User, User, User],

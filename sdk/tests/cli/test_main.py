@@ -10,7 +10,5 @@ def test_cli_help_lists_all_supported_commands(capsys: pytest.CaptureFixture[str
 
     # Assert
     output = capsys.readouterr().out
-    assert "build" in output
-    assert "dev" in output
-    assert "init" in output
-    assert "migrate" in output
+    for command in ("build", "dev", "init", "migrate", "update", "docs"):
+        assert command in output

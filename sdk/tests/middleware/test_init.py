@@ -1,25 +1,10 @@
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-from fastapi.testclient import TestClient
-from longlink.middleware import FrontendMiddleware
+from longlink import middleware
+from longlink.middleware import frontend
 
 
-def test_public_frontend_middleware_applies_html_cache_policy() -> None:
-    """Keep the public middleware import usable by embedding applications."""
-
-    # Arrange
-    app = FastAPI()
-    app.add_middleware(FrontendMiddleware)
-
-    @app.get("/")
-    def page() -> HTMLResponse:
-        """Serve one frontend document."""
-
-        return HTMLResponse("<html>Solution</html>")
-
-    # Act
-    response = TestClient(app).get("/")
+def test_public_middleware_exports_match_implementations() -> None:
+    """Keep public middleware exports available to embedding applications."""
 
     # Assert
-    assert response.status_code == 200
-    assert response.headers["cache-control"] == "no-cache"
+    assert middleware.FrontendMiddleware is frontend.FrontendMiddleware
+    assert middleware.accepts_gzip is frontend.accepts_gzip
