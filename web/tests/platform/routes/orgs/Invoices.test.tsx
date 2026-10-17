@@ -29,7 +29,11 @@ async function withInvoices(
     check: (output: HTMLElement, render: (canManage: boolean) => void, errors: unknown[]) => Promise<void>
 ) {
     const server = createServer((request, response) => {
-        response.setHeader('Access-Control-Allow-Origin', request.headers.origin ?? '*');
+        const origin = request.headers.origin;
+        const allowedOrigins = new Set(['http://localhost', 'http://127.0.0.1']);
+        const allowOrigin = origin && origin !== 'null' && allowedOrigins.has(origin) ? origin : 'http://127.0.0.1';
+        response.setHeader('Access-Control-Allow-Origin', allowOrigin);
+        response.setHeader('Vary', 'Origin');
         response.setHeader('Access-Control-Allow-Credentials', 'true');
         response.setHeader('Access-Control-Allow-Headers', request.headers['access-control-request-headers'] ?? '*');
         response.setHeader('Access-Control-Allow-Methods', 'GET');
