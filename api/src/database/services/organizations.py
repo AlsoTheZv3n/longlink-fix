@@ -358,15 +358,13 @@ async def members(session: AsyncSession, organization_id: UUID) -> Sequence[User
 async def member_count(session: AsyncSession, organization_id: UUID) -> int:
     """Count accepted active members, excluding invitations and deleted users."""
 
-    return (
-        await session.scalar(
-            select(func.count())
-            .select_from(UserOrganization)
-            .join(User, col(User.id) == col(UserOrganization.user_id))
-            .where(col(UserOrganization.organization_id) == organization_id, col(User.deleted_at).is_(None))
-        )
-        or 0
+    result = await session.execute(
+        select(func.count())
+        .select_from(UserOrganization)
+        .join(User, col(User.id) == col(UserOrganization.user_id))
+        .where(col(UserOrganization.organization_id) == organization_id, col(User.deleted_at).is_(None))
     )
+    return result.scalar_one()
 
 
 async def lock(session: AsyncSession, organization_id: UUID) -> Organization:

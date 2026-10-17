@@ -1,9 +1,8 @@
 from uuid import UUID, uuid4
 from typing import ClassVar
 from secrets import token_urlsafe
-from datetime import UTC, datetime
+from datetime import datetime
 from sqlmodel import Field
-from src.utils import dates
 from sqlalchemy import Enum, Column, BigInteger
 from src.environments import env
 from src.database.types import EncryptedType
@@ -48,11 +47,11 @@ class Organization(AuditTable, table=True):
     # Stripe customer and durable card-registration attempt
     stripe_customer_id: str | None = Field(default=None, max_length=255, unique=True)
     stripe_checkout_id: str | None = Field(default=None, max_length=255)
-    stripe_checkout_key: UUID = Field(default_factory=uuid4)
+    stripe_checkout_key: UUID | None = None
     stripe_payment_method_id: str | None = Field(default=None, max_length=255)
 
     # Monthly usage snapshot deadline
-    invoice_due_at: datetime = Field(default_factory=lambda: dates.next_month(datetime.now(UTC)), index=True)
+    invoice_due_at: datetime | None = Field(default=None, index=True)
 
     # State
     status: Status = Field(

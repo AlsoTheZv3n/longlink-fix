@@ -1,3 +1,4 @@
+import * as pricing from '@/platform/pricing';
 import { Text } from '@astryxdesign/core/Text';
 import { Seo } from '@/platform/components/Seo';
 import { Stack } from '@astryxdesign/core/Stack';
@@ -5,34 +6,9 @@ import { Button } from '@astryxdesign/core/Button';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Section } from '@astryxdesign/core/Section';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Publishes usage pricing from generated backend defaults without introducing plans. */
 export default function Pricing() {
-    // Schema defaults come from the same constants used to calculate monthly invoices.
-    const rates = schemas.zUsageRates.parse({});
-
-    const resources = [
-        {
-            id: 'users',
-            resource: 'Users',
-            included: `First ${rates.free_users} users`,
-            rate: `CHF ${(rates.user_monthly_price / 100).toFixed(2)} per additional user`,
-        },
-        {
-            id: 'database',
-            resource: 'Database',
-            included: `${rates.free_database_bytes / 1024 ** 2} MiB database storage`,
-            rate: `CHF ${(rates.database_gib_monthly_price / 100).toFixed(2)} per additional GiB`,
-        },
-        {
-            id: 'storage',
-            resource: 'File storage',
-            included: `${rates.free_storage_bytes / 1024 ** 3} GiB file storage`,
-            rate: `CHF ${(rates.storage_gib_monthly_price / 100).toFixed(2)} per additional GiB`,
-        },
-    ];
-
     return (
         <>
             <Seo
@@ -57,11 +33,11 @@ export default function Pricing() {
                             </Text>
                         </Stack>
                         <Table
-                            data={resources}
+                            data={pricing.resources}
                             idKey="id"
                             columns={[
                                 { key: 'resource', header: 'Resource', width: proportional(1) },
-                                { key: 'included', header: 'Included free', width: proportional(2) },
+                                { key: 'publicIncluded', header: 'Included free', width: proportional(2) },
                                 { key: 'rate', header: 'Monthly excess usage', width: proportional(2) },
                             ]}
                         />

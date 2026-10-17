@@ -1,9 +1,9 @@
+import * as pricing from '@/platform/pricing';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 import { DocumentationArticle } from '@/platform/components/Article';
 
 const article = {
@@ -20,29 +20,6 @@ const article = {
 
 /** Documents Organization billing in one Platform article using the current pricing constants. */
 export default function Billing() {
-    const rates = schemas.zUsageRates.parse({});
-
-    const resources = [
-        {
-            id: 'users',
-            resource: 'Users',
-            included: `${rates.free_users} users`,
-            rate: `CHF ${(rates.user_monthly_price / 100).toFixed(2)} per additional user`,
-        },
-        {
-            id: 'database',
-            resource: 'Database',
-            included: `${rates.free_database_bytes / 1024 ** 2} MiB`,
-            rate: `CHF ${(rates.database_gib_monthly_price / 100).toFixed(2)} per additional GiB`,
-        },
-        {
-            id: 'storage',
-            resource: 'File storage',
-            included: `${rates.free_storage_bytes / 1024 ** 3} GiB`,
-            rate: `CHF ${(rates.storage_gib_monthly_price / 100).toFixed(2)} per additional GiB`,
-        },
-    ];
-
     return (
         <DocumentationArticle article={article}>
             <Stack gap={5}>
@@ -54,7 +31,7 @@ export default function Billing() {
                     usage above the free amounts below.
                 </Text>
                 <Table
-                    data={resources}
+                    data={pricing.resources}
                     idKey="id"
                     density="compact"
                     columns={[

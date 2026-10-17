@@ -34,7 +34,12 @@ async def snapshot(session: AsyncSession, organization_id: UUID, period_end: dat
 
     # The persisted deadline serializes replicas and prevents charging a month before Organization creation.
     organization = await organizations.lock(session, organization_id)
-    if organization.deleted_at is not None or organization.invoice_due_at > period_end or organization.status != Status.running:
+    if (
+        organization.deleted_at is not None
+        or organization.invoice_due_at is None
+        or organization.invoice_due_at > period_end
+        or organization.status != Status.running
+    ):
         return
 
     # Organizations without payment authorization cannot be charged retroactively after adding a card.

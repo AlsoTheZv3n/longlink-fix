@@ -39,8 +39,9 @@ async def save_card(
     )
 
     # First registration cannot charge for months before payment authorization.
-    if organization.stripe_payment_method_id is None:
-        organization.invoice_due_at = max(organization.invoice_due_at, dates.next_month(datetime.now(UTC)))
+    if organization.stripe_payment_method_id is None or organization.invoice_due_at is None:
+        deadline = dates.next_month(datetime.now(UTC))
+        organization.invoice_due_at = max(organization.invoice_due_at or deadline, deadline)
     organization.stripe_payment_method_id = intent.payment_method
 
     # Expand provisioned capacity without introducing plans or shrinking existing volumes.
@@ -82,6 +83,8 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
         organization.stripe_checkout_key = uuid4()
 
     # Persist the attempt before contacting Stripe, then reauthorize after releasing the lock.
+    if organization.stripe_checkout_key is None:
+        organization.stripe_checkout_key = uuid4()
     await session.commit()
     organization = await organizations.lock(session, organization.id)
     await organizations.locked_membership(session, user_id, organization.id, OrganizationRoles.owner)
@@ -94,6 +97,7 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
         raise ConflictError("Card registration already started. Refresh usage.")
 
     # Hosted consent covers the published month-end usage charges, not a subscription or immediate payment.
+    return_url = f"{env.PUBLIC_URL}/orgs/{organization.slug}/settings#payment-methods"
     hosted = await connection.v1.checkout.sessions.create_async(
         {
             "mode": "setup",
@@ -108,8 +112,8 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
                     "No payment is taken now."
                 }
             },
-            "success_url": f"{env.PUBLIC_URL}/orgs/{organization.slug}/settings#payment-methods",
-            "cancel_url": f"{env.PUBLIC_URL}/orgs/{organization.slug}/settings#payment-methods",
+            "success_url": return_url,
+            "cancel_url": return_url,
         },
         options={"idempotency_key": f"card-checkout:{organization.stripe_checkout_key}"},
     )
@@ -118,7 +122,7 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
     # Recovered remote attempts may already be complete or expired.
     if hosted.status != "open":
         await save_card(session, organization, hosted, connection)
-        return f"{env.PUBLIC_URL}/orgs/{organization.slug}/settings#payment-methods"
+        return return_url
     if hosted.url is None:
         raise UnavailableError("Checkout URL unavailable")
     return hosted.url

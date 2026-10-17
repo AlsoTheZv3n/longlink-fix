@@ -140,47 +140,33 @@ export default function OrganizationSettings() {
                 }
             >
                 <Stack gap={3}>
-                    {section === 'usage' ? (
-                        <ApiBoundary key="usage">
+                    <ApiBoundary key={section}>
+                        {section === 'usage' ? (
                             <Usage base={base} />
-                        </ApiBoundary>
-                    ) : section === 'payment-methods' ? (
-                        <ApiBoundary key="payment-methods">
+                        ) : section === 'payment-methods' ? (
                             <PaymentMethods base={base} canManage={membership.role === 'owner'} />
-                        </ApiBoundary>
-                    ) : section === 'invoices' ? (
-                        <ApiBoundary key="invoices">
+                        ) : section === 'invoices' ? (
                             <Invoices base={base} canManage={membership.role === 'owner'} />
-                        </ApiBoundary>
-                    ) : section === 'private-registries' ? (
-                        <ApiBoundary key="registries">
+                        ) : section === 'private-registries' ? (
                             <Registries base={base} canMaintain={canMaintain} />
-                        </ApiBoundary>
-                    ) : section === 'members' ? (
-                        <ApiBoundary key="members">
+                        ) : section === 'members' ? (
                             <MembersSection base={base} canAdminister={canAdminister} />
-                        </ApiBoundary>
-                    ) : section === 'invitations' ? (
-                        <ApiBoundary key="invitations">
+                        ) : section === 'invitations' ? (
                             <InvitationsSection base={base} canMaintain={canMaintain} />
-                        </ApiBoundary>
-                    ) : section === 'solutions' ? (
-                        <ApiBoundary key="solutions">
+                        ) : section === 'solutions' ? (
                             <SolutionManagement
                                 organization={membership.organization}
                                 canMaintain={canMaintain}
                                 presentation="settings"
                             />
-                        </ApiBoundary>
-                    ) : (
-                        <ApiBoundary>
+                        ) : (
                             <GeneralSection
                                 base={base}
                                 name={membership.organization.name}
                                 canDelete={membership.role === 'owner'}
                             />
-                        </ApiBoundary>
-                    )}
+                        )}
+                    </ApiBoundary>
                 </Stack>
             </Layout>
         </Stack>

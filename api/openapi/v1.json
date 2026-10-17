@@ -2975,45 +2975,6 @@
         }
       }
     },
-    "/api/v1/pricing": {
-      "get": {
-        "summary": "Get Pricing",
-        "description": "Publish the same included usage and rates used by monthly invoices.",
-        "operationId": "get_pricing_api_v1_pricing_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UsageRates"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/organizations/{organization_id}/cards": {
       "get": {
         "summary": "Get Cards",
@@ -5842,43 +5803,6 @@
         ],
         "title": "TokenSummary",
         "description": "Expose revocation handles without access credentials or hashes."
-      },
-      "UsageRates": {
-        "properties": {
-          "free_users": {
-            "type": "integer",
-            "title": "Free Users",
-            "default": 5
-          },
-          "free_storage_bytes": {
-            "type": "integer",
-            "title": "Free Storage Bytes",
-            "default": 1073741824
-          },
-          "free_database_bytes": {
-            "type": "integer",
-            "title": "Free Database Bytes",
-            "default": 104857600
-          },
-          "user_monthly_price": {
-            "type": "integer",
-            "title": "User Monthly Price",
-            "default": 500
-          },
-          "storage_gib_monthly_price": {
-            "type": "integer",
-            "title": "Storage Gib Monthly Price",
-            "default": 10
-          },
-          "database_gib_monthly_price": {
-            "type": "integer",
-            "title": "Database Gib Monthly Price",
-            "default": 100
-          }
-        },
-        "type": "object",
-        "title": "UsageRates",
-        "description": "Describe included usage and month-end prices in CHF centimes."
       },
       "UserIdentity": {
         "properties": {

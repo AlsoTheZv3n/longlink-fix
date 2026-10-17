@@ -6,7 +6,6 @@ from uuid import UUID
 from fastapi import Query, Depends, APIRouter, HTTPException, BackgroundTasks
 from src.utils import s3, mail, roles
 from src.logger import logger
-from src.models import pricing
 from sqlalchemy.exc import SQLAlchemyError
 from src.kubernetes import databases
 from src.environments import env
@@ -102,7 +101,7 @@ async def get_organization_usage(organization_id: UUID, user: auth.CurrentUser, 
     # Membership is required even though the rates themselves are public.
     await organizations.require_membership(session, user.id, organization_id)
     users = await organizations.member_count(session, organization_id)
-    return {"users": users, "stripe_enabled": env.stripe_enabled, **pricing.RATES.model_dump()}
+    return {"users": users, "stripe_enabled": env.stripe_enabled}
 
 
 @router.get("/organizations/{organization_id}/quotas", response_model=OrganizationQuotasResponse)

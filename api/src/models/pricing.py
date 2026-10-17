@@ -25,6 +25,3 @@ class UsageRates(BaseModel):
     user_monthly_price: int = USER_MONTHLY_PRICE
     storage_gib_monthly_price: int = STORAGE_GIB_MONTHLY_PRICE
     database_gib_monthly_price: int = DATABASE_GIB_MONTHLY_PRICE
-
-
-RATES = UsageRates()

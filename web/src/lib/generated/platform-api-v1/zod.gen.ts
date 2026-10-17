@@ -638,20 +638,6 @@ export const zTokenSummary = z.object({
 });
 
 /**
- * UsageRates
- *
- * Describe included usage and month-end prices in CHF centimes.
- */
-export const zUsageRates = z.object({
-    free_users: z.int().optional().default(5),
-    free_storage_bytes: z.int().optional().default(1073741824),
-    free_database_bytes: z.int().optional().default(104857600),
-    user_monthly_price: z.int().optional().default(500),
-    storage_gib_monthly_price: z.int().optional().default(10),
-    database_gib_monthly_price: z.int().optional().default(100)
-});
-
-/**
  * UserIdentity
  *
  * Represent a user identity in nested API responses.

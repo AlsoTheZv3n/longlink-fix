@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from sqlmodel import col
 from src.utils import stripe
 from sqlalchemy import select
-from src.models import pricing
 from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.models.payments import PaymentCard, PaymentInvoice, PaymentRedirect
@@ -14,13 +13,6 @@ from src.database.services import payments, organizations
 from src.database.models.organizations import Organization
 
 router = APIRouter()
-
-
-@router.get("/pricing", response_model=pricing.UsageRates)
-async def get_pricing():
-    """Publish the same included usage and rates used by monthly invoices."""
-
-    return pricing.RATES
 
 
 @router.get("/organizations/{organization_id}/cards", response_model=list[PaymentCard])
