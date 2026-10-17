@@ -3,12 +3,7 @@ description: Suggest an idea for this project
 type: feature
 body:
     - type: textarea
-      id: problem
+      id: description
       attributes:
-          label: Problem statement
-          description: Describe the problem this feature would solve.
-    - type: textarea
-      id: solution
-      attributes:
-          label: Proposed solution
-          description: Describe the solution you would like.
+          label: Feature description
+          description: Describe the problem this feature would solve and your proposed solution.

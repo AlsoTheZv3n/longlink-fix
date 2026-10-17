@@ -6,9 +6,4 @@ body:
       id: description
       attributes:
           label: Bug description
-          description: Describe the bug and include steps to reproduce or screenshots.
-    - type: textarea
-      id: expected
-      attributes:
-          label: Expected behavior
-          description: Describe what you expected to happen.
+          description: Describe the bug, steps to reproduce, and expected behavior. Include screenshots if helpful.
