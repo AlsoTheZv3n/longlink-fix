@@ -26,5 +26,5 @@ it('selects Alternatives without listing alternatives or other sections’ pages
         Array.from(output.querySelectorAll('[aria-label="Documentation navigation"] a'), (link) =>
             link.getAttribute('href')
         )
-    ).toEqual(['/docs/', '/docs/introduction/']);
+    ).toEqual(['/docs/']);
 });
