@@ -5248,7 +5248,7 @@ declare function Step(props: {
     label: string;
     /** Supporting text displayed below the step label. */
     description?: string;
-    /** Controls for this step, right-aligned in vertical steppers; using them never activates the step. */
+    /** Right-aligned controls for this step in vertical steppers; using them never activates the step. Compact horizontal steppers hide them. */
     actions?: ViewNode;
 }): React.JSX.Element;
 

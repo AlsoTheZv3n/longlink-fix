@@ -63,7 +63,7 @@ export function Step({
     label: string;
     /** Supporting text displayed below the step label. */
     description?: string;
-    /** Controls for this step, right-aligned in vertical steppers; using them never activates the step. */
+    /** Right-aligned controls for this step in vertical steppers; using them never activates the step. Compact horizontal steppers hide them. */
     actions?: ReactNode;
 }) {
     // Render actions in the content slot, which Astryx keeps outside the step's activation button.

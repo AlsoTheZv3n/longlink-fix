@@ -2435,7 +2435,7 @@
                 {
                     "name": "Step.actions",
                     "type": "ReactNode",
-                    "description": "Controls for this step, right-aligned in vertical steppers; using them never activates the step."
+                    "description": "Right-aligned controls for this step in vertical steppers; using them never activates the step. Compact horizontal steppers hide them."
                 }
             ]
         },
