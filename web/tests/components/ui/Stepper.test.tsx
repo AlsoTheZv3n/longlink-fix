@@ -23,8 +23,12 @@ it('renders step actions inside their own step without nesting them in the step 
     // Act
     await withMounted(
         <Stepper activeStep={1} orientation="vertical" onStepClick={() => {}}>
-            <Step step={0} label="contract-v1.pdf" actions={<Button label="Download" />} />
-            <Step step={1} label="contract-v2.pdf" actions={<Button label="Approve" />} />
+            <Step step={0} label="contract-v1.pdf">
+                <Button label="Download" />
+            </Step>
+            <Step step={1} label="contract-v2.pdf">
+                <Button label="Approve" />
+            </Step>
         </Stepper>,
         async (output) => {
             // Assert
@@ -46,7 +50,9 @@ it('runs a step action without activating its step', async () => {
     await withMounted(
         <Stepper activeStep={0} orientation="vertical" onStepClick={onStepClick}>
             <Step step={0} label="contract-v1.pdf" />
-            <Step step={1} label="contract-v2.pdf" actions={<Button label="Approve" onClick={onApprove} />} />
+            <Step step={1} label="contract-v2.pdf">
+                <Button label="Approve" onClick={onApprove} />
+            </Step>
         </Stepper>,
         async (output) => {
             const approve = Array.from(output.querySelectorAll('button')).find(
@@ -66,12 +72,9 @@ it('keeps steps inert without onStepClick while their actions remain focusable',
     // Act
     await withMounted(
         <Stepper activeStep={0} orientation="vertical">
-            <Step
-                step={0}
-                label="contract-v1.pdf"
-                description="Uploaded by Ana"
-                actions={<Button label="Download" />}
-            />
+            <Step step={0} label="contract-v1.pdf" description="Uploaded by Ana">
+                <Button label="Download" />
+            </Step>
         </Stepper>,
         async (output) => {
             const buttons = output.querySelectorAll('button');

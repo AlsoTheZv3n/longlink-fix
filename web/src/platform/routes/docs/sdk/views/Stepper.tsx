@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ViewLayout from './ViewLayout';
+import { Stack } from '@/components/ui/Stack';
 import { Button } from '@/components/ui/Button';
 import { Step, Stepper } from '@/components/ui/Stepper';
 
@@ -35,19 +36,19 @@ export default function StepperPage() {
         step={0}
         label="contract-v1.pdf"
         description="Uploaded by Ana on Oct 2"
-        actions={<Button label="Download" size="sm" />}
-      />
+      >
+        <Button label="Download" size="sm" />
+      </Step>
       <Step
         step={1}
         label="contract-v2.pdf"
         description="Uploaded by Ben on Oct 9"
-        actions={
-          <>
-            <Button label="Download" size="sm" />
-            {!approved && <Button label="Approve" variant="primary" size="sm" onClick={() => setApproved(true)} />}
-          </>
-        }
-      />
+      >
+        <Stack direction="horizontal" gap={2} align="center" wrap="wrap">
+          <Button label="Download" size="sm" />
+          {!approved && <Button label="Approve" variant="primary" size="sm" onClick={() => setApproved(true)} />}
+        </Stack>
+      </Step>
     </Stepper>
   );
 }`,
@@ -64,25 +65,17 @@ function StepActionsExample() {
     // Offer downloads for every upload and approval only while the latest upload is pending.
     return (
         <Stepper activeStep={1} orientation="vertical">
-            <Step
-                step={0}
-                label="contract-v1.pdf"
-                description="Uploaded by Ana on Oct 2"
-                actions={<Button label="Download" size="sm" />}
-            />
-            <Step
-                step={1}
-                label="contract-v2.pdf"
-                description="Uploaded by Ben on Oct 9"
-                actions={
-                    <>
-                        <Button label="Download" size="sm" />
-                        {!approved && (
-                            <Button label="Approve" variant="primary" size="sm" onClick={() => setApproved(true)} />
-                        )}
-                    </>
-                }
-            />
+            <Step step={0} label="contract-v1.pdf" description="Uploaded by Ana on Oct 2">
+                <Button label="Download" size="sm" />
+            </Step>
+            <Step step={1} label="contract-v2.pdf" description="Uploaded by Ben on Oct 9">
+                <Stack direction="horizontal" gap={2} align="center" wrap="wrap">
+                    <Button label="Download" size="sm" />
+                    {!approved && (
+                        <Button label="Approve" variant="primary" size="sm" onClick={() => setApproved(true)} />
+                    )}
+                </Stack>
+            </Step>
         </Stepper>
     );
 }

@@ -2433,9 +2433,9 @@
                     "description": "Supporting text displayed below the step label."
                 },
                 {
-                    "name": "Step.actions",
+                    "name": "Step.children",
                     "type": "ReactNode",
-                    "description": "Right-aligned controls for this step in vertical steppers; using them never activates the step. Compact horizontal steppers hide them."
+                    "description": "Content below the label and description, outside the step's activation button. Compact horizontal steppers hide it without unmounting."
                 }
             ]
         },
