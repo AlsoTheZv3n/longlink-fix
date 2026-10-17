@@ -37,7 +37,7 @@ export function Stepper({
     );
 }
 
-/** Defines the label, description, and index of a step. */
+/** Defines the label, description, index, and content of a step. */
 export function Step(props: {
     /** Hides the step indicator and label without changing its index. */
     hidden?: boolean;
@@ -47,6 +47,8 @@ export function Step(props: {
     label: string;
     /** Supporting text displayed below the step label. */
     description?: string;
+    /** Content below the label and description, outside the step's activation button. Compact horizontal steppers hide it without unmounting. */
+    children?: ReactNode;
 }) {
     return <AstryxStep {...props} className={props.hidden ? 'hidden!' : undefined} />;
 }
