@@ -11,6 +11,8 @@
 - Unless the user explicitly requests tests, DON'T add them.
 - When duplication improves clarity, PREFER explicit duplication to helpers or shared code.
 - Where practical, PREFER real implementations and explicit dependency boundaries to mocks or global runtime-state changes.
+- NEVER EVER EVER add any new comment in markdown files, only fix existing one.
+- NEVER create new markdown files unless indicated from the user.
 
 ## Terminology
 
