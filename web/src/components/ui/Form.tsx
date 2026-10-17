@@ -2,8 +2,14 @@ import * as forms from '@/components/Form';
 import type { ViewData } from '@/views/protocol';
 import { use, createContext, type ReactNode } from 'react';
 
+const methods = { post: 'POST', put: 'PUT', patch: 'PATCH', delete: 'DELETE' } as const;
+
 export const FormRequestContext = createContext<
-    ((path: string, options: { method: 'POST'; form: [string, string | Blob][] }) => Promise<ViewData>) | null
+    | ((
+          path: string,
+          options: { method: (typeof methods)[keyof typeof methods]; form: [string, string | Blob][] }
+      ) => Promise<ViewData>)
+    | null
 >(null);
 
 /** Submits named native fields through the Solution bridge without navigating or resetting the form. */
@@ -14,8 +20,8 @@ export function Form(props: {
     children?: ReactNode;
     /** Solution-relative API path; external URLs are not supported. */
     action: string;
-    /** Only POST is supported; defaults to post. Use request() for other methods. */
-    method?: 'post';
+    /** Write method used to submit the form; defaults to post. */
+    method?: 'post' | 'put' | 'patch' | 'delete';
     /** Native form ID for associating external submit or reset buttons. */
     id?: string;
     /** Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields. Use "100%" inside a fixed-height Dialog with padding={0} and contentWidth="100%". */
@@ -38,10 +44,12 @@ export function Form(props: {
                 // Route writes through the same validated bridge as explicit request calls.
                 if (!request) throw new Error('Forms require the Solution runtime');
 
-                if (props.method !== undefined && props.method !== 'post')
-                    throw new Error('Forms support method="post"');
+                // Resolve only supported write methods before forwarding the form body.
+                const method = props.method ?? 'post';
 
-                const result = await request(props.action, { method: 'POST', form: [...data.entries()] });
+                if (!Object.hasOwn(methods, method)) throw new Error('Forms support post, put, patch, or delete');
+
+                const result = await request(props.action, { method: methods[method], form: [...data.entries()] });
                 await props.onSuccess?.(result);
             }}
         >

@@ -4904,8 +4904,8 @@ declare function Form(props: {
     children?: ViewNode;
     /** Solution-relative API path; external URLs are not supported. */
     action: string;
-    /** Only POST is supported; defaults to post. Use request() for other methods. */
-    method?: 'post';
+    /** Write method used to submit the form; defaults to post. */
+    method?: 'post' | 'put' | 'patch' | 'delete';
     /** Native form ID for associating external submit or reset buttons. */
     id?: string;
     /** Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields. Use "100%" inside a fixed-height Dialog with padding={0} and contentWidth="100%". */
