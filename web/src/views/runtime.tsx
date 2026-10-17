@@ -25,6 +25,7 @@ import {
     MAX_MESSAGE_SIZE,
     MAX_PENDING_REQUESTS,
     MAX_PENDING_ICONS,
+    MAX_PENDING_IMAGES,
     REQUEST_TIMEOUT,
     type RequestCommand,
     type DownloadCommand,
@@ -45,8 +46,6 @@ declare global {
 }
 
 const session = window.__VIEW_SESSION__;
-
-const fileRequests = { preview: requestImage, download };
 
 /** Subscribes only to fragment changes inside this sandbox. */
 function subscribeToHash(notify: () => void): () => void {
@@ -168,19 +167,22 @@ const loadIcon = limitAsync(async (name: string) => {
     return iconDataSchema.parse(data);
 }, MAX_PENDING_ICONS);
 
-/** Supplies a stable binary-request capability without exposing the general request API to image components. */
-async function requestImage(path: string): Promise<Blob> {
+// Queue excess previews locally so a gallery waits for Solution request slots instead of failing them.
+const requestImage = limitAsync(async (path: string): Promise<Blob> => {
     // Binary previews must remain inert file data rather than arbitrary response objects.
     const data = await request(path, { binary: true });
 
     return z.instanceof(Blob).parse(data);
-}
+}, MAX_PENDING_IMAGES);
 
 /** Asks the host to save a bounded attachment without opening a document inside the sandbox. */
 async function download(path: string, filename: string): Promise<void> {
     const command = downloadSchema.parse({ type: 'download', id: sequence++, path, filename });
     await exchange(command);
 }
+
+// Supply image previews and downloads without exposing the general request API to file components.
+const fileRequests = { preview: requestImage, download };
 
 /** Requests scoped Solution navigation or opens an HTTP(S) URL in a new tab during user activation. */
 function navigate(path: string, newTab = false): void {

@@ -11,6 +11,9 @@ export const MAX_PENDING_REQUESTS = 8;
 // Icon loading has its own small budget so a gallery cannot consume Solution request slots.
 export const MAX_PENDING_ICONS = 4;
 
+// Image previews queue within part of the operation budget so a gallery cannot starve data requests.
+export const MAX_PENDING_IMAGES = 4;
+
 // Allow the Platform's 120-second Solution proxy timeout to finish, including cold starts.
 export const REQUEST_TIMEOUT = 130_000;
 
