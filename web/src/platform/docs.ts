@@ -9,6 +9,8 @@ import {
     BookOpen,
     HardDrive,
     Package,
+    Plug,
+    Building2,
     Rocket,
     ShieldCheck,
     Waypoints,
@@ -61,6 +63,9 @@ export const documentationSections: Array<{ title: string; pages: Array<Document
         title: 'Platform',
         pages: [
             { path: '/docs/api', label: 'Overview', icon: ShieldCheck },
+            { path: '/docs/api/organizations', label: 'Organizations', icon: Building2 },
+            { path: '/docs/api/solutions', label: 'Solutions', icon: Package },
+            { path: '/docs/api/mcp', label: 'MCP', icon: Plug },
             { path: '/docs/api/billing', label: 'Billing', icon: CreditCard },
         ],
     },
