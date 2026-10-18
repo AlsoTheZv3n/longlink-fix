@@ -6,7 +6,6 @@ from src.models.roles import OrganizationRoles
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
 from src.database.session import session_scope
-from src.models.solutions import SolutionCreate
 from src.database.services import solutions, organizations
 from src.models.pagination import Pagination
 from src.models.organizations import OrganizationInvitationCreate
@@ -185,8 +184,9 @@ async def test_soft_delete_tombstones_solutions_and_retains_memberships(users: t
         solution = await solutions.create(
             session,
             organization.id,
-            SolutionCreate(name="Dashboard", image=Image("ghcr.io/longlink/dashboard@sha256:test")),
             LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:test")),
+            name="Dashboard",
+            envs={},
             user_id=owner.id,
         )
         session.add(OrganizationInvitation(organization_id=organization.id, email="invited@example.com", role=OrganizationRoles.write))

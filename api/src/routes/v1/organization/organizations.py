@@ -30,7 +30,7 @@ from src.models.organizations import (
 router = APIRouter()
 
 
-@router.get("/organizations/{organization_id}", response_model=OrganizationDetails)  # noqa: FAST003 - Consumed by auth.OrganizationMember.
+@router.get("/organizations/{organization_id}", response_model=OrganizationDetails)
 async def get_organization(ctx: Context, membership: auth.OrganizationMember):
     """Return one organization and its metadata."""
 
@@ -47,7 +47,7 @@ async def get_organization(ctx: Context, membership: auth.OrganizationMember):
     }
 
 
-@router.get("/organizations/{organization_id}/solutions", response_model=list[OrganizationSolutionSummary])  # noqa: FAST003 - Consumed by auth.OrganizationMember.
+@router.get("/organizations/{organization_id}/solutions", response_model=list[OrganizationSolutionSummary])
 async def get_organization_solutions(ctx: Context, membership: auth.OrganizationMember):
     """Return solutions visible to the current organization member."""
 
@@ -63,10 +63,7 @@ async def get_organization_usage(ctx: Context, organization_id: UUID):
     return {"users": users, "stripe_enabled": env.stripe_enabled}
 
 
-@router.get(
-    "/organizations/{organization_id}/storage",  # noqa: FAST003 - Consumed by auth.OrganizationMember.
-    response_model=OrganizationStorageUsageResponse,
-)
+@router.get("/organizations/{organization_id}/storage", response_model=OrganizationStorageUsageResponse)
 async def get_organization_storage_usage(ctx: Context, membership: auth.OrganizationMember):
     """Return live usage for the Organization bucket."""
 
@@ -91,10 +88,7 @@ async def get_organization_storage_usage(ctx: Context, membership: auth.Organiza
     return {"space_used": usage, "quota_bytes": membership.organization.storage_quota_bytes}
 
 
-@router.get(
-    "/organizations/{organization_id}/database",  # noqa: FAST003 - Consumed by auth.OrganizationMember.
-    response_model=OrganizationDatabaseUsageResponse,
-)
+@router.get("/organizations/{organization_id}/database", response_model=OrganizationDatabaseUsageResponse)
 async def get_organization_database_usage(ctx: Context, membership: auth.OrganizationMember):
     """Return live PostgreSQL usage against provisioned capacity for an authorized Organization."""
 
@@ -133,7 +127,7 @@ async def get_organization_database_usage(ctx: Context, membership: auth.Organiz
     return {"space_used": usage, "quota_bytes": organization.database_size_mib * 1024 * 1024}
 
 
-@router.post("/organizations/{organization_id}/invitations", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
+@router.post("/organizations/{organization_id}/invitations", status_code=204)
 async def create_organization_invitation(ctx: Context, payload: OrganizationInvitationCreate, membership: auth.OrganizationMaintainer):
     """Create one invitation for an organization member."""
 
@@ -153,7 +147,7 @@ async def create_organization_invitation(ctx: Context, payload: OrganizationInvi
         )
 
 
-@router.delete("/organizations/{organization_id}/invitations/{invitation_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
+@router.delete("/organizations/{organization_id}/invitations/{invitation_id}", status_code=204)
 async def revoke_organization_invitation(ctx: Context, invitation_id: UUID, membership: auth.OrganizationMaintainer):
     """Revoke one pending Organization invitation."""
 
@@ -161,7 +155,7 @@ async def revoke_organization_invitation(ctx: Context, invitation_id: UUID, memb
     await ctx.database.commit()
 
 
-@router.patch("/organizations/{organization_id}/members/{member_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationAdmin.
+@router.patch("/organizations/{organization_id}/members/{member_id}", status_code=204)
 async def update_organization_member(ctx: Context, member_id: UUID, payload: OrganizationMemberUpdate, membership: auth.OrganizationAdmin):
     """Update one organization member role."""
 
@@ -170,7 +164,7 @@ async def update_organization_member(ctx: Context, member_id: UUID, payload: Org
     await ctx.database.commit()
 
 
-@router.delete("/organizations/{organization_id}/members/{member_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationAdmin.
+@router.delete("/organizations/{organization_id}/members/{member_id}", status_code=204)
 async def remove_organization_member(ctx: Context, member_id: UUID, membership: auth.OrganizationAdmin):
     """Revoke access so the member no longer counts toward month-end usage."""
 

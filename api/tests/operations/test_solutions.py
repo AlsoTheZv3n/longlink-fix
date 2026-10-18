@@ -45,18 +45,14 @@ async def test_solution_delete_failure_stops_before_provider_credential_cleanup(
 
     # Arrange
     owner = users[0]
-    organization, solution = await create_deleted_solution(owner)
+    _, solution = await create_deleted_solution(owner)
     provider_attempts: list[tuple[object, ...]] = []
 
-    # Complete the known Organization and Solution creation operations before deletion.
-    for kind, target_id in (
-        (OperationKind.organization_create, organization.id),
-        (OperationKind.solution_deploy, solution.desired_revision_id),
-    ):
-        setup_operation = await claim_operation()
-        assert setup_operation is not None
-        assert (setup_operation.kind, setup_operation.target_id) == (kind, target_id)
-        assert await complete_operation(setup_operation.id) is not None
+    # Complete the Solution deployment operation before deletion.
+    setup_operation = await claim_operation()
+    assert setup_operation is not None
+    assert (setup_operation.kind, setup_operation.target_id) == (OperationKind.solution_deploy, solution.desired_revision_id)
+    assert await complete_operation(setup_operation.id) is not None
 
     claimed = await claim_operation()
     assert claimed is not None
@@ -469,9 +465,6 @@ async def test_initial_deployment_failure_does_not_schedule_recovery(
     solution = await create_solution(
         organization, envs={"KEY": "old"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
-    setup = await claim_operation()
-    assert setup is not None
-    await complete_operation(setup.id)
 
     async def apply(
         client: object,
@@ -522,9 +515,6 @@ async def test_shutdown_keeps_deployment_resumable(users: tuple[User, User, User
     solution = await create_solution(
         organization, envs={"KEY": "old"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
-    setup = await claim_operation()
-    assert setup is not None
-    await complete_operation(setup.id)
 
     async def apply(
         client: object,
@@ -589,9 +579,6 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
     solution = await create_solution(
         organization, envs={"KEY": "old"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
-    setup = await claim_operation()
-    assert setup is not None
-    await complete_operation(setup.id)
     calls: list[tuple[str, dict[str, str], bool]] = []
     rollout_finalized = asyncio.Event()
     failing = False
@@ -757,9 +744,6 @@ async def test_queued_deployments_keep_exact_targets(users: tuple[User, User, Us
     solution = await create_solution(
         organization, envs={"KEY": "first"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
-    setup = await claim_operation()
-    assert setup is not None
-    await complete_operation(setup.id)
     initial = await claim_operation()
     assert initial is not None
     second = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:second"))

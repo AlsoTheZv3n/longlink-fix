@@ -29,7 +29,7 @@ skip-magic-trailing-comma = true
 
 [tool.ruff.lint]
 preview = true
-select = ["I", "ANN401", "B006", "E302", "E305", "DTZ", "FAST003", "PGH003", "RUF100", "S324", "S506"]
+select = ["I", "ANN401", "B006", "E302", "E305", "DTZ", "PGH003", "RUF100", "S324", "S506"]
 
 [tool.ruff.lint.isort]
 no-sections = true

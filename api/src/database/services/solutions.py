@@ -11,7 +11,7 @@ from src.models.roles import OrganizationRoles
 from src.models.types import MinScale
 from src.database.types import attr
 from src.models.metadata import LongLinkMetadata
-from src.models.solutions import SolutionCreate, validate_idle_seconds, validate_environment_variables
+from src.models.solutions import validate_idle_seconds, validate_environment_variables
 from src.database.services import operations, registries, organizations
 from src.models.operations import OperationKind
 from src.models.pagination import Pagination
@@ -62,10 +62,14 @@ async def fetch(session: AsyncSession, pagination: Pagination, search: str = "")
 async def create(
     session: AsyncSession,
     organization_id: UUID,
-    payload: SolutionCreate,
     metadata: LongLinkMetadata,
     *,
+    name: str,
+    envs: Mapping[str, str],
     user_id: UUID,
+    min_scale: MinScale = 0,
+    idle_seconds: int = 60,
+    description: str | None = None,
     registry_connection_id: UUID | None = None,
 ) -> Solution:
     """Create an Organization-owned LongLink Solution."""
@@ -98,9 +102,7 @@ async def create(
         )
 
     # Build the Solution row before checking its Organization-scoped uniqueness.
-    solution = Solution(
-        organization_id=organization_id, name=payload.name, slug=names.slugify(payload.name), description=payload.description, secrets={}
-    )
+    solution = Solution(organization_id=organization_id, name=name, slug=names.slugify(name), description=description, secrets={})
 
     # Let the Organization-scoped database constraint arbitrate slug uniqueness.
     try:
@@ -116,9 +118,9 @@ async def create(
         solution,
         user_id,
         metadata,
-        payload.envs,
-        min_scale=payload.min_scale,
-        idle_seconds=payload.idle_seconds,
+        envs,
+        min_scale=min_scale,
+        idle_seconds=idle_seconds,
         registry_connection_id=registry_connection_id,
     )
 

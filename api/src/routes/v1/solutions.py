@@ -4,16 +4,15 @@ import zipfile
 from src import auth
 from uuid import UUID
 from fastapi import Depends, Response, APIRouter, HTTPException
-from src.utils import roles, images
+from src.utils import images
 from src.logger import logger
 from src.context import Context
 from src.kubernetes import solutions as solution_resources
 from src.environments import env
-from src.models.roles import OrganizationRoles
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
 from src.models.solutions import SolutionPatch, SolutionUpdateCheck
-from src.database.services import solutions, registries, organizations
+from src.database.services import solutions, registries
 from src.kubernetes.client import Kubernetes
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.solutions import Revision, Solution
@@ -22,15 +21,15 @@ router = APIRouter(dependencies=[Depends(auth.authuser)])
 
 
 async def update_candidate(
-    session: AsyncSession, solution_id: UUID, user_id: UUID, expected_revision_id: UUID | None = None
+    session: AsyncSession, solution: Solution, user_id: UUID, expected_revision_id: UUID | None = None
 ) -> tuple[Solution, Revision, LongLinkMetadata]:
     """Inspect the repository's latest image and revalidate the desired revision."""
 
-    # Avoid holding command locks while waiting for the container registry.
-    solution = await solutions.access(session, solution_id, user_id, lock=False)
+    # Reuse authorized Solution access without holding command locks across registry calls.
+    solution_id = solution.id
     if expected_revision_id is not None and expected_revision_id != solution.desired_revision_id:
         raise HTTPException(status_code=409, detail="Desired revision changed since review. Check again.")
-    revision = await session.get(Revision, solution.desired_revision_id)
+    revision = await session.get(Revision, solution.desired_revision_id) if solution.desired_revision_id is not None else None
     if revision is None:
         raise HTTPException(status_code=409, detail="Solution has no desired revision")
 
@@ -52,10 +51,10 @@ async def update_candidate(
 
 
 @router.get("/solutions/{solution_id}/update", response_model=SolutionUpdateCheck)
-async def check_update(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
+async def check_update(ctx: Context, user: auth.CurrentUser, solution: auth.SolutionMaintainer):
     """Inspect the repository's latest image without changing deployment state."""
 
-    solution, revision, metadata = await update_candidate(ctx.database, solution_id, user.id)
+    solution, revision, metadata = await update_candidate(ctx.database, solution, user.id)
 
     # Reuse the inspected version when the candidate is the current immutable image.
     current_version = metadata.version if metadata.image == revision.image else None
@@ -75,7 +74,7 @@ async def check_update(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
             current_version = None
 
         # Reject stale reviews or revoked access after the additional registry lookup.
-        solution = await solutions.access(ctx.database, solution_id, user.id, lock=False)
+        solution = await solutions.access(ctx.database, solution.id, user.id, lock=False)
         if solution.desired_revision_id != revision.id:
             raise HTTPException(status_code=409, detail="Desired revision changed during inspection. Check again.")
 
@@ -91,10 +90,10 @@ async def check_update(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
 
 
 @router.post("/solutions/{solution_id}/update", status_code=204)
-async def apply_update(ctx: Context, user: auth.CurrentUser, solution_id: UUID, payload: SolutionPatch):
+async def apply_update(ctx: Context, user: auth.CurrentUser, solution: auth.SolutionMaintainer, payload: SolutionPatch):
     """Re-resolve latest and deploy a changed immutable image or configuration."""
 
-    solution, _revision, metadata = await update_candidate(ctx.database, solution_id, user.id, payload.expected_revision_id)
+    solution, _revision, metadata = await update_candidate(ctx.database, solution, user.id, payload.expected_revision_id)
 
     # Compare and merge only against the current serialized desired state.
     await solutions.deploy(
@@ -109,11 +108,10 @@ async def apply_update(ctx: Context, user: auth.CurrentUser, solution_id: UUID, 
     response_class=Response,
     responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
 )
-async def download_plugin(ctx: Context, user: auth.CurrentUser, solution_id: UUID) -> Response:
+async def download_plugin(solution: auth.SolutionMaintainer) -> Response:
     """Download a credential-free Agent Plugins package for one maintained Solution."""
 
     # Reuse maintenance access without locking or loading Solution secrets.
-    solution = await solutions.access(ctx.database, solution_id, user.id, lock=False)
     name = f"longlink-{solution.id}"
 
     # Keep plugin identity stable and expose the selected Solution's display metadata.
@@ -158,16 +156,11 @@ async def download_plugin(ctx: Context, user: auth.CurrentUser, solution_id: UUI
 
 
 @router.get("/solutions/{solution_id}/logs", response_model=list[str])
-async def get_solution_logs(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
+async def get_solution_logs(solution_id: UUID, access: auth.SolutionLogAccess):
     """Return recent pod logs for one managed solution."""
 
-    # Resolve active Solution access before enforcing runtime permissions.
-    access = await organizations.solution_logs_access(ctx.database, user.id, solution_id)
-    if access is None:
-        raise HTTPException(status_code=403, detail="Access required")
-    organization_id, role, kubeconfig = access
-    if not roles.atleast(role, OrganizationRoles.maintain):
-        raise HTTPException(status_code=403, detail="Permission required")
+    # Reuse the authorized cluster connection without loading Solution secrets.
+    organization_id, kubeconfig = access
 
     # Map expected cluster log failures to a service-unavailable response.
     try:
@@ -180,9 +173,9 @@ async def get_solution_logs(ctx: Context, user: auth.CurrentUser, solution_id: U
 
 
 @router.delete("/solutions/{solution_id}", status_code=204)
-async def delete_solution(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
+async def delete_solution(ctx: Context, user: auth.CurrentUser, solution: auth.SolutionMaintainer):
     """Mark one Solution absent and queue explicit lifecycle cleanup."""
 
-    await solutions.delete(ctx.database, solution_id, user.id)
+    await solutions.delete(ctx.database, solution.id, user.id)
 
     await ctx.database.commit()

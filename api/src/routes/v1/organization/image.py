@@ -8,7 +8,7 @@ from src.database.services import registries
 router = APIRouter()
 
 
-@router.get("/organizations/{organization_id}/image", response_model=LongLinkMetadata)  # noqa: FAST003 - Consumed by auth.OrganizationMember.
+@router.get("/organizations/{organization_id}/image", response_model=LongLinkMetadata)
 async def inspect_image(ctx: Context, image: Image, membership: auth.OrganizationMember):
     """Inspect a container image and return its LongLink metadata."""
 

@@ -7,7 +7,7 @@ from src.database.services import solutions, registries
 router = APIRouter()
 
 
-@router.post("/organizations/{organization_id}/solutions", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
+@router.post("/organizations/{organization_id}/solutions", status_code=204)
 async def create_solution(ctx: Context, payload: SolutionCreate, membership: auth.OrganizationMaintainer):
     """Create Solution state and queue its explicit deployment lifecycle."""
 
@@ -17,9 +17,13 @@ async def create_solution(ctx: Context, payload: SolutionCreate, membership: aut
     await solutions.create(
         ctx.database,
         membership.organization_id,
-        payload,
         metadata=metadata,
+        name=payload.name,
+        envs=payload.envs,
         user_id=membership.user_id,
+        min_scale=payload.min_scale,
+        idle_seconds=payload.idle_seconds,
+        description=payload.description,
         registry_connection_id=connection_id,
     )
     await ctx.database.commit()

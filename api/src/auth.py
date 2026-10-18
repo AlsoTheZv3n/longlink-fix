@@ -8,9 +8,10 @@ from collections.abc import AsyncIterator, AsyncGenerator
 from src.models.roles import OrganizationRoles
 from longlink.database import audit
 from src.utils.cookies import AUTH_COOKIE
-from src.database.services import organizations
+from src.database.services import solutions, organizations
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
+from src.database.models.solutions import Solution
 from src.database.models.association import UserOrganization
 
 
@@ -112,3 +113,29 @@ def authowner(membership: OrganizationMember) -> UserOrganization:
 
 
 OrganizationOwner = Annotated[UserOrganization, Depends(authowner)]
+
+
+async def authsolutionmaintainer(solution_id: UUID, user: CurrentUser, session: Session) -> Solution:
+    """Authenticate maintenance access to an active Solution without command locks."""
+
+    # Resolve maintenance access without loading Solution secrets.
+    return await solutions.access(session, solution_id, user.id, lock=False)
+
+
+SolutionMaintainer = Annotated[Solution, Depends(authsolutionmaintainer)]
+
+
+async def authsolutionlogs(solution_id: UUID, user: CurrentUser, session: Session) -> tuple[UUID, dict[str, object]]:
+    """Authenticate Solution log access and return its scoped cluster connection."""
+
+    # Resolve active Solution access before enforcing runtime permissions.
+    access = await organizations.solution_logs_access(session, user.id, solution_id)
+    if access is None:
+        raise HTTPException(status_code=403, detail="Access required")
+    organization_id, role, kubeconfig = access
+    if not roles.atleast(role, OrganizationRoles.maintain):
+        raise HTTPException(status_code=403, detail="Permission required")
+    return organization_id, kubeconfig
+
+
+SolutionLogAccess = Annotated[tuple[UUID, dict[str, object]], Depends(authsolutionlogs)]

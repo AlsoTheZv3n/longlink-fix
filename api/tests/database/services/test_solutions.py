@@ -17,7 +17,6 @@ from src.models.types import Image
 from sqlalchemy.engine import URL
 from src.models.metadata import LongLinkMetadata
 from src.database.session import session_scope
-from src.models.solutions import SolutionCreate
 from src.database.services import solutions, organizations
 from src.models.pagination import Pagination
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -42,8 +41,9 @@ async def test_create_rejects_tombstoned_organization(users: tuple[User, User, U
             await solutions.create(
                 session,
                 organization.id,
-                SolutionCreate(name="Dashboard", image=Image("ghcr.io/longlink/dashboard@sha256:test")),
                 metadata=LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:test")),
+                name="Dashboard",
+                envs={},
                 user_id=owner.id,
             )
 
@@ -63,8 +63,9 @@ async def test_create_rejects_missing_organization() -> None:
             await solutions.create(
                 session,
                 uuid4(),
-                SolutionCreate(name="Dashboard", image=Image("ghcr.io/longlink/dashboard@sha256:test")),
                 metadata=LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:test")),
+                name="Dashboard",
+                envs={},
                 user_id=uuid4(),
             )
 
@@ -97,15 +98,17 @@ async def test_create_refreshes_cached_maintainer_access_before_authorizing(user
             await solutions.create(
                 session,
                 organization.id,
-                SolutionCreate(name="Blocked dashboard", image=Image("ghcr.io/longlink/dashboard@sha256:test")),
                 metadata=LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:test")),
+                name="Blocked dashboard",
+                envs={},
                 user_id=maintainer.id,
             )
         solution = await solutions.create(
             session,
             organization.id,
-            SolutionCreate(name="Owner dashboard", image=Image("ghcr.io/longlink/dashboard@sha256:test")),
             metadata=LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:test")),
+            name="Owner dashboard",
+            envs={},
             user_id=owner.id,
         )
         await session.commit()
