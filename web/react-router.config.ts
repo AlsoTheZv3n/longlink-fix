@@ -51,8 +51,13 @@ export default {
     async buildEnd({ reactRouterConfig }) {
         const clientDirectory = path.join(reactRouterConfig.buildDirectory, 'client');
 
-        // Solutions retain the shared wordmark without publishing Platform images or the public agent guide.
+        // Package the component runtime only with the SDK that owns it.
         if (isSolution) {
+            await cp(path.join(import.meta.dirname, 'build/views'), path.join(clientDirectory, 'views'), {
+                recursive: true,
+            });
+
+            // Solutions retain the shared wordmark without publishing Platform images or the public agent guide.
             await rm(path.join(clientDirectory, 'images'), { force: true, recursive: true });
             await rm(path.join(clientDirectory, 'llms.txt'), { force: true });
 
