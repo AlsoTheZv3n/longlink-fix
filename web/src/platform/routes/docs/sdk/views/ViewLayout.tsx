@@ -6,9 +6,9 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
 import { Tab, TabList } from '@astryxdesign/core/TabList';
+import { DocumentationArticle } from '@/components/Article';
 import { documentationLastUpdated } from '@/lib/documentation';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { DocumentationArticle } from '@/platform/components/Article';
 import { componentCatalog, componentDocumentation } from '@/platform/routes';
 
 type ViewProperty = NonNullable<(typeof componentCatalog)[number]['properties']>[number];

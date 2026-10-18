@@ -1,6 +1,6 @@
+import { Page } from '@/components/Page';
 import { Grid } from '@astryxdesign/core/Grid';
 import { Text } from '@astryxdesign/core/Text';
-import { Seo } from '@/platform/components/Seo';
 import { useCasePages } from '@/platform/routes';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
@@ -11,11 +11,10 @@ import { ClickableCard } from '@astryxdesign/core/ClickableCard';
 export default function UseCasesIndex() {
     // Reuse Pricing's page width, centered introduction, and square transparent card styling.
     return (
-        <>
-            <Seo
-                description="Explore an illustrative Real Estate Solution for property acquisition screening with LongLink."
-                title="Use Cases | LongLink"
-            />
+        <Page
+            description="Explore an illustrative Real Estate Solution for property acquisition screening with LongLink."
+            title="Use Cases | LongLink"
+        >
             <main className="flex-1">
                 <Section variant="transparent" padding={6}>
                     <Stack className="mx-auto" width="100%" maxWidth={1120} gap={10} align="center">
@@ -61,6 +60,6 @@ export default function UseCasesIndex() {
                     </Stack>
                 </Section>
             </main>
-        </>
+        </Page>
     );
 }

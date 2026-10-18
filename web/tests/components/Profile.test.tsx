@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { it, expect } from 'vitest';
-import { renderPlatform, user } from '../render';
-import { ProfileMenu } from '@/platform/components/Profile';
+import { ProfileMenu } from '@/components/Profile';
+import { renderPlatform, user } from '../platform/render';
 
 it('identifies the profile trigger without prematurely opening account actions', () => {
     // Act

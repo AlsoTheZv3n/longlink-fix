@@ -4,8 +4,8 @@ import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Blockquote } from '@astryxdesign/core/Blockquote';
+import { DocumentationArticle } from '@/components/Article';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { DocumentationArticle } from '@/platform/components/Article';
 
 const article = {
     title: 'Billing | LongLink Platform Documentation',

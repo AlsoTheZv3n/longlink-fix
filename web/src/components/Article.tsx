@@ -1,3 +1,4 @@
+import { Page } from '@/components/Page';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
@@ -5,14 +6,33 @@ import { Button } from '@astryxdesign/core/Button';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Outline } from '@astryxdesign/core/Outline';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { documentationPaths } from '@/platform/routes';
 import { useLocation, useNavigate } from 'react-router';
 import { PageContainer } from '@/components/PageContainer';
 import { PathBreadcrumb } from '@/components/breadcrumb/Path';
 import { BreadcrumbItem } from '@astryxdesign/core/Breadcrumbs';
-import { Seo, articleRouteLabels } from '@/platform/components/Seo';
 import { Layout, LayoutContent, LayoutHeader } from '@astryxdesign/core/Layout';
+import { documentationPaths, useCasePages, brandingPages } from '@/platform/routes';
 import { useEffect, useEffectEvent, type ComponentProps, type ReactNode } from 'react';
+
+/** Labels for public article route segments shared with visible breadcrumbs. */
+const articleRouteLabels = {
+    api: 'Platform',
+    blog: 'Blog',
+    billing: 'Billing',
+    docs: 'Documentation',
+    'why-longlink': 'Why LongLink',
+    sdk: 'Solutions',
+    'use-cases': 'Use cases',
+    views: 'Views',
+
+    // Keep authored page labels in their navigation catalogs without replacing section labels.
+    ...Object.fromEntries(
+        brandingPages.map(({ path, label }) => [path.slice(path.lastIndexOf('/') + 1), label] as const)
+    ),
+    ...Object.fromEntries(
+        useCasePages.map(({ path, label }) => [path.slice(path.lastIndexOf('/') + 1), label] as const)
+    ),
+} satisfies Record<string, string>;
 
 const dateFormatter = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
@@ -83,8 +103,7 @@ function ArticleRenderer({
 }) {
     // Keep public articles and documentation in the same flat reading columns.
     return (
-        <>
-            <Seo description={article.description} hasBreadcrumbs title={article.title} />
+        <Page description={article.description} title={article.title}>
             <Layout
                 height="auto"
                 header={
@@ -139,7 +158,7 @@ function ArticleRenderer({
                     </LayoutContent>
                 }
             />
-        </>
+        </Page>
     );
 }
 

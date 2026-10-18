@@ -10,9 +10,9 @@ import { Button } from '@astryxdesign/core/Button';
 import { useDeferredValue, useState } from 'react';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@/components/ui/TextInput';
+import { DeletionDialog } from '@/components/Deletion';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { DeletionDialog } from '@/platform/components/Deletion';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { zPageOrganizationIdentity } from '@/lib/generated/platform-api-v1/zod.gen';
 

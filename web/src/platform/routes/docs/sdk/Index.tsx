@@ -5,7 +5,7 @@ import { Tabs, Tab } from '@/components/ui/Tabs';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
-import { DocumentationArticle } from '@/platform/components/Article';
+import { DocumentationArticle } from '@/components/Article';
 
 const article = {
     description: 'Build LongLink Solutions as standard Python and FastAPI services with the Solution SDK.',

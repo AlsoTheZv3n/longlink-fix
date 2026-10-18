@@ -9,13 +9,13 @@ import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@/components/ui/TextInput';
+import { DeletionDialog } from '@/components/Deletion';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { FileInput } from '@astryxdesign/core/FileInput';
 import { DialogClose } from '@/components/ui/DialogClose';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { useDeferredValue, useEffect, useState } from 'react';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { DeletionDialog } from '@/platform/components/Deletion';
 import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 

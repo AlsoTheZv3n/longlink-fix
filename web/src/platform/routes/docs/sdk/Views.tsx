@@ -47,10 +47,10 @@ import { DropdownMenuExample } from './views/DropdownMenu';
 import { MetadataListExample } from './views/MetadataList';
 import { componentDocumentation } from '@/platform/routes';
 import { Blockquote } from '@astryxdesign/core/Blockquote';
+import { DocumentationArticle } from '@/components/Article';
 import { CheckboxInputExample } from './views/CheckboxInput';
 import { MultiSelectorExample } from './views/MultiSelector';
 import { documentationCategories } from '@/lib/documentation';
-import { DocumentationArticle } from '@/platform/components/Article';
 import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
 
 const article = {

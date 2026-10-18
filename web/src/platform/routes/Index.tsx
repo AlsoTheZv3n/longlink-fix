@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react';
-import { siteName, siteUrl } from '@/site';
+import { Page } from '@/components/Page';
 import { Card } from '@astryxdesign/core/Card';
 import { Grid } from '@astryxdesign/core/Grid';
 import { Icon } from '@astryxdesign/core/Icon';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
-import { Seo } from '@/platform/components/Seo';
 import { Showcase } from '@/components/Showcase';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
@@ -37,31 +36,8 @@ function CapabilityCard({ title, description, icon }: { title: string; descripti
 
 /** Renders the public home page. */
 export default function Home() {
-    const structuredData = {
-        '@context': 'https://schema.org',
-        '@graph': [
-            {
-                '@type': 'Organization',
-                name: siteName,
-                url: siteUrl,
-                sameAs: ['https://github.com/xLongLink/longlink', 'https://www.linkedin.com/company/longlink'],
-            },
-            {
-                '@type': 'WebSite',
-                name: siteName,
-                url: siteUrl,
-                description: homeDescription,
-            },
-        ],
-    };
-
     return (
-        <>
-            <Seo
-                description={homeDescription}
-                structuredData={structuredData}
-                title="LongLink | Build and Operate business solutions"
-            />
+        <Page description={homeDescription} title="LongLink | Build and Operate business solutions">
             <Stack as="main">
                 <Section className="pt-16 sm:pt-24" paddingInline={6} paddingBlockEnd={10} variant="transparent">
                     <Stack className="mx-auto text-center" maxWidth={1000} width="100%" gap={6} hAlign="center">
@@ -204,6 +180,6 @@ export default function Home() {
                     </Stack>
                 </Section>
             </Stack>
-        </>
+        </Page>
     );
 }

@@ -1,11 +1,11 @@
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
+import { RoleTable } from '@/components/RoleTable';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Blockquote } from '@astryxdesign/core/Blockquote';
-import { RoleTable } from '@/platform/components/RoleTable';
+import { DocumentationArticle } from '@/components/Article';
 import { ArrowUp, CheckCheck, EyeOff, Wrench } from 'lucide-react';
-import { DocumentationArticle } from '@/platform/components/Article';
 
 const solutionRoles = [
     { name: 'read', access: 'View Solution data and send GET requests', icon: EyeOff },

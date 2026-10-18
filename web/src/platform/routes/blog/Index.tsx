@@ -1,8 +1,8 @@
 import { BookOpen } from 'lucide-react';
+import { Page } from '@/components/Page';
 import { Card } from '@astryxdesign/core/Card';
 import { Grid } from '@astryxdesign/core/Grid';
 import { Text } from '@astryxdesign/core/Text';
-import { Seo } from '@/platform/components/Seo';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { Divider } from '@astryxdesign/core/Divider';
@@ -13,11 +13,7 @@ import { Section } from '@astryxdesign/core/Section';
 export default function Blog() {
     // Match Pricing's centered introduction and the landing page's card spacing.
     return (
-        <>
-            <Seo
-                description="Ideas behind LongLink and building process-specific applications."
-                title="Blog | LongLink"
-            />
+        <Page description="Ideas behind LongLink and building process-specific applications." title="Blog | LongLink">
             <main>
                 <Section variant="transparent" padding={6}>
                     <Stack className="mx-auto" maxWidth={1000} width="100%" gap={10} align="center">
@@ -59,6 +55,6 @@ export default function Blog() {
                     </Stack>
                 </Section>
             </main>
-        </>
+        </Page>
     );
 }

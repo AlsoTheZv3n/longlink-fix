@@ -1,6 +1,6 @@
+import { Page } from '@/components/Page';
 import * as pricing from '@/platform/pricing';
 import { Text } from '@astryxdesign/core/Text';
-import { Seo } from '@/platform/components/Seo';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { Heading } from '@astryxdesign/core/Heading';
@@ -10,11 +10,10 @@ import { Table, proportional } from '@astryxdesign/core/Table';
 /** Publishes usage pricing from generated backend defaults without introducing plans. */
 export default function Pricing() {
     return (
-        <>
-            <Seo
-                description="Usage-based pricing for LongLink, with free users and storage included."
-                title="Pricing | LongLink"
-            />
+        <Page
+            description="Usage-based pricing for LongLink, with free users and storage included."
+            title="Pricing | LongLink"
+        >
             <main>
                 <Section variant="transparent" padding={6}>
                     <Stack className="mx-auto" width="100%" maxWidth={1000} gap={10} align="center">
@@ -48,6 +47,6 @@ export default function Pricing() {
                     </Stack>
                 </Section>
             </main>
-        </>
+        </Page>
     );
 }
