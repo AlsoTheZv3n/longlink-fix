@@ -15,7 +15,7 @@ async def apply(client: "Kubernetes", organization_id: UUID) -> None:
     # Render and apply only the requested Organization boundary.
     compute_namespace = namespace.compute(organization_id)
     namespace_manifest, network_policy = templates.readyml_list(
-        files("src.kubernetes.templates").joinpath("solution", "organization.yml"),
+        files("src").joinpath(".static", "kubernetes", "organization.yml"),
         namespace=compute_namespace,
     )
 

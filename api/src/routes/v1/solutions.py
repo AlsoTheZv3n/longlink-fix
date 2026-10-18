@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import Query, Depends, Response, APIRouter, HTTPException
 from src.utils import roles, images
 from src.logger import logger
+from src.context import Context
 from src.kubernetes import solutions as solution_resources
 from src.environments import env
 from src.models.roles import OrganizationRoles
@@ -53,49 +54,49 @@ async def update_candidate(
 
 @router.get("/solutions", response_model=Page[SolutionResponse])
 async def list_solutions(
+    ctx: Context,
     _user: auth.PlatformAdmin,
-    session: auth.Session,
     pagination: Pagination = Depends(),
     search: str = Query(default="", max_length=200),
 ):
     """Return all solutions for administrator views."""
 
     # Search the full administrator listing before pagination.
-    items, total = await solutions.fetch(session, pagination, search.strip())
+    items, total = await solutions.fetch(ctx.database, pagination, search.strip())
     return {"items": items, "total": total}
 
 
 @router.post("/organizations/{organization_id}/solutions", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
-async def create_solution(payload: SolutionCreate, membership: auth.OrganizationMaintainer, session: auth.Session):
+async def create_solution(ctx: Context, payload: SolutionCreate, membership: auth.OrganizationMaintainer):
     """Create Solution state and queue its explicit deployment lifecycle."""
 
     # Resolve immutable image metadata before creating durable Solution state.
-    metadata, connection_id = await registries.inspect(session, membership.organization_id, payload.image)
+    metadata, connection_id = await registries.inspect(ctx.database, membership.organization_id, payload.image)
 
     await solutions.create(
-        session,
+        ctx.database,
         membership.organization_id,
         payload,
         metadata=metadata,
         user_id=membership.user_id,
         registry_connection_id=connection_id,
     )
-    await session.commit()
+    await ctx.database.commit()
 
 
-@router.get("/solutions/{solution_id}/update", response_model=SolutionUpdateCheck)
-async def check_update(solution_id: UUID, user: auth.CurrentUser, session: auth.Session):
+@router.get("/solutions/{solution_id}/update", response_model=SolutionUpdateCheck, dependencies=[Depends(auth.authuser)])
+async def check_update(ctx: Context, solution_id: UUID):
     """Inspect the repository's latest image without changing deployment state."""
 
-    solution, revision, metadata = await update_candidate(session, solution_id, user.id)
+    solution, revision, metadata = await update_candidate(ctx.database, solution_id, ctx.user.id)
 
     # Reuse the inspected version when the candidate is the current immutable image.
     current_version = metadata.version if metadata.image == revision.image else None
     if metadata.image != revision.image:
         # Release command locks before inspecting the current digest with its retained credentials.
         current_image = Image(revision.image)
-        connection = await registries.resolve(session, solution.organization_id, revision.registry_connection_id, current_image)
-        await session.commit()
+        connection = await registries.resolve(ctx.database, solution.organization_id, revision.registry_connection_id, current_image)
+        await ctx.database.commit()
 
         # An unavailable old image must not block review of an otherwise valid update.
         try:
@@ -107,7 +108,7 @@ async def check_update(solution_id: UUID, user: auth.CurrentUser, session: auth.
             current_version = None
 
         # Reject stale reviews or revoked access after the additional registry lookup.
-        solution = await solutions.access(session, solution_id, user.id, lock=False)
+        solution = await solutions.access(ctx.database, solution_id, ctx.user.id, lock=False)
         if solution.desired_revision_id != revision.id:
             raise HTTPException(status_code=409, detail="Desired revision changed during inspection. Check again.")
 
@@ -122,30 +123,31 @@ async def check_update(solution_id: UUID, user: auth.CurrentUser, session: auth.
     }
 
 
-@router.post("/solutions/{solution_id}/update", status_code=204)
-async def apply_update(solution_id: UUID, payload: SolutionPatch, user: auth.CurrentUser, session: auth.Session):
+@router.post("/solutions/{solution_id}/update", status_code=204, dependencies=[Depends(auth.authuser)])
+async def apply_update(ctx: Context, solution_id: UUID, payload: SolutionPatch):
     """Re-resolve latest and deploy a changed immutable image or configuration."""
 
-    solution, _revision, metadata = await update_candidate(session, solution_id, user.id, payload.expected_revision_id)
+    solution, _revision, metadata = await update_candidate(ctx.database, solution_id, ctx.user.id, payload.expected_revision_id)
 
     # Compare and merge only against the current serialized desired state.
     await solutions.deploy(
-        session, solution, user.id, metadata, payload.envs, min_scale=payload.min_scale, idle_seconds=payload.idle_seconds
+        ctx.database, solution, ctx.user.id, metadata, payload.envs, min_scale=payload.min_scale, idle_seconds=payload.idle_seconds
     )
-    await session.commit()
+    await ctx.database.commit()
 
 
 @router.get(
     "/solutions/{solution_id}/plugin",
     response_model=None,
     response_class=Response,
+    dependencies=[Depends(auth.authuser)],
     responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
 )
-async def download_plugin(solution_id: UUID, user: auth.CurrentUser, session: auth.Session) -> Response:
+async def download_plugin(ctx: Context, solution_id: UUID) -> Response:
     """Download a credential-free Agent Plugins package for one maintained Solution."""
 
     # Reuse maintenance access without locking or loading Solution secrets.
-    solution = await solutions.access(session, solution_id, user.id, lock=False)
+    solution = await solutions.access(ctx.database, solution_id, ctx.user.id, lock=False)
     name = f"longlink-{solution.id}"
 
     # Keep plugin identity stable and expose the selected Solution's display metadata.
@@ -194,12 +196,12 @@ async def download_plugin(solution_id: UUID, user: auth.CurrentUser, session: au
     )
 
 
-@router.get("/solutions/{solution_id}/logs", response_model=list[str])
-async def get_solution_logs(solution_id: UUID, user: auth.CurrentUser, session: auth.Session):
+@router.get("/solutions/{solution_id}/logs", response_model=list[str], dependencies=[Depends(auth.authuser)])
+async def get_solution_logs(ctx: Context, solution_id: UUID):
     """Return recent pod logs for one managed solution."""
 
     # Resolve active Solution access before enforcing runtime permissions.
-    access = await organizations.solution_logs_access(session, user.id, solution_id)
+    access = await organizations.solution_logs_access(ctx.database, ctx.user.id, solution_id)
     if access is None:
         raise HTTPException(status_code=403, detail="Access required")
     organization_id, role, kubeconfig = access
@@ -218,10 +220,10 @@ async def get_solution_logs(solution_id: UUID, user: auth.CurrentUser, session: 
         raise HTTPException(status_code=503, detail="Solution logs unavailable")
 
 
-@router.delete("/solutions/{solution_id}", status_code=204)
-async def delete_solution(solution_id: UUID, user: auth.CurrentUser, session: auth.Session):
+@router.delete("/solutions/{solution_id}", status_code=204, dependencies=[Depends(auth.authuser)])
+async def delete_solution(ctx: Context, solution_id: UUID):
     """Mark one Solution absent and queue explicit lifecycle cleanup."""
 
-    await solutions.delete(session, solution_id, user.id)
+    await solutions.delete(ctx.database, solution_id, ctx.user.id)
 
-    await session.commit()
+    await ctx.database.commit()

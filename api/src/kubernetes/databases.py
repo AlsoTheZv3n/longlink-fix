@@ -29,7 +29,7 @@ async def apply(
     # Render the isolated database boundary before accessing Kubernetes.
     database_namespace = namespace.database(organization_id)
     documents = templates.readyml_list(
-        files("src.kubernetes.templates").joinpath("solution", "database.yml"),
+        files("src").joinpath(".static", "kubernetes", "database.yml"),
         namespace=database_namespace,
         compute_namespace=namespace.compute(organization_id),
         storage_class=json.dumps(storage_class),

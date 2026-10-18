@@ -1,9 +1,10 @@
 from src import auth
 from uuid import UUID
 from typing import Annotated
-from fastapi import Form, Query, Request, Response, APIRouter
+from fastapi import Form, Query, Depends, Request, Response, APIRouter
 from src.logger import logger
 from src.models import mcp as models
+from src.context import Context
 from urllib.parse import urlencode
 from collections.abc import Callable, Coroutine
 from fastapi.routing import APIRoute
@@ -59,77 +60,75 @@ router = APIRouter(prefix="/mcp", tags=["mcp"], route_class=OAuthRoute, response
 
 
 @router.post("/register", status_code=201, response_model=models.RegisteredClient)
-async def register(payload: models.ClientRegistration, session: auth.Session) -> dict[str, object]:
+async def register(ctx: Context, payload: models.ClientRegistration) -> dict[str, object]:
     """Register immutable callbacks for a public client; registration grants no access."""
 
     # Persist registration before returning its identifier and validated public metadata.
-    client_id = await mcp.register(session, payload)
-    await session.commit()
+    client_id = await mcp.register(ctx.database, payload)
+    await ctx.database.commit()
     return {**payload.model_dump(), "client_id": client_id}
 
 
 @router.get("/authorize", response_model=None)
-async def authorize(request: Annotated[models.AuthorizationRequest, Query()], session: auth.Session) -> RedirectResponse:
+async def authorize(ctx: Context, request: Annotated[models.AuthorizationRequest, Query()]) -> RedirectResponse:
     """Validate the client request before navigating to first-party login and consent."""
 
     # Validate the callback and audience before navigating to first-party approval.
-    await mcp.validate_request(session, request)
+    await mcp.validate_request(ctx.database, request)
     query = urlencode(request.model_dump(mode="json"))
     return RedirectResponse(f"{env.PUBLIC_URL}/mcp/authorize?{query}", status_code=302)
 
 
-@router.get("/consent", response_model=models.Consent)
-async def consent(
-    request: Annotated[models.AuthorizationRequest, Query()], user: auth.CurrentUser, session: auth.Session
-) -> dict[str, str]:
+@router.get("/consent", response_model=models.Consent, dependencies=[Depends(auth.authuser)])
+async def consent(ctx: Context, request: Annotated[models.AuthorizationRequest, Query()]) -> dict[str, str]:
     """Describe the registered callback and Solution only after current permission checks."""
 
-    return await mcp.consent(session, user, request)
+    return await mcp.consent(ctx.database, ctx.user, request)
 
 
-@router.post("/consent", response_model=models.AuthorizationRedirect)
-async def approve(payload: models.Approval, user: auth.CurrentUser, session: auth.Session) -> dict[str, str]:
+@router.post("/consent", response_model=models.AuthorizationRedirect, dependencies=[Depends(auth.authuser)])
+async def approve(ctx: Context, payload: models.Approval) -> dict[str, str]:
     """Issue one short-lived PKCE code only after an explicit same-origin browser decision."""
 
     # Persist approved proof before exposing the code; declined consent remains read-only.
-    url = await mcp.approve(session, user, payload)
+    url = await mcp.approve(ctx.database, ctx.user, payload)
     if payload.approve:
-        await session.commit()
+        await ctx.database.commit()
     return {"url": url}
 
 
 @router.post("/token", response_model=models.AccessToken)
-async def exchange(session: auth.Session, response: Response, payload: Annotated[models.TokenExchange, Form()]) -> dict[str, str | int]:
+async def exchange(ctx: Context, response: Response, payload: Annotated[models.TokenExchange, Form()]) -> dict[str, str | int]:
     """Exchange a single-use code with exact client, resource, redirect, and PKCE binding."""
 
     # Commit code consumption and token issuance together before returning credentials.
-    result = await mcp.exchange(session, payload)
-    await session.commit()
+    result = await mcp.exchange(ctx.database, payload)
+    await ctx.database.commit()
     response.headers["Pragma"] = "no-cache"
     return result
 
 
 @router.post("/revoke", status_code=200, response_model=None)
-async def revoke(session: auth.Session, token: Annotated[str, Form(max_length=128)], client_id: Annotated[UUID, Form()]) -> Response:
+async def revoke(ctx: Context, token: Annotated[str, Form(max_length=128)], client_id: Annotated[UUID, Form()]) -> Response:
     """Let a public client revoke its credential without exposing credential existence."""
 
     # Persist client-bound revocation before acknowledging the request.
-    await mcp.revoke(session, token, client_id)
-    await session.commit()
+    await mcp.revoke(ctx.database, token, client_id)
+    await ctx.database.commit()
     return Response()
 
 
-@router.get("/tokens", response_model=list[models.TokenSummary])
-async def tokens(user: auth.CurrentUser, session: auth.Session):
+@router.get("/tokens", response_model=list[models.TokenSummary], dependencies=[Depends(auth.authuser)])
+async def tokens(ctx: Context):
     """List the current user's revocation handles without exposing credentials."""
 
-    return await mcp.tokens(session, user.id)
+    return await mcp.tokens(ctx.database, ctx.user.id)
 
 
-@router.delete("/tokens/{token_id}", status_code=204, response_model=None)
-async def delete_token(token_id: UUID, user: auth.CurrentUser, session: auth.Session) -> None:
+@router.delete("/tokens/{token_id}", status_code=204, response_model=None, dependencies=[Depends(auth.authuser)])
+async def delete_token(ctx: Context, token_id: UUID) -> None:
     """Revoke only grants owned by the authenticated browser user."""
 
     # Persist owner-bound revocation before acknowledging the request.
-    await mcp.delete_token(session, user.id, token_id)
-    await session.commit()
+    await mcp.delete_token(ctx.database, ctx.user.id, token_id)
+    await ctx.database.commit()

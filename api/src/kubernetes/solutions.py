@@ -236,7 +236,7 @@ async def apply(
     migration_id = f"migration-{revision_id}"
     secret_id = f"revision-{revision_id}"
     migration, service = templates.readyml_list(
-        files("src.kubernetes.templates").joinpath("solution", "solution.yml"),
+        files("src").joinpath(".static", "kubernetes", "solution.yml"),
         solution_id=str(solution_id),
         image=json.dumps(image),
         namespace=compute_namespace,
