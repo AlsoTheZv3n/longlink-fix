@@ -14,7 +14,7 @@ from src.database.models.organizations import Organization
 router = APIRouter()
 
 
-@router.get("/organizations/{organization_id}/cards", response_model=list[PaymentCard])  # noqa: FAST003 - Consumed by auth.OrganizationOwner.
+@router.get("/organizations/{organization_id}/cards", response_model=list[PaymentCard])
 async def get_cards(ctx: Context, membership: auth.OrganizationOwner):
     """List masked saved cards for the current Organization owner."""
 
@@ -46,7 +46,7 @@ async def get_cards(ctx: Context, membership: auth.OrganizationOwner):
         ]
 
 
-@router.get("/organizations/{organization_id}/invoices", response_model=list[PaymentInvoice])  # noqa: FAST003 - Consumed by auth.OrganizationOwner.
+@router.get("/organizations/{organization_id}/invoices", response_model=list[PaymentInvoice])
 async def get_invoices(ctx: Context, membership: auth.OrganizationOwner):
     """List issued invoices and hosted documents for the current Organization owner."""
 
@@ -76,7 +76,7 @@ async def get_invoices(ctx: Context, membership: auth.OrganizationOwner):
         ]
 
 
-@router.post("/organizations/{organization_id}/cards/checkout", response_model=PaymentRedirect)  # noqa: FAST003 - Consumed by auth.OrganizationOwner.
+@router.post("/organizations/{organization_id}/cards/checkout", response_model=PaymentRedirect)
 async def create_checkout(ctx: Context, membership: auth.OrganizationOwner):
     """Save an invoice payment method without taking an immediate payment."""
 

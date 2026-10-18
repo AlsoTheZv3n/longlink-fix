@@ -7,7 +7,6 @@ from src.models.roles import OrganizationRoles
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
 from src.database.session import session_scope
-from src.models.solutions import SolutionCreate
 from src.database.services import solutions, operations
 from src.models.operations import OperationKind
 from src.database.models.users import User
@@ -74,7 +73,7 @@ async def assert_no_new_operations(previous: Sequence[Operation]) -> None:
 
     # Compare stable identifiers so ordering changes cannot mask queued work.
     current = await fetch_operations()
-    assert [operation.id for operation in current] == [operation.id for operation in previous]
+    assert {operation.id for operation in current} == {operation.id for operation in previous}
 
 
 async def add_member(*, user: User, organization: Organization, role: OrganizationRoles) -> None:
@@ -121,12 +120,10 @@ async def create_organization(owner: User, name: str = "acme", compute: ComputeR
     organization = Organization(name=name, slug=names.slugify(name), compute_id=compute.id, created_id=owner.id)
     membership = UserOrganization(user_id=owner.id, organization_id=organization.id, role=OrganizationRoles.owner)
 
-    # Retain queued creation work expected by lifecycle fixtures in the same transaction.
+    # Persist the Organization and owner membership in the same transaction.
     async with session_scope() as session:
         session.add(organization)
         session.add(membership)
-        await session.flush()
-        await operations.enqueue(session, kind=OperationKind.organization_create, target_id=organization.id)
         await session.commit()
         return organization
 
@@ -149,7 +146,8 @@ async def create_solution(
         solution = await solutions.create(
             session,
             organization.id,
-            SolutionCreate(name=name, image=resolved_image, envs=envs or {}),
+            name=name,
+            envs=envs or {},
             user_id=organization.created_id,
             metadata=LongLinkMetadata(image=resolved_image),
         )

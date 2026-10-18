@@ -2,7 +2,15 @@ import pytest
 from uuid import UUID
 from httpx2 import AsyncClient
 from pydantic import SecretStr
-from factories import add_member, claim_operation, create_solution, fetch_operations, create_organization, assert_no_new_operations
+from factories import (
+    add_member,
+    claim_operation,
+    create_solution,
+    queue_operation,
+    fetch_operations,
+    create_organization,
+    assert_no_new_operations,
+)
 from src.utils import github
 from sqlalchemy import select
 from src.models.roles import OrganizationRoles
@@ -143,6 +151,7 @@ async def test_registry_create_commits_credentials_and_fresh_reconciliation(
     # Arrange
     organization = await create_organization(users[0])
     await add_member(user=users[1], organization=organization, role=OrganizationRoles.maintain)
+    await queue_operation(target_id=organization.id)
     await claim_operation()
     previous_operations = await fetch_operations()
     assert len(previous_operations) == 1
@@ -194,6 +203,7 @@ async def test_registry_delete_commits_removal_and_fresh_reconciliation(
     async with session_scope() as session:
         session.add(connection)
         await session.commit()
+    await queue_operation(target_id=organization.id)
     await claim_operation()
     previous_operations = await fetch_operations()
     assert len(previous_operations) == 1

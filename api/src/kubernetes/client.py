@@ -61,8 +61,8 @@ class Kubernetes:
         if self._api_client is None:
             self._api_client = await kr8s.asyncio.api(kubeconfig=cast(str, self._kubeconfig), serviceaccount="")
 
-        # The kr8s factory shares clients within a loop; only the Platform lifespan owns their transport.
-        _api_clients.setdefault(asyncio.get_running_loop(), set()).add(self._api_client)
+            # The kr8s factory shares clients within a loop; only the Platform lifespan owns their transport.
+            _api_clients.setdefault(asyncio.get_running_loop(), set()).add(self._api_client)
         return self._api_client
 
     async def aclose(self) -> None:

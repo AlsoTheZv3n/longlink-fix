@@ -13,7 +13,7 @@ from src.database.models.registries import RegistryConnection
 router = APIRouter()
 
 
-@router.get("/organizations/{organization_id}/registries", response_model=list[RegistryResponse])  # noqa: FAST003 - Consumed by auth.OrganizationMember.
+@router.get("/organizations/{organization_id}/registries", response_model=list[RegistryResponse])
 async def list_registries(ctx: Context, membership: auth.OrganizationMember):
     """List connection identities visible to organization members."""
 
@@ -27,7 +27,7 @@ async def list_registries(ctx: Context, membership: auth.OrganizationMember):
     return result.all()
 
 
-@router.post("/organizations/{organization_id}/registries", response_model=RegistryResponse, status_code=201)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
+@router.post("/organizations/{organization_id}/registries", response_model=RegistryResponse, status_code=201)
 async def create_registry(ctx: Context, payload: RegistryCreate, membership: auth.OrganizationMaintainer) -> RegistryConnection:
     """Create an organization-owned connection and queue secret synchronization."""
 
@@ -37,7 +37,7 @@ async def create_registry(ctx: Context, payload: RegistryCreate, membership: aut
     return connection
 
 
-@router.delete("/organizations/{organization_id}/registries/{connection_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
+@router.delete("/organizations/{organization_id}/registries/{connection_id}", status_code=204)
 async def delete_registry(ctx: Context, connection_id: UUID, membership: auth.OrganizationMaintainer) -> None:
     """Remove unused credentials without breaking retained deployment revisions."""
 
