@@ -14,7 +14,7 @@ export default defineConfig({
 
             /** Pin the complete component runtime and styles to their packaged content. */
             async closeBundle() {
-                const directory = path.resolve(import.meta.dirname, 'public/views');
+                const directory = path.resolve(import.meta.dirname, 'build/views');
 
                 const [script, styles] = await Promise.all([
                     readFile(path.join(directory, 'runtime.js'), 'utf8'),
@@ -34,8 +34,8 @@ export default defineConfig({
                 moduleLevelDirective: false,
             },
         },
-        outDir: 'public/views',
-        emptyOutDir: false,
+        outDir: 'build/views',
+        emptyOutDir: true,
         lib: {
             entry: path.resolve(import.meta.dirname, 'src/views/runtime.tsx'),
             name: 'LongLinkView',
