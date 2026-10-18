@@ -7,12 +7,7 @@ config = context.config
 if context.is_offline_mode():
     # Configure SQL generation without opening a database connection.
     database_url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=database_url,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        version_table_schema="shared",
-    )
+    context.configure(url=database_url, literal_binds=True, dialect_opts={"paramstyle": "named"}, version_table_schema="shared")
 else:
     # The async SDK runner supplies the synchronous view of its own connection.
     connection = config.attributes.get("connection")

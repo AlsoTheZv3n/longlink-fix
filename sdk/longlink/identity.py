@@ -33,11 +33,7 @@ def identity_token_user(token: str, secret: str) -> UUID:
 
     # Restrict verification to LongLink's fixed algorithm and token purpose.
     data = jwt.decode(
-        token,
-        secret,
-        audience=IDENTITY_TOKEN_AUDIENCE,
-        algorithms=[IDENTITY_TOKEN_ALGORITHM],
-        options={"require": ["exp", "iat", "sub"]},
+        token, secret, audience=IDENTITY_TOKEN_AUDIENCE, algorithms=[IDENTITY_TOKEN_ALGORITHM], options={"require": ["exp", "iat", "sub"]}
     )
     raw_user_id = data["sub"]
     try:

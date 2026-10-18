@@ -41,11 +41,7 @@ def run_migrations_offline() -> None:
     # Configure deterministic SQL generation from the database URL.
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        include_name=include_name,
+        url=url, target_metadata=target_metadata, literal_binds=True, dialect_opts={"paramstyle": "named"}, include_name=include_name
     )
 
     # Emit all pending migrations within one Alembic transaction.

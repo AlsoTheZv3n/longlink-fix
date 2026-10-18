@@ -16,13 +16,7 @@ ClusterResource = new_class("Cluster", "postgresql.cnpg.io/v1", asyncio=True, pl
 
 
 async def apply(
-    client: "Kubernetes",
-    organization_id: UUID,
-    password: str,
-    storage_class: str,
-    *,
-    size_mib: int = 100,
-    instances: int = 1,
+    client: "Kubernetes", organization_id: UUID, password: str, storage_class: str, *, size_mib: int = 100, instances: int = 1
 ) -> None:
     """Create the database boundary and wait for a writable PostgreSQL cluster."""
 
@@ -57,10 +51,7 @@ async def apply(
         api=api,
     )
     await utils.apply(secret)
-    cluster = ClusterResource(
-        cluster_document,
-        api=api,
-    )
+    cluster = ClusterResource(cluster_document, api=api)
     await utils.apply(cluster)
     await resume(client, organization_id)
 
@@ -83,11 +74,7 @@ async def resume(client: "Kubernetes", organization_id: UUID) -> None:
     # Clearing hibernation is idempotent; confirmed readiness is required before using SQL.
     api = await client.api()
     database_namespace = namespace.database(organization_id)
-    cluster = ClusterResource(
-        "database",
-        namespace=database_namespace,
-        api=api,
-    )
+    cluster = ClusterResource("database", namespace=database_namespace, api=api)
     await cluster.patch({"metadata": {"annotations": {"cnpg.io/hibernation": "off"}}})
     async with asyncio.timeout(2 * 60):
         while True:
@@ -104,9 +91,7 @@ async def resume(client: "Kubernetes", organization_id: UUID) -> None:
                 # False hibernation conditions still mean shutdown; after removal, verify live Pod state too.
                 ready_pods = 0
                 async for pod in Pod.list(
-                    api=api,
-                    namespace=database_namespace,
-                    label_selector={"cnpg.io/cluster": "database", "cnpg.io/podRole": "instance"},
+                    api=api, namespace=database_namespace, label_selector={"cnpg.io/cluster": "database", "cnpg.io/podRole": "instance"}
                 ):
                     pod_status = pod.raw.get("status", {})
                     if (

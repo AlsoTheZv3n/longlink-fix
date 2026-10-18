@@ -16,28 +16,11 @@ from longlink.utils.settings import Envs
 @pytest.mark.parametrize(
     ("environment", "expected_url", "expected_kwargs"),
     [
-        pytest.param(
-            "testing",
-            make_url("sqlite+aiosqlite:///:memory:"),
-            {"hide_parameters": True},
-            id="testing",
-        ),
-        pytest.param(
-            "development",
-            make_url("sqlite+aiosqlite:///./dev.db"),
-            {"hide_parameters": True},
-            id="development",
-        ),
+        pytest.param("testing", make_url("sqlite+aiosqlite:///:memory:"), {"hide_parameters": True}, id="testing"),
+        pytest.param("development", make_url("sqlite+aiosqlite:///./dev.db"), {"hide_parameters": True}, id="development"),
         pytest.param(
             "production",
-            URL.create(
-                "postgresql+asyncpg",
-                username="solution",
-                password="secret",
-                host="db",
-                port=5432,
-                database="longlink",
-            ),
+            URL.create("postgresql+asyncpg", username="solution", password="secret", host="db", port=5432, database="longlink"),
             {
                 "hide_parameters": True,
                 "pool_size": 1,
@@ -136,9 +119,7 @@ async def test_concurrent_sessions_share_a_usable_engine_until_disposal() -> Non
 
 
 async def test_session_retries_initialization_after_database_connection_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    production_settings: dict[str, str | int],
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, production_settings: dict[str, str | int]
 ) -> None:
     """Retry session initialization after its initial connection fails."""
 
@@ -172,9 +153,7 @@ async def test_session_retries_initialization_after_database_connection_failure(
         await database.dispose()
 
 
-async def test_session_disposes_sqlite_engine_after_schema_initialization_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_session_disposes_sqlite_engine_after_schema_initialization_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """Release SQLite resources when automatic schema creation fails."""
 
     # Arrange
@@ -213,9 +192,7 @@ async def test_session_disposes_sqlite_engine_after_schema_initialization_failur
         await engine.dispose()
 
 
-async def test_session_disposes_sqlite_engine_after_initialization_timeout(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_session_disposes_sqlite_engine_after_initialization_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     """Clean up cancelled schema initialization and allow the same database to retry."""
 
     # Arrange

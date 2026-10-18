@@ -10,14 +10,7 @@ from starlette.responses import JSONResponse
 class IdentityMiddleware:
     """Bind Platform identity and enforce supported request transports."""
 
-    def __init__(
-        self,
-        app: ASGIApp,
-        *,
-        identity_secret: str | None,
-        require_identity: bool,
-        local_user_id: UUID | None,
-    ) -> None:
+    def __init__(self, app: ASGIApp, *, identity_secret: str | None, require_identity: bool, local_user_id: UUID | None) -> None:
         """Store the application's identity admission policy."""
 
         self.app = app
@@ -39,9 +32,7 @@ class IdentityMiddleware:
             return
 
         # Verify the Platform-signed user assertion before exposing it to Solution code.
-        request = Request(
-            scope,
-        )
+        request = Request(scope)
         user_id = None
         if self.identity_secret:
             try:
@@ -51,10 +42,7 @@ class IdentityMiddleware:
 
         # Only Kubernetes liveness and readiness probes are anonymous in production.
         if self.require_identity and user_id is None and request.url.path not in {"/health", "/ready"}:
-            response = JSONResponse(
-                {"detail": "Authentication required"},
-                status_code=401,
-            )
+            response = JSONResponse({"detail": "Authentication required"}, status_code=401)
             await response(scope, receive, send)
             return
 

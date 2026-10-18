@@ -18,9 +18,7 @@ def test_installed_http_handler_preserves_bodyless_status_and_headers() -> None:
         raise HTTPException(status_code=204, headers={"x-operation-id": "operation-123"})
 
     install_error_handlers(app)
-    client = TestClient(
-        app,
-    )
+    client = TestClient(app)
 
     # Act
     with client:
@@ -45,9 +43,7 @@ def test_installed_http_handler_falls_back_for_blank_detail_and_preserves_header
         raise HTTPException(status_code=403, detail="   ", headers={"x-operation-id": "operation-123"})
 
     install_error_handlers(app)
-    client = TestClient(
-        app,
-    )
+    client = TestClient(app)
 
     # Act
     with client:
@@ -77,9 +73,7 @@ def test_installed_validation_handler_hides_submitted_values() -> None:
         return payload
 
     install_error_handlers(app)
-    client = TestClient(
-        app,
-    )
+    client = TestClient(app)
 
     # Act
     with client:
@@ -109,9 +103,7 @@ def test_installed_handlers_preserve_a_solution_owned_http_handler() -> None:
         raise HTTPException(status_code=418, detail="Custom response")
 
     install_error_handlers(app)
-    client = TestClient(
-        app,
-    )
+    client = TestClient(app)
 
     # Act
     with client:

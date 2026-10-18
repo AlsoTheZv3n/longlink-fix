@@ -28,7 +28,6 @@ os.environ["ADMIN_EMAIL"] = "test-administrator@example.com"
 os.environ["ADMIN_PASSWORD"] = TEST_PASSWORD
 os.environ["ENCRYPTION_KEY"] = "longlink-test-encryption-key-that-is-long-enough"
 os.environ["OPERATION_TIMEOUT_SECONDS"] = "60"
-os.environ["AUTH_SESSION_LIFETIME_SECONDS"] = "2592000"
 os.environ["SMTP_PORT"] = "587"
 os.environ["SMTP_TRANSPORT"] = "starttls"
 
@@ -238,10 +237,9 @@ async def tls_certificate(_cluster: object, namespace: str, name: str) -> str:
     """Return the requested chart-managed TLS certificate without cluster I/O."""
 
     # Match the registered Secret coordinates for each infrastructure endpoint.
-    return {
-        ("knative-serving", "longlink-gateway-tls"): "gateway-certificate",
-        ("rustfs", "longlink-storage-tls"): "storage-certificate",
-    }[namespace, name]
+    return {("knative-serving", "longlink-gateway-tls"): "gateway-certificate", ("rustfs", "longlink-storage-tls"): "storage-certificate"}[
+        namespace, name
+    ]
 
 
 async def database_storage_class(_cluster: object) -> str:
@@ -255,11 +253,11 @@ def compute_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace external infrastructure discovery and verification for Compute registration."""
 
     # Keep provider replacements local to tests that explicitly register Compute infrastructure.
-    monkeypatch.setattr("src.routes.v1.computes.Kubernetes", RegistryKubernetes)
-    monkeypatch.setattr("src.routes.v1.computes.tls.certificate", tls_certificate)
-    monkeypatch.setattr("src.routes.v1.computes.gateway.verify", verify_compute_gateway)
-    monkeypatch.setattr("src.routes.v1.computes.storageclasses.resolve", database_storage_class)
-    monkeypatch.setattr("src.routes.v1.computes.Storage", StorageKubernetes)
+    monkeypatch.setattr("src.routes.v1.admin.computes.Kubernetes", RegistryKubernetes)
+    monkeypatch.setattr("src.routes.v1.admin.computes.tls.certificate", tls_certificate)
+    monkeypatch.setattr("src.routes.v1.admin.computes.gateway.verify", verify_compute_gateway)
+    monkeypatch.setattr("src.routes.v1.admin.computes.storageclasses.resolve", database_storage_class)
+    monkeypatch.setattr("src.routes.v1.admin.computes.Storage", StorageKubernetes)
 
 
 @pytest.fixture
@@ -293,11 +291,7 @@ def database_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def reset_db(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    request: pytest.FixtureRequest,
-) -> AsyncIterator[None]:
+async def reset_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> AsyncIterator[None]:
     """Create a fresh SQLite database for each test."""
 
     if request.node.get_closest_marker("no_db"):
@@ -340,11 +334,7 @@ def create_client(user: User | None = None) -> AsyncClient:
     headers = {"origin": env.PUBLIC_URL}
 
     return AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://testserver",
-        cookies=cookies,
-        headers=headers,
-        follow_redirects=True,
+        transport=ASGITransport(app=app), base_url="http://testserver", cookies=cookies, headers=headers, follow_redirects=True
     )
 
 
@@ -363,10 +353,7 @@ async def users(password_hash: str) -> tuple[User, User, User]:
     session_factory = session.get_session()
     async with session_factory() as db_session:
         platform_administrator = User(
-            name="Platform Administrator",
-            email="platform-administrator@example.com",
-            password=password_hash,
-            administrator=True,
+            name="Platform Administrator", email="platform-administrator@example.com", password=password_hash, administrator=True
         )
         regular_user = User(name="Regular User", email="regular-user@example.com", password=password_hash)
         other_user = User(name="Other User", email="other-user@example.com", password=password_hash)

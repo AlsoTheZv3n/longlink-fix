@@ -96,13 +96,8 @@ async def test_payment_endpoints_require_the_organizations_owner_before_stripe(
                     {
                         "id": "pm_acme",
                         "object": "payment_method",
-                        "card": {
-                            "brand": "visa",
-                            "last4": "4242",
-                            "exp_year": 2030,
-                            "exp_month": 12,
-                        },
-                    },
+                        "card": {"brand": "visa", "last4": "4242", "exp_year": 2030, "exp_month": 12},
+                    }
                 ],
             },
             None,
@@ -124,7 +119,7 @@ async def test_payment_endpoints_require_the_organizations_owner_before_stripe(
                         "created": 1767225600,
                         "invoice_pdf": "https://stripe.example/invoice.pdf",
                         "hosted_invoice_url": "https://stripe.example/invoice",
-                    },
+                    }
                 ],
             },
             None,
@@ -201,9 +196,7 @@ async def assert_card_registration_unchanged(organization: Organization) -> None
 
 
 async def test_webhook_rejects_invalid_signature_without_registering_card(
-    client: AsyncClient,
-    card_organization: Organization,
-    monkeypatch: pytest.MonkeyPatch,
+    client: AsyncClient, card_organization: Organization, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject a correctly formed checkout event signed with the wrong secret."""
 
@@ -223,9 +216,7 @@ async def test_webhook_rejects_invalid_signature_without_registering_card(
 
 
 async def test_webhook_rejects_signed_event_from_the_wrong_stripe_mode(
-    client: AsyncClient,
-    card_organization: Organization,
-    monkeypatch: pytest.MonkeyPatch,
+    client: AsyncClient, card_organization: Organization, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject a valid live-mode signature on a test-mode deployment."""
 
@@ -249,12 +240,7 @@ WEBHOOK_SIZES = [(1024 * 1024, 400, "Invalid Stripe signature"), (1024 * 1024 + 
 
 @pytest.mark.parametrize(("size", "status", "detail"), WEBHOOK_SIZES)
 async def test_webhook_enforces_one_mebibyte_limit_before_signature_verification(
-    size: int,
-    status: int,
-    detail: str,
-    client: AsyncClient,
-    card_organization: Organization,
-    monkeypatch: pytest.MonkeyPatch,
+    size: int, status: int, detail: str, client: AsyncClient, card_organization: Organization, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Check the exact size boundary reaches verification, while oversized bodies do not."""
 

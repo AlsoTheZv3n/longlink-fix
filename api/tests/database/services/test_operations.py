@@ -3,13 +3,7 @@ import asyncio
 from uuid import UUID, uuid4
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
-from factories import (
-    create_compute,
-    fail_operation,
-    claim_operation,
-    fetch_operations,
-    complete_operation,
-)
+from factories import create_compute, fail_operation, claim_operation, fetch_operations, complete_operation
 from factories import queue_operation as queue
 from sqlalchemy import Select, select
 from src.database import session as database_session
@@ -32,18 +26,9 @@ async def test_operations_service_create_coalesces_and_reopens_completed_work() 
     first_solution_id = uuid4()
     organization_id = uuid4()
 
-    solution = await queue(
-        kind=OperationKind.solution_deploy,
-        target_id=first_solution_id,
-    )
-    duplicate = await queue(
-        kind=OperationKind.solution_deploy,
-        target_id=first_solution_id,
-    )
-    await queue(
-        kind=OperationKind.organization_create,
-        target_id=organization_id,
-    )
+    solution = await queue(kind=OperationKind.solution_deploy, target_id=first_solution_id)
+    duplicate = await queue(kind=OperationKind.solution_deploy, target_id=first_solution_id)
+    await queue(kind=OperationKind.organization_create, target_id=organization_id)
     fetched = await fetch_operations()
 
     assert duplicate.id == solution.id
@@ -57,10 +42,7 @@ async def test_operations_service_create_coalesces_and_reopens_completed_work() 
     assert claimed is not None
     assert claimed.id == solution.id
     completed = await complete_operation(claimed.id)
-    replacement = await queue(
-        kind=OperationKind.solution_deploy,
-        target_id=first_solution_id,
-    )
+    replacement = await queue(kind=OperationKind.solution_deploy, target_id=first_solution_id)
 
     assert completed is not None
     assert replacement.id != solution.id
@@ -183,26 +165,13 @@ async def test_operations_service_failed_creation_updates_targets_and_resolves_r
     # Arrange
     compute_registry = await create_compute()
     async with session_scope() as session:
-        organization = Organization(
-            name="Acme",
-            slug="acme",
-            compute_id=compute_registry.id,
-        )
+        organization = Organization(name="Acme", slug="acme", compute_id=compute_registry.id)
         session.add(organization)
         await session.flush()
-        solution = Solution(
-            organization_id=organization.id,
-            name="Dashboard",
-            slug="dashboard",
-            secrets={},
-        )
+        solution = Solution(organization_id=organization.id, name="Dashboard", slug="dashboard", secrets={})
         session.add(solution)
         await session.flush()
-        revision = Revision(
-            solution_id=solution.id,
-            image="ghcr.io/longlink/dashboard@sha256:resolved",
-            envs={},
-        )
+        revision = Revision(solution_id=solution.id, image="ghcr.io/longlink/dashboard@sha256:resolved", envs={})
         session.add(revision)
         await session.flush()
         solution.desired_revision_id = revision.id
@@ -283,18 +252,11 @@ async def pending_revision_change() -> tuple[Solution, Revision, Revision]:
         session.add(solution)
         await session.flush()
         deployed_revision = Revision(
-            solution_id=solution.id,
-            image="ghcr.io/longlink/dashboard@sha256:one",
-            envs={},
-            deployed_at=datetime.now(UTC),
+            solution_id=solution.id, image="ghcr.io/longlink/dashboard@sha256:one", envs={}, deployed_at=datetime.now(UTC)
         )
         session.add(deployed_revision)
         await session.flush()
-        desired_revision = Revision(
-            solution_id=solution.id,
-            image="ghcr.io/longlink/dashboard@sha256:two",
-            envs={},
-        )
+        desired_revision = Revision(solution_id=solution.id, image="ghcr.io/longlink/dashboard@sha256:two", envs={})
         session.add(desired_revision)
         await session.flush()
         solution.desired_revision_id = desired_revision.id

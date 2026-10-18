@@ -122,21 +122,11 @@ async def identity(provider: OAuthProvider, code: str, verifier: str) -> OAuthId
                 if not profile_response.is_success:
                     return None
                 return _google_identity(profile_response.json())
-            github_headers = {
-                **authorization,
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            }
-            profile_response = await client.get(
-                GITHUB_USER_URL,
-                headers=github_headers,
-            )
+            github_headers = {**authorization, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+            profile_response = await client.get(GITHUB_USER_URL, headers=github_headers)
             if not profile_response.is_success:
                 return None
-            emails_response = await client.get(
-                GITHUB_EMAILS_URL,
-                headers=github_headers,
-            )
+            emails_response = await client.get(GITHUB_EMAILS_URL, headers=github_headers)
             if not emails_response.is_success:
                 return None
             return _github_identity(profile_response.json(), emails_response.json())
@@ -154,12 +144,7 @@ def _google_identity(payload: object) -> OAuthIdentity | None:
     email = _email(payload)
     if subject is None or email is None:
         return None
-    return OAuthIdentity(
-        subject=subject,
-        email=email,
-        name=_name(payload, email),
-        avatar=_text(payload, "picture", 2048) or "",
-    )
+    return OAuthIdentity(subject=subject, email=email, name=_name(payload, email), avatar=_text(payload, "picture", 2048) or "")
 
 
 def _github_identity(profile: object, emails: object) -> OAuthIdentity | None:
@@ -185,12 +170,7 @@ def _github_identity(profile: object, emails: object) -> OAuthIdentity | None:
     )
     if email is None:
         return None
-    return OAuthIdentity(
-        subject=subject,
-        email=email,
-        name=_name(profile, email),
-        avatar=_text(profile, "avatar_url", 2048) or "",
-    )
+    return OAuthIdentity(subject=subject, email=email, name=_name(profile, email), avatar=_text(profile, "avatar_url", 2048) or "")
 
 
 def _email(payload: object) -> Email | None:

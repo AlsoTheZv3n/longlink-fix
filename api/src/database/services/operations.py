@@ -91,11 +91,7 @@ async def enqueue(session: AsyncSession, *, kind: OperationKind, target_id: UUID
     if coalesce:
         operation = await session.scalar(
             select(Operation)
-            .where(
-                col(Operation.kind) == kind,
-                col(Operation.target_id) == target_id,
-                col(Operation.finished_at).is_(None),
-            )
+            .where(col(Operation.kind) == kind, col(Operation.target_id) == target_id, col(Operation.finished_at).is_(None))
             .order_by(col(Operation.created_at), col(Operation.id))
             .limit(1)
         )
@@ -119,11 +115,7 @@ async def claim(session: AsyncSession) -> Operation | None:
         select(Operation)
         .where(col(Operation.finished_at).is_(None))
         .order_by(
-            case(
-                (col(Operation.lease_expires_at) > now, 0),
-                (col(Operation.lease_expires_at).is_not(None), 1),
-                else_=2,
-            ),
+            case((col(Operation.lease_expires_at) > now, 0), (col(Operation.lease_expires_at).is_not(None), 1), else_=2),
             col(Operation.created_at).asc(),
             col(Operation.id).asc(),
         )
@@ -156,11 +148,7 @@ def _leased_operation_update(operation_id: UUID, now: datetime) -> Update:
 
     return (
         update(Operation)
-        .where(
-            col(Operation.id) == operation_id,
-            col(Operation.lease_expires_at) > now,
-            col(Operation.finished_at).is_(None),
-        )
+        .where(col(Operation.id) == operation_id, col(Operation.lease_expires_at) > now, col(Operation.finished_at).is_(None))
         .execution_options(synchronize_session=False)
     )
 
@@ -215,8 +203,7 @@ async def release(session: AsyncSession, operation_id: UUID) -> bool:
     # Release only work still owned by this worker.
     now = datetime.now(UTC)
     result = cast(
-        CursorResult[tuple[object, ...]],
-        await session.execute(_leased_operation_update(operation_id, now).values(lease_expires_at=None)),
+        CursorResult[tuple[object, ...]], await session.execute(_leased_operation_update(operation_id, now).values(lease_expires_at=None))
     )
     return result.rowcount == 1
 
@@ -230,9 +217,7 @@ async def fail(session: AsyncSession, operation_id: UUID, reason: str) -> bool:
         CursorResult[tuple[object, ...]],
         await session.execute(
             _leased_operation_update(operation_id, now).values(
-                failed=(reason.strip() or "Operation failed")[:500],
-                finished_at=now,
-                lease_expires_at=None,
+                failed=(reason.strip() or "Operation failed")[:500], finished_at=now, lease_expires_at=None
             )
         ),
     )
@@ -261,12 +246,7 @@ async def fail(session: AsyncSession, operation_id: UUID, reason: str) -> bool:
         revision.failed = True
 
     # Preserve the Solution lock and audit fields without loading unused runtime secrets.
-    solution = await session.get(
-        Solution,
-        revision.solution_id,
-        options=(defer(attr(Solution.secrets)),),
-        with_for_update=True,
-    )
+    solution = await session.get(Solution, revision.solution_id, options=(defer(attr(Solution.secrets)),), with_for_update=True)
     if solution is None or solution.deleted_at is not None:
         return True
 

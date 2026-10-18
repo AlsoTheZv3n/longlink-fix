@@ -1,11 +1,10 @@
-from src import auth
 from fastapi import Query, Depends, APIRouter
 from src.context import Context
 from src.database.services import operations
 from src.models.operations import OperationResponse
 from src.models.pagination import Page, Pagination
 
-router = APIRouter(dependencies=[Depends(auth.authadmin)])
+router = APIRouter()
 
 
 @router.get("/operations", response_model=Page[OperationResponse])

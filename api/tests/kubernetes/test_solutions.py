@@ -81,16 +81,8 @@ def test_solution_template_constrains_workloads() -> None:
         # Only the runtime is probed; database outages must not trigger liveness restarts.
         if workload is deployment:
             assert pod_template["metadata"]["annotations"]["autoscaling.knative.dev/min-scale"] == "1"
-            assert container["startupProbe"] == {
-                "httpGet": {"path": "/health", "port": 8000},
-                "periodSeconds": 5,
-                "failureThreshold": 60,
-            }
-            assert container["livenessProbe"] == {
-                "httpGet": {"path": "/health", "port": 8000},
-                "periodSeconds": 10,
-                "failureThreshold": 3,
-            }
+            assert container["startupProbe"] == {"httpGet": {"path": "/health", "port": 8000}, "periodSeconds": 5, "failureThreshold": 60}
+            assert container["livenessProbe"] == {"httpGet": {"path": "/health", "port": 8000}, "periodSeconds": 10, "failureThreshold": 3}
             assert container["readinessProbe"] == {
                 "httpGet": {"path": "/ready", "port": 8000},
                 "timeoutSeconds": 5,
@@ -291,14 +283,7 @@ async def test_solution_apply_reports_quota_admission_failure(monkeypatch: pytes
             """Supply the quota admission failure returned by Kubernetes."""
 
             self.raw["status"] = {
-                "conditions": [
-                    {
-                        "type": "Ready",
-                        "status": "False",
-                        "reason": "RevisionFailed",
-                        "message": "exceeded quota: solution Pods",
-                    }
-                ]
+                "conditions": [{"type": "Ready", "status": "False", "reason": "RevisionFailed", "message": "exceeded quota: solution Pods"}]
             }
 
     async def apply(_resource: AppliedResource) -> None:
@@ -459,12 +444,7 @@ async def test_solution_apply_waits_for_route_after_deployment_readiness(monkeyp
     ],
 )
 async def test_solution_logs_returns_pod_output(
-    monkeypatch: pytest.MonkeyPatch,
-    phase: str,
-    component: str,
-    line: str,
-    log_kwargs: dict[str, object],
-    expected: list[str],
+    monkeypatch: pytest.MonkeyPatch, phase: str, component: str, line: str, log_kwargs: dict[str, object], expected: list[str]
 ) -> None:
     """Return recent Pod output with the component-specific log options and context."""
 
@@ -490,19 +470,13 @@ async def test_solution_logs_returns_pod_output(
     monkeypatch.setattr(solutions, "Pod", PodResource)
 
     # Act
-    logs = await solutions.logs(
-        kubernetes_client(),
-        ORGANIZATION_ID,
-        UUID("00000000-0000-4000-8000-000000000001"),
-    )
+    logs = await solutions.logs(kubernetes_client(), ORGANIZATION_ID, UUID("00000000-0000-4000-8000-000000000001"))
 
     # Assert
     assert logs == expected
 
 
-async def test_solution_logs_reports_completed_migration_when_solution_pod_is_unavailable(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_solution_logs_reports_completed_migration_when_solution_pod_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     """Return migration context when the Solution Pod has not started."""
 
     # Arrange
@@ -521,11 +495,7 @@ async def test_solution_logs_reports_completed_migration_when_solution_pod_is_un
     monkeypatch.setattr(solutions, "Pod", PodResource)
 
     # Act
-    logs = await solutions.logs(
-        kubernetes_client(),
-        ORGANIZATION_ID,
-        UUID("00000000-0000-4000-8000-000000000001"),
-    )
+    logs = await solutions.logs(kubernetes_client(), ORGANIZATION_ID, UUID("00000000-0000-4000-8000-000000000001"))
 
     # Assert
     assert logs == ["Migration Pod migration-123 is Succeeded; Solution Pod unavailable"]
@@ -533,10 +503,7 @@ async def test_solution_logs_reports_completed_migration_when_solution_pod_is_un
 
 @pytest.mark.parametrize(
     "pods",
-    [
-        [],
-        [{"raw": {"status": {"phase": "Succeeded"}}, "metadata": {"labels": {"longlink.io/component": "solution"}}}],
-    ],
+    [[], [{"raw": {"status": {"phase": "Succeeded"}}, "metadata": {"labels": {"longlink.io/component": "solution"}}}]],
     ids=["no-pod", "terminal-solution-pod"],
 )
 async def test_solution_logs_reports_unavailable_without_usable_pods(
@@ -694,11 +661,7 @@ async def test_solution_delete_removes_resources_before_waiting_for_pods(monkeyp
 
     # Act
     async with asyncio.timeout(5):
-        await solutions.delete(
-            kubernetes_client(),
-            ORGANIZATION_ID,
-            UUID("00000000-0000-4000-8000-000000000001"),
-        )
+        await solutions.delete(kubernetes_client(), ORGANIZATION_ID, UUID("00000000-0000-4000-8000-000000000001"))
 
     # Assert
     assert deleted == ["Service", "Job", "Secret"]
@@ -734,11 +697,7 @@ async def test_solution_delete_skips_cleanup_when_namespace_is_absent(monkeypatc
     monkeypatch.setattr(solutions, "KnativeServiceResource", Resource)
 
     # Act
-    await solutions.delete(
-        kubernetes_client(),
-        ORGANIZATION_ID,
-        UUID("00000000-0000-4000-8000-000000000001"),
-    )
+    await solutions.delete(kubernetes_client(), ORGANIZATION_ID, UUID("00000000-0000-4000-8000-000000000001"))
 
 
 async def test_solution_delete_does_not_repeat_deletions_for_terminating_resources(monkeypatch: pytest.MonkeyPatch) -> None:

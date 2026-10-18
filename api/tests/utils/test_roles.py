@@ -19,11 +19,7 @@ pytestmark = pytest.mark.no_db
         pytest.param(OrganizationRoles.admin, OrganizationRoles.owner, False, id="admin-rejects-owner"),
     ],
 )
-def test_atleast_enforces_organization_role_hierarchy(
-    value: OrganizationRoles,
-    required_role: OrganizationRoles,
-    expected: bool,
-) -> None:
+def test_atleast_enforces_organization_role_hierarchy(value: OrganizationRoles, required_role: OrganizationRoles, expected: bool) -> None:
     """Authorize only organization roles at or above the requested privilege."""
 
     # Assert

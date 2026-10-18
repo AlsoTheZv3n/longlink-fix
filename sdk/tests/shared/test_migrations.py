@@ -14,12 +14,7 @@ def audit_user() -> dict[str, UUID | str]:
     """Create one representative shared-audit user snapshot."""
 
     # Include every authoritative profile field supplied by the Platform projection.
-    return {
-        "id": UUID("00000000-0000-0000-0000-000000000001"),
-        "name": "Owner User",
-        "email": "owner@example.com",
-        "avatar": "",
-    }
+    return {"id": UUID("00000000-0000-0000-0000-000000000001"), "name": "Owner User", "email": "owner@example.com", "avatar": ""}
 
 
 @pytest_asyncio.fixture
@@ -70,9 +65,7 @@ def test_migration_config_rejects_missing_packaged_resources(tmp_path, monkeypat
 
 @pytest.mark.integration
 async def test_shared_migrations_isolate_schema_and_sync_user_profiles(
-    postgresql_url: URL,
-    postgres_engine: AsyncEngine,
-    audit_user: dict[str, UUID | str],
+    postgresql_url: URL, postgres_engine: AsyncEngine, audit_user: dict[str, UUID | str]
 ) -> None:
     """Migrate into the isolated shared schema and synchronize one changing user profile."""
 
@@ -108,12 +101,7 @@ async def test_shared_migrations_isolate_schema_and_sync_user_profiles(
         await shared_audit.sync(connection, [audit_user])
 
     # Upsert changed mutable profile fields.
-    updated_user = {
-        **audit_user,
-        "name": "Updated User",
-        "email": "updated@example.com",
-        "avatar": "https://example.com/avatar.png",
-    }
+    updated_user = {**audit_user, "name": "Updated User", "email": "updated@example.com", "avatar": "https://example.com/avatar.png"}
     async with postgres_engine.begin() as connection:
         await connection.execute(text("SET LOCAL search_path TO shared"))
         await shared_audit.sync(connection, [updated_user])
@@ -135,9 +123,4 @@ async def test_shared_migrations_isolate_schema_and_sync_user_profiles(
         row_count = count_result.scalar_one()
 
     assert row_count == 1
-    assert dict(row) == {
-        "id": user_id,
-        "name": "Updated User",
-        "email": "updated@example.com",
-        "avatar": "https://example.com/avatar.png",
-    }
+    assert dict(row) == {"id": user_id, "name": "Updated User", "email": "updated@example.com", "avatar": "https://example.com/avatar.png"}

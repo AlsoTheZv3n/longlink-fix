@@ -13,10 +13,7 @@ from longlink.logger import ApiAccessFilter
         pytest.param(("127.0.0.1", "GET"), True, id="incomplete-arguments"),
     ],
 )
-def test_api_access_filter_keeps_expected_access_records(
-    args: tuple[str, ...] | dict[str, str],
-    expected: bool,
-) -> None:
+def test_api_access_filter_keeps_expected_access_records(args: tuple[str, ...] | dict[str, str], expected: bool) -> None:
     """Filter access logs to hide frontend asset noise."""
 
     # Arrange

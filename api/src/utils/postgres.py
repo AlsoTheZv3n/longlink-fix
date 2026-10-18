@@ -48,14 +48,7 @@ class Postgres:
             query["hostaddr"] = hostaddr
 
         # Keep connection details inside the adapter and credentials structured.
-        self._url = URL.create(
-            "postgresql+psycopg",
-            username=username,
-            password=password,
-            host=host,
-            port=port,
-            query=query,
-        )
+        self._url = URL.create("postgresql+psycopg", username=username, password=password, host=host, port=port, query=query)
         self._certificate = certificate
 
     @contextlib.contextmanager
@@ -76,11 +69,7 @@ class Postgres:
 
     @contextlib.asynccontextmanager
     async def connection(
-        self,
-        database: str,
-        *,
-        autocommit: bool = False,
-        search_path: str | None = None,
+        self, database: str, *, autocommit: bool = False, search_path: str | None = None
     ) -> AsyncGenerator[AsyncConnection, None]:
         """Open one managed SQLAlchemy connection for a database.
 
@@ -89,11 +78,7 @@ class Postgres:
 
         # Build a short-lived engine with autocommit only for PostgreSQL database lifecycle statements.
         with self.url(database, search_path=search_path) as url:
-            engine = create_async_engine(
-                url,
-                hide_parameters=True,
-                **({"isolation_level": "AUTOCOMMIT"} if autocommit else {}),
-            )
+            engine = create_async_engine(url, hide_parameters=True, **({"isolation_level": "AUTOCOMMIT"} if autocommit else {}))
 
             # Ensure the operation-scoped engine is disposed before removing its CA file.
             try:

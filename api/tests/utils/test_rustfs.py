@@ -14,12 +14,7 @@ def create_client(handler: Callable[[httpx2.Request], httpx2.Response]) -> httpx
 
     # Keep transport configuration consistent without sharing client state.
     transport = httpx2.MockTransport(handler)
-    return httpx2.AsyncClient(
-        transport=transport,
-        trust_env=False,
-        timeout=30,
-        follow_redirects=False,
-    )
+    return httpx2.AsyncClient(transport=transport, trust_env=False, timeout=30, follow_redirects=False)
 
 
 def test_policy_scopes_solution_access_and_denies_acl_grants() -> None:
@@ -73,11 +68,7 @@ async def test_service_account_replaces_abandoned_credentials() -> None:
 
     # Act
     async with client:
-        storage = RustFS(
-            "https://storage.example.com",
-            s3.Credentials("owner", "secret"),
-            client,
-        )
+        storage = RustFS("https://storage.example.com", s3.Credentials("owner", "secret"), client)
         credentials = await storage.service_account("org-bucket", solution)
 
     # Assert
@@ -107,11 +98,7 @@ async def test_service_account_reraises_unexpected_error() -> None:
 
     # Act
     async with client:
-        storage = RustFS(
-            "https://storage.example.com",
-            s3.Credentials("owner", "secret"),
-            client,
-        )
+        storage = RustFS("https://storage.example.com", s3.Credentials("owner", "secret"), client)
         with pytest.raises(Error) as captured:
             await storage.service_account("org-bucket", uuid4())
 
@@ -158,11 +145,7 @@ async def test_revoke_handles_administrative_errors(status_code: int, message: s
         )
     )
     async with client:
-        storage = RustFS(
-            "https://storage.example.com",
-            s3.Credentials("owner", "secret"),
-            client,
-        )
+        storage = RustFS("https://storage.example.com", s3.Credentials("owner", "secret"), client)
         with expectation:
             await storage.revoke(solution)
 

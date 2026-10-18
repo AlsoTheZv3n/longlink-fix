@@ -45,10 +45,7 @@ def test_render_mjml_template_preserves_escaped_context_in_html() -> None:
 
     # Act
     rendered = mail.render_mjml_template(
-        "organization_invitation.mjml",
-        invitation_url=invitation_url,
-        organization_name=organization_name,
-        role_label=role_label,
+        "organization_invitation.mjml", invitation_url=invitation_url, organization_name=organization_name, role_label=role_label
     )
 
     # Assert

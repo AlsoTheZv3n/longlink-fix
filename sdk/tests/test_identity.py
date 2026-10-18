@@ -56,24 +56,9 @@ def test_identity_token_user_rejects_empty_identity_secret() -> None:
 
 
 INVALID_SIGNED_TOKENS = [
-    pytest.param(
-        IDENTITY_SECRET,
-        {"exp": datetime(2000, 1, 1, tzinfo=UTC)},
-        jwt.ExpiredSignatureError,
-        id="expired",
-    ),
-    pytest.param(
-        IDENTITY_SECRET,
-        {"aud": "other-audience"},
-        jwt.InvalidAudienceError,
-        id="wrong-audience",
-    ),
-    pytest.param(
-        "other-identity-secret-01234567890",
-        {},
-        jwt.InvalidSignatureError,
-        id="wrong-secret",
-    ),
+    pytest.param(IDENTITY_SECRET, {"exp": datetime(2000, 1, 1, tzinfo=UTC)}, jwt.ExpiredSignatureError, id="expired"),
+    pytest.param(IDENTITY_SECRET, {"aud": "other-audience"}, jwt.InvalidAudienceError, id="wrong-audience"),
+    pytest.param("other-identity-secret-01234567890", {}, jwt.InvalidSignatureError, id="wrong-secret"),
 ]
 
 

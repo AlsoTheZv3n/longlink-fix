@@ -14,11 +14,7 @@ from src.database.models.organizations import Organization
 
 
 def install_recording_delete(
-    monkeypatch: pytest.MonkeyPatch,
-    organization_id: UUID,
-    solution_ids: Sequence[UUID] = (),
-    *,
-    fail_namespace: bool = False,
+    monkeypatch: pytest.MonkeyPatch, organization_id: UUID, solution_ids: Sequence[UUID] = (), *, fail_namespace: bool = False
 ) -> list[str]:
     """Install recording delete doubles for one tombstoned Organization."""
 
@@ -117,10 +113,7 @@ async def test_reconcile_prepares_providers_namespace_and_publishes_organization
 
 
 @pytest.mark.usefixtures("database_runtime")
-async def test_reconcile_rolls_back_publication_when_storage_fails(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_reconcile_rolls_back_publication_when_storage_fails(users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep an Organization unpublished when its storage boundary fails."""
 
     # Arrange
@@ -149,9 +142,7 @@ async def test_reconcile_skips_missing_organization_without_constructing_provide
 
     # Arrange
     reject_provider_construction(
-        monkeypatch,
-        (organization_operations.database_resources.postgres, "Postgres"),
-        (organization_operations, "Kubernetes"),
+        monkeypatch, (organization_operations.database_resources.postgres, "Postgres"), (organization_operations, "Kubernetes")
     )
 
     # Act and assert
@@ -171,9 +162,7 @@ async def test_reconcile_skips_deleted_organization_without_constructing_provide
         persisted.deleted_at = datetime.now(UTC)
         await session.commit()
     reject_provider_construction(
-        monkeypatch,
-        (organization_operations.database_resources.postgres, "Postgres"),
-        (organization_operations, "Kubernetes"),
+        monkeypatch, (organization_operations.database_resources.postgres, "Postgres"), (organization_operations, "Kubernetes")
     )
 
     # Act and assert
@@ -188,9 +177,7 @@ async def test_delete_rejects_active_organization_without_external_cleanup(
     # Arrange
     organization = await create_organization(users[0])
     reject_provider_construction(
-        monkeypatch,
-        (organization_operations.database_resources.postgres, "Postgres"),
-        (organization_operations, "Kubernetes"),
+        monkeypatch, (organization_operations.database_resources.postgres, "Postgres"), (organization_operations, "Kubernetes")
     )
 
     # Act and assert
@@ -203,9 +190,7 @@ async def test_delete_skips_missing_organization_without_external_cleanup(monkey
 
     # Arrange
     reject_provider_construction(
-        monkeypatch,
-        (organization_operations.database_resources.postgres, "Postgres"),
-        (organization_operations, "Kubernetes"),
+        monkeypatch, (organization_operations.database_resources.postgres, "Postgres"), (organization_operations, "Kubernetes")
     )
 
     # Act and assert

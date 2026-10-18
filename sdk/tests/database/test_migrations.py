@@ -27,10 +27,7 @@ def test_include_object_excludes_only_platform_owned_audit_table(name: str, type
     assert included is expected
 
 
-def test_make_migrations_creates_revisions_only_for_schema_operations(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_make_migrations_creates_revisions_only_for_schema_operations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Discover nested models once and create revisions only for schema changes."""
 
     # Arrange
@@ -96,9 +93,7 @@ def test_production_migrations_rejects_missing_revisions_before_upgrade(tmp_path
     # Arrange
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
-        database_migrations.command,
-        "upgrade",
-        lambda *_: pytest.fail("Alembic upgrade must not run without Solution migrations"),
+        database_migrations.command, "upgrade", lambda *_: pytest.fail("Alembic upgrade must not run without Solution migrations")
     )
 
     # Act and assert

@@ -14,14 +14,8 @@ async def client() -> AsyncGenerator[stripe.StripeClient]:
     # Unconfigured deployments cannot create customers or issue invoices.
     if not env.stripe_enabled or env.STRIPE_SECRET_KEY is None:
         raise HTTPException(status_code=503, detail="Stripe is not configured on this deployment")
-    transport = stripe.HTTPXClient(
-        timeout=10,
-    )
-    connection = stripe.StripeClient(
-        env.STRIPE_SECRET_KEY,
-        http_client=transport,
-        max_network_retries=2,
-    )
+    transport = stripe.HTTPXClient(timeout=10)
+    connection = stripe.StripeClient(env.STRIPE_SECRET_KEY, http_client=transport, max_network_retries=2)
 
     try:
         # Retries remain bounded and shutdown cancellation releases the transport.

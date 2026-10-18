@@ -37,9 +37,7 @@ async def reconcile(organization_id: UUID) -> None:
     # Converge the Organization bucket before Solutions receive scoped credentials.
     logger.info("Creating object storage bucket for Organization %s", organization.id)
     logger.info("Applying Kubernetes boundary for Organization %s", organization.id)
-    cluster = Kubernetes(
-        compute.kubeconfig,
-    )
+    cluster = Kubernetes(compute.kubeconfig)
     async with cluster:
         # Card registration can expand capacity independently of the free pricing allowance.
         if organization.stripe_payment_method_id is not None:
@@ -101,9 +99,7 @@ async def delete(organization_id: UUID) -> None:
             solution_ids = result.all()
 
         # Release the read session before acquiring external cleanup resources.
-        cluster = Kubernetes(
-            compute.kubeconfig,
-        )
+        cluster = Kubernetes(compute.kubeconfig)
 
         # Namespace deletion cascades every Solution Kubernetes resource and waits for all Pods to terminate.
         logger.info("Deleting Kubernetes boundary for Organization %s", organization.id)

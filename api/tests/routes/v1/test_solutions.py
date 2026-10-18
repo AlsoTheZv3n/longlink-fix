@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from conftest import DatabaseKubernetes
 from sqlmodel import col
 from factories import add_member, create_solution, fetch_operations, create_organization, assert_no_new_operations
+from src.utils import images
 from sqlalchemy import func, event, select
 from sqlalchemy.orm import Mapper, selectinload
 from src.environments import env
@@ -36,12 +37,11 @@ def mock_image_metadata(monkeypatch: pytest.MonkeyPatch, metadata: LongLinkMetad
 
         return resolved
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", inspect_image)
+    monkeypatch.setattr(images, "required_metadata", inspect_image)
 
 
 async def test_list_apps_returns_requested_page_for_admin(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return only the requested administrator solution page."""
 
@@ -63,8 +63,7 @@ async def test_list_apps_returns_requested_page_for_admin(
 
 
 async def test_list_solutions_omits_deleted_solutions_from_items_and_total(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Exclude deleted Solutions from administrator list results and totals."""
 
@@ -86,9 +85,7 @@ async def test_list_solutions_omits_deleted_solutions_from_items_and_total(
 
 
 async def test_create_app_persists_desired_state_and_queues_reconciliation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Persist Solution desired state and queue its compute Operation."""
 
@@ -98,8 +95,7 @@ async def test_create_app_persists_desired_state_and_queues_reconciliation(
     mock_image_metadata(
         monkeypatch,
         LongLinkMetadata(
-            image=Image("ghcr.io/longlink/dashboard@sha256:test"),
-            environments=[EnvironmentMetadata(name="API_KEY", required=True)],
+            image=Image("ghcr.io/longlink/dashboard@sha256:test"), environments=[EnvironmentMetadata(name="API_KEY", required=True)]
         ),
     )
 
@@ -110,10 +106,7 @@ async def test_create_app_persists_desired_state_and_queues_reconciliation(
             "name": "dashboard",
             "image": "ghcr.io/longlink/dashboard:latest",
             "description": "Dashboard app",
-            "envs": {
-                "API_KEY": "secret-value",
-                "PORT": "8080",
-            },
+            "envs": {"API_KEY": "secret-value", "PORT": "8080"},
         },
     )
 
@@ -134,8 +127,7 @@ async def test_create_app_persists_desired_state_and_queues_reconciliation(
         assert (persisted.desired_revision.created_id, persisted.desired_revision.updated_id) == (user.id, user.id)
         operation = await session.scalar(
             select(Operation).where(
-                col(Operation.kind) == OperationKind.solution_deploy,
-                col(Operation.target_id) == persisted.desired_revision_id,
+                col(Operation.kind) == OperationKind.solution_deploy, col(Operation.target_id) == persisted.desired_revision_id
             )
         )
         assert operation is not None
@@ -143,9 +135,7 @@ async def test_create_app_persists_desired_state_and_queues_reconciliation(
 
 
 async def test_create_app_enforces_the_per_organization_beta_limit(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Allow three solutions per organization and reject the fourth."""
 
@@ -177,8 +167,7 @@ async def test_create_app_enforces_the_per_organization_beta_limit(
         pytest.param(None, 404, "Image metadata not found", id="missing-metadata"),
         pytest.param(
             LongLinkMetadata(
-                image=Image("ghcr.io/longlink/dashboard@sha256:test"),
-                environments=[EnvironmentMetadata(name="API_KEY", required=True)],
+                image=Image("ghcr.io/longlink/dashboard@sha256:test"), environments=[EnvironmentMetadata(name="API_KEY", required=True)]
             ),
             422,
             "Solution environment does not satisfy required image variables: API_KEY",
@@ -204,13 +193,12 @@ async def test_create_app_rejects_invalid_image_metadata(
 
         return metadata
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.inspect", inspect_image)
+    monkeypatch.setattr(images, "inspect", inspect_image)
     previous_operations = await fetch_operations()
 
     # Act
     response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/solutions",
-        json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"},
+        f"/api/v1/organizations/{organization.id}/solutions", json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"}
     )
 
     # Assert
@@ -222,8 +210,7 @@ async def test_create_app_rejects_invalid_image_metadata(
 
 
 async def test_create_app_checks_organization_access_before_validating_payload(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject missing Organization access even when the request body is malformed."""
 
@@ -235,13 +222,10 @@ async def test_create_app_checks_organization_access_before_validating_payload(
 
         raise AssertionError("invalid solution payload must not inspect image metadata")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", unexpected_metadata)
+    monkeypatch.setattr(images, "required_metadata", unexpected_metadata)
 
     # Act
-    response = await clients[1].post(
-        f"/api/v1/organizations/{organization_id}/solutions",
-        json={"name": "dashboard"},
-    )
+    response = await clients[1].post(f"/api/v1/organizations/{organization_id}/solutions", json={"name": "dashboard"})
 
     # Assert
     assert response.status_code == 403
@@ -249,9 +233,7 @@ async def test_create_app_checks_organization_access_before_validating_payload(
 
 
 async def test_create_app_rejects_non_member_without_creating_state(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject solution creation before image inspection for non-members."""
 
@@ -265,12 +247,11 @@ async def test_create_app_rejects_non_member_without_creating_state(
 
         raise AssertionError("denied solution creation must not inspect image metadata")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", unexpected_metadata)
+    monkeypatch.setattr(images, "required_metadata", unexpected_metadata)
 
     # Act
     response = await clients[1].post(
-        f"/api/v1/organizations/{organization.id}/solutions",
-        json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"},
+        f"/api/v1/organizations/{organization.id}/solutions", json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"}
     )
 
     # Assert
@@ -282,9 +263,7 @@ async def test_create_app_rejects_non_member_without_creating_state(
 
 
 async def test_create_app_rejects_duplicate_organization_slug_without_queuing_work(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject duplicate Solution slugs without adding a lifecycle operation."""
 
@@ -296,8 +275,7 @@ async def test_create_app_rejects_duplicate_organization_slug_without_queuing_wo
 
     # Act
     response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/solutions",
-        json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"},
+        f"/api/v1/organizations/{organization.id}/solutions", json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"}
     )
 
     # Assert
@@ -311,9 +289,7 @@ async def test_create_app_rejects_duplicate_organization_slug_without_queuing_wo
 
 
 async def test_solution_responses_do_not_expose_environment_secrets(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Redact persisted Solution environment values from every response surface."""
 
@@ -330,7 +306,7 @@ async def test_solution_responses_do_not_expose_environment_secrets(
         assert image in ("ghcr.io/longlink/dashboard:latest", "ghcr.io/longlink/dashboard@sha256:first")
         return LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:first"))
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
 
     # Read the administrator list and Organization solution response surfaces.
     list_response = await clients[0].get("/api/v1/solutions")
@@ -366,9 +342,7 @@ async def test_solution_responses_do_not_expose_environment_secrets(
 
 
 async def test_create_app_returns_403_for_regular_member(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject solution creation when the organization member lacks deployment permissions."""
 
@@ -384,12 +358,11 @@ async def test_create_app_returns_403_for_regular_member(
 
         raise AssertionError("denied solution creation must not inspect image metadata")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", unexpected_metadata)
+    monkeypatch.setattr(images, "required_metadata", unexpected_metadata)
 
     # Act
     response = await clients[1].post(
-        f"/api/v1/organizations/{organization.id}/solutions",
-        json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"},
+        f"/api/v1/organizations/{organization.id}/solutions", json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"}
     )
 
     # Assert
@@ -401,9 +374,7 @@ async def test_create_app_returns_403_for_regular_member(
 
 
 async def test_create_app_allows_maintainer(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Allow maintainers to create solutions."""
 
@@ -415,8 +386,7 @@ async def test_create_app_allows_maintainer(
 
     # Act
     response = await clients[1].post(
-        f"/api/v1/organizations/{organization.id}/solutions",
-        json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"},
+        f"/api/v1/organizations/{organization.id}/solutions", json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest"}
     )
 
     # Assert
@@ -435,8 +405,7 @@ async def test_create_app_allows_maintainer(
         assert (persisted.desired_revision.created_id, persisted.desired_revision.updated_id) == (maintainer.id, maintainer.id)
         operation = await session.scalar(
             select(Operation).where(
-                col(Operation.kind) == OperationKind.solution_deploy,
-                col(Operation.target_id) == persisted.desired_revision_id,
+                col(Operation.kind) == OperationKind.solution_deploy, col(Operation.target_id) == persisted.desired_revision_id
             )
         )
         assert operation is not None
@@ -558,9 +527,7 @@ async def test_app_logs_return_unavailable_when_backend_fails(
 
 
 async def test_solution_logs_reject_deleted_solution_before_constructing_kubernetes(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject runtime logs for deleted Solutions before reaching Kubernetes."""
 
@@ -586,8 +553,7 @@ async def test_solution_logs_reject_deleted_solution_before_constructing_kuberne
 
 
 async def test_delete_solution_soft_deletes_and_queues_reconciliation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Soft-delete a Solution and queue its reconciliation operation."""
 
@@ -604,10 +570,7 @@ async def test_delete_solution_soft_deletes_and_queues_reconciliation(
     async with session_scope() as session:
         deleted_solution = await session.get(Solution, app.id)
         operation = await session.scalar(
-            select(Operation).where(
-                col(Operation.kind) == OperationKind.solution_delete,
-                col(Operation.target_id) == app.id,
-            )
+            select(Operation).where(col(Operation.kind) == OperationKind.solution_delete, col(Operation.target_id) == app.id)
         )
         assert deleted_solution is not None
         assert deleted_solution.deleted_at is not None
@@ -618,8 +581,7 @@ async def test_delete_solution_soft_deletes_and_queues_reconciliation(
 
 
 async def test_delete_solution_rejects_write_member_without_mutating_solution(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject write members from deleting a Solution or queueing cleanup."""
 
@@ -638,10 +600,7 @@ async def test_delete_solution_rejects_write_member_without_mutating_solution(
     async with session_scope() as session:
         solution = await session.get(Solution, app.id)
         operation = await session.scalar(
-            select(Operation).where(
-                col(Operation.kind) == OperationKind.solution_delete,
-                col(Operation.target_id) == app.id,
-            )
+            select(Operation).where(col(Operation.kind) == OperationKind.solution_delete, col(Operation.target_id) == app.id)
         )
         assert solution is not None
         assert solution.deleted_at is None
@@ -649,9 +608,7 @@ async def test_delete_solution_rejects_write_member_without_mutating_solution(
 
 
 @pytest.mark.no_db
-async def test_list_solutions_rejects_anonymous_without_admin_lookup(
-    client: AsyncClient,
-) -> None:
+async def test_list_solutions_rejects_anonymous_without_admin_lookup(client: AsyncClient) -> None:
     """Reject unauthenticated solution listing before administrator checks."""
 
     # Act
@@ -664,15 +621,10 @@ async def test_list_solutions_rejects_anonymous_without_admin_lookup(
 
 @pytest.mark.parametrize(
     "invalid_values",
-    [
-        pytest.param({"description": "x" * 256}, id="overlong-description"),
-        pytest.param({"min_scale": 2}, id="invalid-min-scale"),
-    ],
+    [pytest.param({"description": "x" * 256}, id="overlong-description"), pytest.param({"min_scale": 2}, id="invalid-min-scale")],
 )
 async def test_create_solution_rejects_invalid_payload_without_mutating_state(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    invalid_values: dict[str, str | int],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], invalid_values: dict[str, str | int]
 ) -> None:
     """Reject malformed creation payloads before persisting Solution state or work."""
 
@@ -694,9 +646,7 @@ async def test_create_solution_rejects_invalid_payload_without_mutating_state(
 
 
 async def test_create_solution_rejects_too_long_slug_without_queuing_work(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject valid-schema solution names whose slug exceeds the 63-character limit."""
 
@@ -709,12 +659,11 @@ async def test_create_solution_rejects_too_long_slug_without_queuing_work(
 
         return LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:test"))
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", inspect_image)
+    monkeypatch.setattr(images, "required_metadata", inspect_image)
 
     # Act
     response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/solutions",
-        json={"name": "a" * 70, "image": "ghcr.io/longlink/dashboard:latest"},
+        f"/api/v1/organizations/{organization.id}/solutions", json={"name": "a" * 70, "image": "ghcr.io/longlink/dashboard:latest"}
     )
 
     # Assert
@@ -726,8 +675,7 @@ async def test_create_solution_rejects_too_long_slug_without_queuing_work(
 
 
 async def test_plugin_download_packages_only_the_selected_solution_without_credentials(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Allow a maintainer to download portable manifests without exporting runtime secrets."""
 
@@ -751,9 +699,7 @@ async def test_plugin_download_packages_only_the_selected_solution_without_crede
     assert response.headers["content-disposition"] == f'attachment; filename="longlink-{solution.id}.zip"'
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["x-content-type-options"] == "nosniff"
-    archive = zipfile.ZipFile(
-        io.BytesIO(response.content),
-    )
+    archive = zipfile.ZipFile(io.BytesIO(response.content))
     with archive:
         assert set(archive.namelist()) == {"plugin.json", "mcp.json"}
         manifest = json.loads(archive.read("plugin.json"))
@@ -765,10 +711,7 @@ async def test_plugin_download_packages_only_the_selected_solution_without_crede
     assert mcp == {
         "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
         "mcpServers": {
-            f"longlink-{solution.id}": {
-                "type": "streamable-http",
-                "url": f"{env.PUBLIC_URL}/api/v1/solutions/{solution.id}/proxy/mcp",
-            }
+            f"longlink-{solution.id}": {"type": "streamable-http", "url": f"{env.PUBLIC_URL}/api/v1/solutions/{solution.id}/proxy/mcp"}
         },
     }
     contents = json.dumps([manifest, mcp])
@@ -791,9 +734,7 @@ async def test_plugin_download_requires_authentication(client: AsyncClient) -> N
 
 @pytest.mark.parametrize("role", [OrganizationRoles.read, OrganizationRoles.write])
 async def test_plugin_download_requires_maintenance_access(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    role: OrganizationRoles,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], role: OrganizationRoles
 ) -> None:
     """Reject a valid Organization member below the ZIP download's maintenance boundary."""
 
@@ -813,8 +754,7 @@ async def test_plugin_download_requires_maintenance_access(
 
 
 async def test_plugin_download_rejects_cross_organization_access(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Keep an existing Solution's package inaccessible outside its Organization."""
 
@@ -847,7 +787,7 @@ async def test_update_rejects_stale_revision(
 
         raise AssertionError("stale update must not inspect image metadata")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", unexpected_metadata)
+    monkeypatch.setattr(images, "required_metadata", unexpected_metadata)
 
     # Act
     stale_response = await clients[0].post(url, json={"expected_revision_id": str(uuid4())})
@@ -876,7 +816,7 @@ async def test_update_rejects_solution_without_desired_revision(
 
         raise AssertionError("revision-less update must not inspect image metadata")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", unexpected_metadata)
+    monkeypatch.setattr(images, "required_metadata", unexpected_metadata)
 
     # Act
     get_response = await clients[0].get(url)
@@ -907,7 +847,7 @@ async def test_update_allows_unchanged_deployments_and_enforces_min_scale_bounds
         assert image == source
         return resolved
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
 
     # Verify the first update saves the resolved digest while preserving environment names and scale defaults.
     initial_response = await clients[0].post(url, json={})
@@ -955,7 +895,7 @@ async def test_update_reresolves_moved_tag_and_enforces_required_envs(
         inspected.append(image)
         return resolved
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
     assert (await clients[0].post(url, json={"min_scale": 1})).status_code == 204
 
     # Act: the advisory check observes the moved tag without persisting it.
@@ -1030,7 +970,7 @@ async def test_update_check_rejects_callers_without_maintain_access(
 
         raise AssertionError("denied update check must not inspect image metadata")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", unexpected_metadata)
+    monkeypatch.setattr(images, "required_metadata", unexpected_metadata)
 
     # Act
     get_response = await clients[1].get(url)
@@ -1044,9 +984,7 @@ async def test_update_check_rejects_callers_without_maintain_access(
 
 
 async def test_update_check_allows_maintainer_without_registry_oracle(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Allow maintainers to inspect the desired release source."""
 
@@ -1063,7 +1001,7 @@ async def test_update_check_allows_maintainer_without_registry_oracle(
 
         return LongLinkMetadata(image=image)
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
 
     # Act
     response = await clients[1].get(url)
@@ -1097,7 +1035,7 @@ async def test_release_inspection_revalidates_concurrent_desired_changes(
             await session.commit()
         return metadata
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", inspect)
+    monkeypatch.setattr(images, "required_metadata", inspect)
     url = f"/api/v1/solutions/{solution.id}/update"
     response = await clients[0].request(method, url, json={})
     assert response.status_code == 409
@@ -1143,7 +1081,7 @@ async def test_release_inspection_rejects_demotion_during_metadata_wait(
                 await session.commit()
         return candidate if len(inspected) == 1 else LongLinkMetadata(image=image)
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
 
     # Act
     response = await clients[1].request(
@@ -1194,7 +1132,7 @@ async def test_update_rolls_back_revision_and_pointer_after_queue_insert_failure
         inserted_targets.append(operation.target_id)
         raise RuntimeError("queue INSERT failed")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
     event.listen(Operation, "after_insert", fail_insert)
     try:
         # Act
@@ -1243,7 +1181,7 @@ async def test_environment_patch_validates_merged_limits(
 
         return LongLinkMetadata(image=image)
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
     url = f"/api/v1/solutions/{solution.id}/update"
     previous_operations = await fetch_operations()
 
@@ -1306,13 +1244,12 @@ async def test_simultaneous_source_updates_create_only_one_revision(
         await asyncio.wait_for(barrier.wait(), timeout=5)
         return LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:new"))
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+    monkeypatch.setattr(images, "required_metadata", metadata)
     url = f"/api/v1/solutions/{solution.id}/update"
 
     # Act
     responses = await asyncio.gather(
-        clients[0].post(url, json={"envs": {"LEFT": "left"}}),
-        clients[0].post(url, json={"envs": {"RIGHT": "right"}}),
+        clients[0].post(url, json={"envs": {"LEFT": "left"}}), clients[0].post(url, json={"envs": {"RIGHT": "right"}})
     )
 
     # Assert
@@ -1347,12 +1284,7 @@ async def test_local_registry_release_roundtrip(
     organization = await create_organization(users[0])
     envs = {item.name: "integration-value" for item in metadata.environments}
     response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/solutions",
-        json={
-            "name": "Local sample",
-            "image": source,
-            "envs": envs,
-        },
+        f"/api/v1/organizations/{organization.id}/solutions", json={"name": "Local sample", "image": source, "envs": envs}
     )
     assert response.status_code == 204
     listing = await clients[0].get(f"/api/v1/organizations/{organization.id}/solutions")

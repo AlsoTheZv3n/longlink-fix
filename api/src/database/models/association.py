@@ -27,7 +27,5 @@ class UserOrganization(AuditTable, table=True):
     )
 
     # Relationships
-    user: "src.database.models.users.User" = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "UserOrganization.user_id"},
-    )
+    user: "src.database.models.users.User" = Relationship(sa_relationship_kwargs={"foreign_keys": "UserOrganization.user_id"})
     organization: "Organization" = Relationship(sa_relationship_kwargs={"foreign_keys": "UserOrganization.organization_id"})

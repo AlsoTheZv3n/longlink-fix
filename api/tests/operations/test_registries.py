@@ -62,6 +62,6 @@ async def test_registry_synchronization_updates_active_secret_and_removes_stale_
     }
     assert secret["type"] == "kubernetes.io/dockerconfigjson"
     assert json.loads(secret["stringData"][".dockerconfigjson"]) == {
-        "auths": {"ghcr.io": {"auth": base64.b64encode(b"acme:rotated-token").decode()}},
+        "auths": {"ghcr.io": {"auth": base64.b64encode(b"acme:rotated-token").decode()}}
     }
     assert deleted == ["registry-removed"]

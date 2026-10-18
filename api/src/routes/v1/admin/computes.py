@@ -1,5 +1,4 @@
 import asyncio
-from src import auth
 from kr8s import ServerError, NotFoundError
 from uuid import UUID
 from fastapi import Query, Depends, APIRouter, HTTPException
@@ -15,7 +14,7 @@ from src.models.pagination import Page, Pagination
 from src.kubernetes.storage import Storage
 from src.database.models.computes import ComputeRegistry
 
-router = APIRouter(dependencies=[Depends(auth.authadmin)])
+router = APIRouter()
 
 
 @router.post("/computes", response_model=ComputeRegistryResponse, status_code=201)
@@ -52,11 +51,7 @@ async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) 
 
                 # Report failed checks as unavailable infrastructure; the administrator can retry registration.
                 try:
-                    await gateway.verify(
-                        cluster,
-                        candidate.gateway_url,
-                        candidate.gateway_certificate,
-                    )
+                    await gateway.verify(cluster, candidate.gateway_url, candidate.gateway_certificate)
                     storage = Storage(candidate, cluster)
                     await storage.verify()
                 except Exception as exc:
@@ -85,9 +80,7 @@ async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) 
 
 @router.get("/computes", response_model=Page[ComputeRegistryResponse])
 async def list_compute_registries(
-    ctx: Context,
-    pagination: Pagination = Depends(),
-    search: str = Query(default="", max_length=200),
+    ctx: Context, pagination: Pagination = Depends(), search: str = Query(default="", max_length=200)
 ) -> dict[str, Sequence[ComputeRegistry] | int]:
     """Return all registered compute backends."""
 

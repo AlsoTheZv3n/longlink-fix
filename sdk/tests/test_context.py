@@ -90,10 +90,7 @@ def identity_headers(user_id: UUID) -> dict[str, str]:
         pytest.param(None, None, id="anonymous"),
     ],
 )
-def test_data_resolves_request_services(
-    identity: UUID | None,
-    user: object | None,
-) -> None:
+def test_data_resolves_request_services(identity: UUID | None, user: object | None) -> None:
     """Yield request services only when an identity resolves to a user."""
 
     # Arrange

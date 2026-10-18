@@ -141,8 +141,7 @@ async def _claim(session: AsyncSession, organization_id: UUID) -> Lease | None:
     now = datetime.now(UTC)
     await session.execute(
         delete(OrganizationActivity).where(
-            col(OrganizationActivity.organization_id) == organization_id,
-            col(OrganizationActivity.expires_at) <= now,
+            col(OrganizationActivity.organization_id) == organization_id, col(OrganizationActivity.expires_at) <= now
         )
     )
     if await session.get(OrganizationActivity, organization_id) is not None:
@@ -203,9 +202,7 @@ async def sync_users(user_id: UUID) -> None:
             if target is None:
                 continue
             organization, compute = target
-            cluster = Kubernetes(
-                compute.kubeconfig,
-            )
+            cluster = Kubernetes(compute.kubeconfig)
 
             # Upsert shared profiles without removing records referenced by historical Solution audits.
             async with cluster:
@@ -243,7 +240,7 @@ async def ready(organization_id: UUID) -> bool:
                         .join(ComputeRegistry, col(ComputeRegistry.id) == col(Organization.compute_id))
                         .where(col(Organization.id) == organization_id)
                     )
-                    target = result.tuples().one_or_none()
+                    target = result.one_or_none()
                 if target is None:
                     raise RuntimeError("Organization is unavailable")
                 organization, kubeconfig, database_storage_class = target

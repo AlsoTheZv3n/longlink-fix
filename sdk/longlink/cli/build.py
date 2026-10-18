@@ -54,10 +54,7 @@ CONTEXT_IGNORE_PATTERNS = (
     "*.sqlite3-*",
     "node_modules",
 )
-DOCKER_CONTEXT_IGNORE_RULES = (
-    "Dockerfile",
-    ".dockerignore",
-)
+DOCKER_CONTEXT_IGNORE_RULES = ("Dockerfile", ".dockerignore")
 
 DOCKERFILE_TEMPLATE = """FROM buildpack-deps:bookworm@sha256:88c9154b6b438be20b616e2e74c158cfd79feafc6bcf1d9a3b47874b38c91992 AS builder
 
@@ -450,12 +447,7 @@ def validate_lockfile(lockfile: Path, workspace_root: Path) -> None:
 
 
 def build_solution(
-    root: Path,
-    build_context: Path,
-    *,
-    pyproject_data: Mapping[str, object],
-    project_description: str | None,
-    version: str | None = None,
+    root: Path, build_context: Path, *, pyproject_data: Mapping[str, object], project_description: str | None, version: str | None = None
 ) -> None:
     """Create Docker build artifacts from validated Solution metadata."""
 
@@ -550,11 +542,7 @@ def build_solution(
     # Copy only the Solution and its local dependencies, keeping workspace-relative paths.
     for selected in selected_paths:
         shutil.copytree(
-            selected,
-            build_context / selected.relative_to(source_root),
-            dirs_exist_ok=True,
-            symlinks=True,
-            ignore=ignore_context_paths,
+            selected, build_context / selected.relative_to(source_root), dirs_exist_ok=True, symlinks=True, ignore=ignore_context_paths
         )
 
     # Keep all project metadata available without copying unrelated workspace source trees.
@@ -628,12 +616,7 @@ def resolve_image_tag(solution_name: str, version: str, registry: str | None = N
 
 
 def build_command(
-    *,
-    tag: str | None = None,
-    version: str | None = None,
-    registry: str | None = None,
-    push: bool = False,
-    latest: bool = False,
+    *, tag: str | None = None, version: str | None = None, registry: str | None = None, push: bool = False, latest: bool = False
 ) -> None:
     """Create temporary Docker build artifacts and build the image locally.
 

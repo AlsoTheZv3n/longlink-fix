@@ -98,9 +98,7 @@ async def _log_migration_diagnostics(migration_job: Job) -> None:
             # Capture each bounded Job Pod's status and available output once.
             resource_names: set[str] = set()
             async for candidate in Pod.list(
-                api=migration_job.api,
-                namespace=migration_job.namespace,
-                label_selector={"job-name": migration_id},
+                api=migration_job.api, namespace=migration_job.namespace, label_selector={"job-name": migration_id}
             ):
                 pod = cast(Pod, candidate)
                 resource_names.add(pod.name)
@@ -116,11 +114,7 @@ async def _log_migration_diagnostics(migration_job: Job) -> None:
 
             # One namespace Event query covers admission, quota, scheduling, volume, and image failures.
             resource_names.add(migration_id)
-            async for event in Event.list(
-                api=migration_job.api,
-                namespace=migration_job.namespace,
-                field_selector={"type": "Warning"},
-            ):
+            async for event in Event.list(api=migration_job.api, namespace=migration_job.namespace, field_selector={"type": "Warning"}):
                 event_resource = cast(Event, event)
                 involved_object = event_resource.raw.get("involvedObject", {})
                 if involved_object.get("name") not in resource_names:
@@ -256,11 +250,7 @@ async def apply(
     # Keep each revision's environment isolated from the currently running Pods.
     solution_secret = Secret(
         {
-            "metadata": {
-                "name": secret_id,
-                "namespace": compute_namespace,
-                "labels": {SOLUTION_ID_LABEL: str(solution_id)},
-            },
+            "metadata": {"name": secret_id, "namespace": compute_namespace, "labels": {SOLUTION_ID_LABEL: str(solution_id)}},
             "stringData": secrets,
         },
         api=api,
@@ -270,11 +260,7 @@ async def apply(
     # Apply migrations once without restarting a failed migration container.
     if migrate:
         logger.info(
-            "Starting migration Job %s for Solution %s in namespace %s from image %s",
-            migration_id,
-            solution_id,
-            compute_namespace,
-            image,
+            "Starting migration Job %s for Solution %s in namespace %s from image %s", migration_id, solution_id, compute_namespace, image
         )
         migration_job = Job(migration, api=api)
         await _run_migration(migration_job)
@@ -300,11 +286,7 @@ async def delete(client: "Kubernetes", organization_id: UUID, solution_id: UUID)
 
         # Delete the Service, retained migration Jobs, and revision secrets in order.
         for resources in (
-            KnativeServiceResource.list(
-                api=api,
-                namespace=compute_namespace,
-                field_selector={"metadata.name": f"solution-{solution_id}"},
-            ),
+            KnativeServiceResource.list(api=api, namespace=compute_namespace, field_selector={"metadata.name": f"solution-{solution_id}"}),
             Job.list(api=api, namespace=compute_namespace, label_selector={SOLUTION_ID_LABEL: str(solution_id)}),
             Secret.list(api=api, namespace=compute_namespace, label_selector={SOLUTION_ID_LABEL: str(solution_id)}),
         ):

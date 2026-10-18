@@ -2,14 +2,7 @@ import pytest
 from uuid import UUID
 from httpx2 import AsyncClient
 from pydantic import SecretStr
-from factories import (
-    add_member,
-    claim_operation,
-    create_solution,
-    fetch_operations,
-    create_organization,
-    assert_no_new_operations,
-)
+from factories import add_member, claim_operation, create_solution, fetch_operations, create_organization, assert_no_new_operations
 from src.utils import github
 from sqlalchemy import select
 from src.models.roles import OrganizationRoles
@@ -23,9 +16,7 @@ from src.database.models.organizations import Organization
 
 
 async def test_registry_creation_rejects_maintainer_demoted_during_github_lookup(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Recheck maintenance permission after GitHub lookup without persisting credentials or work."""
 
@@ -54,8 +45,7 @@ async def test_registry_creation_rejects_maintainer_demoted_during_github_lookup
 
     # Act
     response = await clients[1].post(
-        f"/api/v1/organizations/{organization.id}/registries",
-        json={"provider": "ghcr", "credential": credential},
+        f"/api/v1/organizations/{organization.id}/registries", json={"provider": "ghcr", "credential": credential}
     )
 
     # Assert
@@ -76,8 +66,7 @@ async def test_registry_creation_rejects_maintainer_demoted_during_github_lookup
 
 
 async def test_registry_list_is_tenant_scoped_and_redacts_credentials(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return only the selected Organization's connection identities to a read member."""
 
@@ -86,14 +75,10 @@ async def test_registry_list_is_tenant_scoped_and_redacts_credentials(
     foreign_organization = await create_organization(users[2], name="foreign")
     await add_member(user=users[1], organization=organization, role=OrganizationRoles.read)
     connection = RegistryConnection(
-        organization_id=organization.id,
-        username="selected-account",
-        credential="selected-credential-must-not-leak",
+        organization_id=organization.id, username="selected-account", credential="selected-credential-must-not-leak"
     )
     foreign_connection = RegistryConnection(
-        organization_id=foreign_organization.id,
-        username="foreign-account",
-        credential="foreign-credential-must-not-leak",
+        organization_id=foreign_organization.id, username="foreign-account", credential="foreign-credential-must-not-leak"
     )
     async with session_scope() as session:
         session.add_all([connection, foreign_connection])
@@ -122,10 +107,7 @@ async def test_registry_delete_preserves_credentials_used_by_historical_revision
     solution = await create_solution(organization)
     connection = RegistryConnection(organization_id=organization.id, username="historical", credential="retained-token")
     historical = Revision(
-        solution_id=solution.id,
-        image="ghcr.io/acme/private@sha256:historical",
-        registry_connection_id=connection.id,
-        envs={},
+        solution_id=solution.id, image="ghcr.io/acme/private@sha256:historical", registry_connection_id=connection.id, envs={}
     )
     async with session_scope() as session:
         session.add(connection)

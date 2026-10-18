@@ -52,10 +52,7 @@ class RuntimeState:
         # Preserve eager storage creation and lazy database initialization.
         storage = create_fs(settings)
         database = Database(settings)
-        return cls(
-            storage=storage,
-            database=database,
-        )
+        return cls(storage=storage, database=database)
 
 
 def _view_handler(content: bytes) -> Callable[[], Awaitable[Response]]:
@@ -104,10 +101,7 @@ class LongLink(FastAPI):
         view_definitions = [definition for definition, _ in discovered_views]
 
         # Declare the pinned runtime once for the complete Solution catalog.
-        view_manifest = views.ViewManifest(
-            views=view_definitions,
-            runtime=view_runtime,
-        )
+        view_manifest = views.ViewManifest(views=view_definitions, runtime=view_runtime)
 
         # Initialize Solution storage and database connections.
         runtime = RuntimeState.from_settings(settings)
@@ -144,12 +138,7 @@ class LongLink(FastAPI):
 
         # Views are registered once before the frontend mount is installed.
         for definition, content in discovered_views:
-            self.add_api_route(
-                f"/{definition.path}",
-                _view_handler(content),
-                methods=["GET"],
-                include_in_schema=False,
-            )
+            self.add_api_route(f"/{definition.path}", _view_handler(content), methods=["GET"], include_in_schema=False)
 
         # Make the browser root URL resolve to the first navigable View.
         first_tab_view = next(
@@ -201,18 +190,10 @@ class LongLink(FastAPI):
                     )
                     transport = httpx2.ASGITransport(app=self, raise_app_exceptions=False)
                     client = httpx2.AsyncClient(
-                        transport=transport,
-                        base_url="http://solution",
-                        timeout=10.0,
-                        event_hooks={"request": [forward_credentials]},
+                        transport=transport, base_url="http://solution", timeout=10.0, event_hooks={"request": [forward_credentials]}
                     )
                     async with client:
-                        mcp = FastMCP.from_openapi(
-                            openapi_spec=schema,
-                            client=client,
-                            name=self.title,
-                            route_map_fn=map_route,
-                        )
+                        mcp = FastMCP.from_openapi(openapi_spec=schema, client=client, name=self.title, route_map_fn=map_route)
 
                         # Place MCP ahead of all frontend routes and own its public lifespan context.
                         mcp_app = mcp.http_app(path="/mcp", json_response=True)

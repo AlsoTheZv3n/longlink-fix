@@ -26,12 +26,7 @@ from src.database.models.association import UserOrganization
 class GatewayStream(httpx2.AsyncByteStream):
     """Provide controllable upstream body streaming and observable cleanup."""
 
-    def __init__(
-        self,
-        chunks: Sequence[bytes],
-        error: Exception | None = None,
-        on_close: Callable[[], None] = lambda: None,
-    ) -> None:
+    def __init__(self, chunks: Sequence[bytes], error: Exception | None = None, on_close: Callable[[], None] = lambda: None) -> None:
         """Store the upstream body chunks and cleanup callback."""
 
         # Configure only the external body stream, leaving response behavior to HTTPX.
@@ -69,11 +64,7 @@ def make_upstream(
     # Accept a single body for the common case without hiding the chunked stream.
     chunks = [body] if isinstance(body, bytes) else list(body)
 
-    stream = GatewayStream(
-        chunks,
-        error=error,
-        on_close=on_close,
-    )
+    stream = GatewayStream(chunks, error=error, on_close=on_close)
 
     return httpx2.Response(status_code, headers=headers, stream=stream)
 
@@ -154,12 +145,7 @@ async def test_solution_proxy_forwards_safe_content(
 
             captured["close_count"] = 1
 
-        return make_upstream(
-            upstream_status,
-            {"content-type": "text/plain", "set-cookie": "ignored=1"},
-            b"proxied",
-            on_close=close,
-        )
+        return make_upstream(upstream_status, {"content-type": "text/plain", "set-cookie": "ignored=1"}, b"proxied", on_close=close)
 
     monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", send)
     client = clients[0]
@@ -191,9 +177,7 @@ async def test_solution_proxy_forwards_safe_content(
 
 
 async def test_solution_proxy_strips_credential_headers_and_pins_gateway_tls(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Keep browser credentials out of tenant workloads and pin gateway TLS."""
 
@@ -212,11 +196,7 @@ async def test_solution_proxy_strips_credential_headers_and_pins_gateway_tls(
     real_client = httpx2.AsyncClient
 
     def record_context(
-        purpose: ssl.Purpose = ssl.Purpose.SERVER_AUTH,
-        *,
-        cafile: str | None = None,
-        capath: str | None = None,
-        cadata: str | None = None,
+        purpose: ssl.Purpose = ssl.Purpose.SERVER_AUTH, *, cafile: str | None = None, capath: str | None = None, cadata: str | None = None
     ) -> ssl.SSLContext:
         """Record the CA bundle used for gateway verification."""
 
@@ -257,9 +237,7 @@ async def test_solution_proxy_strips_credential_headers_and_pins_gateway_tls(
         captured["upstream_headers"] = {key.lower(): value for key, value in request.headers.items()}
 
         return make_upstream(
-            200,
-            {"content-type": "text/plain", "mcp-session-id": "private-session", "mcp-protocol-version": "2025-11-25"},
-            b"proxied",
+            200, {"content-type": "text/plain", "mcp-session-id": "private-session", "mcp-protocol-version": "2025-11-25"}, b"proxied"
         )
 
     monkeypatch.setattr(ssl, "create_default_context", record_context)
@@ -308,10 +286,7 @@ async def test_solution_proxy_strips_credential_headers_and_pins_gateway_tls(
 
 @pytest.mark.parametrize("path", ["mcp", "mcp/"])
 async def test_solution_proxy_preserves_mcp_transport_metadata(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
-    path: str,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch, path: str
 ) -> None:
     """Forward resumability and negotiation metadata without exposing browser credentials."""
 
@@ -369,9 +344,7 @@ async def test_solution_proxy_preserves_mcp_transport_metadata(
 
 
 async def test_solution_proxy_sanitizes_json_upstream_error(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Preserve public error details and retry metadata without exposing private diagnostics."""
 
@@ -412,9 +385,7 @@ async def test_solution_proxy_sanitizes_json_upstream_error(
 
 
 async def test_solution_proxy_sanitizes_html_upstream_error(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Replace private HTML errors with the public fallback while preserving upstream status."""
 
@@ -446,10 +417,7 @@ async def test_solution_proxy_sanitizes_html_upstream_error(
 
 
 @pytest.mark.no_db
-async def test_solution_proxy_rejects_anonymous_without_gateway_access(
-    client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_solution_proxy_rejects_anonymous_without_gateway_access(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject unauthenticated proxy requests before solution access checks."""
 
     # Arrange
@@ -499,9 +467,7 @@ async def test_solution_proxy_replaces_nonpublic_upstream_error_detail(
 
 @pytest.mark.parametrize("origin", UNTRUSTED_ORIGINS)
 async def test_solution_proxy_rejects_untrusted_origin_before_gateway_request(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    monkeypatch: pytest.MonkeyPatch,
-    origin: str | None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], monkeypatch: pytest.MonkeyPatch, origin: str | None
 ) -> None:
     """Reject missing, empty, and foreign origins before an authenticated write reaches the gateway."""
 
@@ -510,19 +476,14 @@ async def test_solution_proxy_rejects_untrusted_origin_before_gateway_request(
     headers = untrusted_origin_headers(clients[0], origin)
 
     # Act
-    response = await clients[0].post(
-        f"/api/v1/solutions/{UUID(int=1)}/proxy/tasks",
-        headers=headers,
-    )
+    response = await clients[0].post(f"/api/v1/solutions/{UUID(int=1)}/proxy/tasks", headers=headers)
 
     # Assert
     assert_origin_rejected(response)
 
 
 async def test_solution_proxy_streams_response_without_upstream_content_type(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Keep proxy safety headers when the gateway omits a content type."""
 
@@ -552,9 +513,7 @@ async def test_solution_proxy_streams_response_without_upstream_content_type(
 
 
 async def test_solution_proxy_times_out_before_gateway_response(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject a gateway request that does not produce response headers in time."""
 
@@ -579,9 +538,7 @@ async def test_solution_proxy_times_out_before_gateway_response(
 
 
 async def test_solution_proxy_propagates_timed_out_response_stream(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Report and close a solution response that streams too slowly."""
 
@@ -616,11 +573,7 @@ async def test_solution_proxy_propagates_timed_out_response_stream(
             close_count += 1
 
     stream = BlockedStream()
-    gateway_response = httpx2.Response(
-        200,
-        headers={"content-type": "text/plain"},
-        stream=stream,
-    )
+    gateway_response = httpx2.Response(200, headers={"content-type": "text/plain"}, stream=stream)
     monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", fake_gateway_request(gateway_response))
     monkeypatch.setattr(proxy_routes, "PROXY_RESPONSE_TIMEOUT_SECONDS", 0.001)
 
@@ -638,18 +591,10 @@ async def test_solution_proxy_propagates_timed_out_response_stream(
 
 
 @pytest.mark.parametrize(
-    "content_type",
-    [
-        "image/svg+xml; charset=utf-8",
-        "application/xhtml+xml; charset=utf-8",
-        "application/json, text/html; charset=utf-8",
-    ],
+    "content_type", ["image/svg+xml; charset=utf-8", "application/xhtml+xml; charset=utf-8", "application/json, text/html; charset=utf-8"]
 )
 async def test_solution_proxy_rejects_active_content(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch,
-    content_type: str,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch, content_type: str
 ) -> None:
     """Reject active upstream documents and close their gateway resources."""
 
@@ -676,9 +621,7 @@ async def test_solution_proxy_rejects_active_content(
 
 
 async def test_solution_proxy_closes_gateway_response_when_upstream_stream_fails(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Release gateway resources when an upstream response fails mid-stream."""
 
@@ -693,11 +636,7 @@ async def test_solution_proxy_closes_gateway_response_when_upstream_stream_fails
         close_count += 1
 
     gateway_response = make_upstream(
-        200,
-        {"content-type": "text/plain"},
-        b"partial",
-        error=RuntimeError("upstream interrupted"),
-        on_close=close,
+        200, {"content-type": "text/plain"}, b"partial", error=RuntimeError("upstream interrupted"), on_close=close
     )
     monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", fake_gateway_request(gateway_response))
 
@@ -708,9 +647,7 @@ async def test_solution_proxy_closes_gateway_response_when_upstream_stream_fails
 
 
 async def test_solution_proxy_forwards_streamed_request_body(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Forward a streamed request body without applying a Platform byte limit."""
 
@@ -742,9 +679,7 @@ async def test_solution_proxy_forwards_streamed_request_body(
 
 
 async def test_solution_proxy_allows_organization_read_members(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Allow solution proxy access inherited from Organization read membership."""
 
@@ -763,13 +698,7 @@ async def test_solution_proxy_allows_organization_read_members(
 
     monkeypatch.setattr(httpx2.AsyncHTTPTransport, "handle_async_request", request)
     async with session_scope() as session:
-        session.add(
-            UserOrganization(
-                user_id=user.id,
-                organization_id=solution.organization_id,
-                role=OrganizationRoles.read,
-            )
-        )
+        session.add(UserOrganization(user_id=user.id, organization_id=solution.organization_id, role=OrganizationRoles.read))
         await session.commit()
     client = clients[1]
 
@@ -783,9 +712,7 @@ async def test_solution_proxy_allows_organization_read_members(
 
 
 async def test_solution_proxy_rejects_cross_organization_access(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject a tenant's request to another Organization's Solution."""
 
@@ -804,9 +731,7 @@ async def test_solution_proxy_rejects_cross_organization_access(
 
 
 async def test_solution_proxy_rejects_membership_revoked_before_access_lookup(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Resolve revoked membership before forwarding any request to the gateway."""
 
@@ -814,13 +739,7 @@ async def test_solution_proxy_rejects_membership_revoked_before_access_lookup(
     solution, _ = await create_running_solution(users[0])
     member = users[1]
     async with session_scope() as session:
-        session.add(
-            UserOrganization(
-                user_id=member.id,
-                organization_id=solution.organization_id,
-                role=OrganizationRoles.read,
-            )
-        )
+        session.add(UserOrganization(user_id=member.id, organization_id=solution.organization_id, role=OrganizationRoles.read))
         await session.commit()
 
     # Revoke the grant immediately before the real access lookup reads it.
@@ -848,9 +767,7 @@ async def test_solution_proxy_rejects_membership_revoked_before_access_lookup(
 
 
 async def test_solution_proxy_returns_unavailable_when_gateway_request_fails(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch
 ) -> None:
     """Return unavailable when the authenticated cluster gateway request fails."""
 
@@ -876,10 +793,7 @@ async def test_solution_proxy_returns_unavailable_when_gateway_request_fails(
 
 @pytest.mark.parametrize("method", ["PATCH", "POST", "PUT"])
 async def test_solution_proxy_enforces_method_role(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    method: str,
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], method: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject mutating proxy requests when the runtime role is read-only."""
 
@@ -905,9 +819,7 @@ async def test_solution_proxy_enforces_method_role(
 
 
 async def test_solution_proxy_allows_write_member_to_post(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Forward a write-method proxy request from an Organization write member."""
 
@@ -932,9 +844,7 @@ async def test_solution_proxy_allows_write_member_to_post(
 
 
 async def test_solution_proxy_delete_rejects_write_member(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject proxy DELETE from an Organization write member before the gateway."""
 
@@ -958,9 +868,7 @@ async def test_solution_proxy_delete_rejects_write_member(
 
 
 async def test_solution_proxy_delete_allows_maintain_member(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Forward proxy DELETE from an Organization maintain member to the gateway."""
 
@@ -987,9 +895,7 @@ async def test_solution_proxy_delete_allows_maintain_member(
 
 
 async def test_solution_proxy_shows_loading_when_solution_is_not_ready(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Return a loading response while solution reconciliation is pending."""
 
@@ -1010,9 +916,7 @@ async def test_solution_proxy_shows_loading_when_solution_is_not_ready(
 
 
 async def test_solution_proxy_returns_unavailable_when_gateway_requirement_is_missing(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Return unavailable when the Solution's signed identity key is absent."""
 
@@ -1035,9 +939,7 @@ async def test_solution_proxy_returns_unavailable_when_gateway_requirement_is_mi
 
 
 async def test_solution_proxy_forwards_error_negotiation_headers(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Forward actionable error metadata without upstream cookies or body headers."""
 

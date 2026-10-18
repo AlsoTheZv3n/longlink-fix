@@ -61,11 +61,7 @@ def create_fs(settings: Envs) -> AbstractFileSystem:
             storage_path /= bucket_path
             if prefix_path is not None:
                 storage_path /= prefix_path
-        filesystem = DirFileSystem(
-            path=storage_path.as_posix(),
-            fs=memory,
-            skip_instance_cache=True,
-        )
+        filesystem = DirFileSystem(path=storage_path.as_posix(), fs=memory, skip_instance_cache=True)
 
         # Release only this namespace when its owning runtime filesystem is collected.
         weakref.finalize(filesystem, _remove_memory_directory, memory, directory)
@@ -77,9 +73,7 @@ def create_fs(settings: Envs) -> AbstractFileSystem:
     # Scope paths without letting the wrapper cache retain the backend and its CA file.
     if bucket_path is not None:
         return DirFileSystem(
-            path=(bucket_path / prefix_path if prefix_path is not None else bucket_path).as_posix(),
-            fs=filesystem,
-            skip_instance_cache=True,
+            path=(bucket_path / prefix_path if prefix_path is not None else bucket_path).as_posix(), fs=filesystem, skip_instance_cache=True
         )
 
     return filesystem

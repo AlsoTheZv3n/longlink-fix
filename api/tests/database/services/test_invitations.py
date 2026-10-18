@@ -61,10 +61,7 @@ async def test_create_uses_concurrently_created_invitation(users: tuple[User, Us
     organization = await create_organization(users[0])
     original_created_at = datetime(2026, 1, 1, tzinfo=UTC)
     concurrent_invitation = OrganizationInvitation(
-        organization_id=organization.id,
-        email="invited@example.com",
-        role=OrganizationRoles.read,
-        created_at=original_created_at,
+        organization_id=organization.id, email="invited@example.com", role=OrganizationRoles.read, created_at=original_created_at
     )
     async with session_scope() as session:
         session.add(concurrent_invitation)
@@ -105,9 +102,7 @@ async def test_create_uses_concurrently_created_invitation(users: tuple[User, Us
     assert replacement.created_at > original_created_at
 
 
-async def test_accept_removes_expired_invitation_without_creating_membership(
-    users: tuple[User, User, User],
-) -> None:
+async def test_accept_removes_expired_invitation_without_creating_membership(users: tuple[User, User, User]) -> None:
     """Reject and consume an invitation at the seven-day expiration boundary."""
 
     # Arrange
@@ -145,20 +140,8 @@ async def test_accept_preserves_active_membership_role(users: tuple[User, User, 
     owner, invitee = users[0], users[1]
     organization = await create_organization(owner)
     async with session_scope() as session:
-        session.add(
-            UserOrganization(
-                user_id=invitee.id,
-                organization_id=organization.id,
-                role=OrganizationRoles.read,
-            )
-        )
-        session.add(
-            OrganizationInvitation(
-                organization_id=organization.id,
-                email=invitee.email,
-                role=OrganizationRoles.admin,
-            )
-        )
+        session.add(UserOrganization(user_id=invitee.id, organization_id=organization.id, role=OrganizationRoles.read))
+        session.add(OrganizationInvitation(organization_id=organization.id, email=invitee.email, role=OrganizationRoles.admin))
         await session.commit()
 
     # Act

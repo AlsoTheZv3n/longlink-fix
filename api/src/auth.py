@@ -2,9 +2,9 @@ import jwt
 from uuid import UUID
 from typing import Annotated
 from fastapi import Cookie, Depends, Request, HTTPException
-from src.utils import token
+from src.utils import roles, token
 from src.database import session as database
-from collections.abc import Callable, Awaitable, AsyncIterator, AsyncGenerator
+from collections.abc import AsyncIterator, AsyncGenerator
 from src.models.roles import OrganizationRoles
 from longlink.database import audit
 from src.utils.cookies import AUTH_COOKIE
@@ -26,9 +26,7 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 
 
 async def authuser(
-    request: Request,
-    session: Session,
-    credential: str | None = Cookie(default=None, alias=AUTH_COOKIE),
+    request: Request, session: Session, credential: str | None = Cookie(default=None, alias=AUTH_COOKIE)
 ) -> AsyncGenerator[User, None]:
     """Authenticate a browser session and bind its user to the request audit scope."""
 
@@ -70,19 +68,47 @@ def authadmin(user: CurrentUser) -> User:
 PlatformAdmin = Annotated[User, Depends(authadmin)]
 
 
-def require_organization_role(minimum_role: OrganizationRoles) -> Callable[[UUID, User, AsyncSession], Awaitable[UserOrganization]]:
-    """Create a FastAPI dependency requiring the specified Organization role."""
+async def authmember(organization_id: UUID, user: CurrentUser, session: Session) -> UserOrganization:
+    """Authenticate an active Organization member."""
 
-    # Parameterize route access while keeping membership policy in the Organization service.
-    async def dependency(organization_id: UUID, user: CurrentUser, session: Session) -> UserOrganization:
-        """Resolve active membership for the Organization identified by the route."""
-
-        # Resolve the required role before supplying membership data to the handler.
-        return await organizations.require_membership(session, user.id, organization_id, minimum_role)
-
-    return dependency
+    # Resolve Organization access once for the request's membership dependencies.
+    return await organizations.require_membership(session, user.id, organization_id)
 
 
-OrganizationMember = Annotated[UserOrganization, Depends(require_organization_role(OrganizationRoles.read))]
-OrganizationMaintainer = Annotated[UserOrganization, Depends(require_organization_role(OrganizationRoles.maintain))]
-OrganizationAdmin = Annotated[UserOrganization, Depends(require_organization_role(OrganizationRoles.admin))]
+OrganizationMember = Annotated[UserOrganization, Depends(authmember)]
+
+
+def authmaintainer(membership: OrganizationMember) -> UserOrganization:
+    """Authenticate an Organization maintainer."""
+
+    # Require maintenance privileges on the already authenticated membership.
+    if not roles.atleast(membership.role, OrganizationRoles.maintain):
+        raise HTTPException(status_code=403, detail="Permission required")
+    return membership
+
+
+OrganizationMaintainer = Annotated[UserOrganization, Depends(authmaintainer)]
+
+
+def authorganizationadmin(membership: OrganizationMember) -> UserOrganization:
+    """Authenticate an Organization administrator."""
+
+    # Require administrative privileges on the already authenticated membership.
+    if not roles.atleast(membership.role, OrganizationRoles.admin):
+        raise HTTPException(status_code=403, detail="Permission required")
+    return membership
+
+
+OrganizationAdmin = Annotated[UserOrganization, Depends(authorganizationadmin)]
+
+
+def authowner(membership: OrganizationMember) -> UserOrganization:
+    """Authenticate an Organization owner."""
+
+    # Require ownership on the already authenticated membership.
+    if not roles.atleast(membership.role, OrganizationRoles.owner):
+        raise HTTPException(status_code=403, detail="Permission required")
+    return membership
+
+
+OrganizationOwner = Annotated[UserOrganization, Depends(authowner)]

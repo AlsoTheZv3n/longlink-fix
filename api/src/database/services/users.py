@@ -21,12 +21,7 @@ async def active(session: AsyncSession, user_id: UUID) -> User | None:
     """Return one active user through an existing request session."""
 
     # Resolve only the authenticated identity; resource access remains scoped to its target.
-    return await session.scalar(
-        select(User).where(
-            col(User.id) == user_id,
-            col(User.deleted_at).is_(None),
-        )
-    )
+    return await session.scalar(select(User).where(col(User.id) == user_id, col(User.deleted_at).is_(None)))
 
 
 async def fetch(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[User], int]:
@@ -40,14 +35,7 @@ async def fetch(session: AsyncSession, pagination: Pagination, search: str = "")
     # Preserve the existing administrator list visibility, including tombstoned users.
     statement = (
         query.options(
-            load_only(
-                attr(User.id),
-                attr(User.name),
-                attr(User.email),
-                attr(User.avatar),
-                attr(User.administrator),
-                attr(User.created_at),
-            )
+            load_only(attr(User.id), attr(User.name), attr(User.email), attr(User.avatar), attr(User.administrator), attr(User.created_at))
         )
         .order_by(col(User.created_at).desc(), col(User.id).desc())
         .offset(pagination.offset)
@@ -80,12 +68,7 @@ async def register(session: AsyncSession, name: str, email: str, password: str, 
 
     # Keep expensive credential hashing outside the request event loop.
     hashed_password = await asyncio.to_thread(PASSWORD_HASH.hash, password)
-    user = User(
-        name=name,
-        email=email,
-        avatar=avatar,
-        password=hashed_password,
-    )
+    user = User(name=name, email=email, avatar=avatar, password=hashed_password)
 
     # Flush so callers can handle uniqueness errors within their existing transaction.
     session.add(user)
@@ -104,12 +87,7 @@ async def ensure_administrator(session: AsyncSession) -> User:
     if user is None:
         user = await session.scalar(statement)
     if user is None:
-        user = User(
-            name="Administrator",
-            email=env.ADMIN_EMAIL,
-            password=PASSWORD_HASH.hash(env.ADMIN_PASSWORD),
-            administrator=True,
-        )
+        user = User(name="Administrator", email=env.ADMIN_EMAIL, password=PASSWORD_HASH.hash(env.ADMIN_PASSWORD), administrator=True)
 
         # Concurrent Platform startup may create the configured administrator first.
         try:

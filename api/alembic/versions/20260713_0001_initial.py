@@ -84,14 +84,7 @@ def upgrade() -> None:
         sa.Column("database_password", EncryptedType(env.ENCRYPTION_KEY), nullable=False),
         sa.Column(
             "database_state",
-            sa.Enum(
-                "available",
-                "failed",
-                name="database_state_enum",
-                native_enum=False,
-                create_constraint=True,
-                validate_strings=True,
-            ),
+            sa.Enum("available", "failed", name="database_state_enum", native_enum=False, create_constraint=True, validate_strings=True),
             nullable=False,
         ),
         sa.Column("database_size_mib", sa.Integer(), nullable=False, server_default="100"),
@@ -166,11 +159,7 @@ def upgrade() -> None:
         sa.Column("created_id", sa.Uuid(), nullable=True),
         sa.Column("updated_id", sa.Uuid(), nullable=True),
         sa.Column("deleted_id", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["organization_id"],
-            ["organizations.id"],
-            ondelete="CASCADE",
-        ),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["updated_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["deleted_id"], ["users.id"]),
@@ -218,11 +207,7 @@ def upgrade() -> None:
         sa.Column("created_id", sa.Uuid(), nullable=True),
         sa.Column("updated_id", sa.Uuid(), nullable=True),
         sa.Column("deleted_id", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["organization_id"],
-            ["organizations.id"],
-            ondelete="CASCADE",
-        ),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["updated_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["deleted_id"], ["users.id"]),
@@ -244,15 +229,8 @@ def upgrade() -> None:
         sa.Column("created_id", sa.Uuid(), nullable=True),
         sa.Column("updated_id", sa.Uuid(), nullable=True),
         sa.Column("deleted_id", sa.Uuid(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["organization_id"],
-            ["organizations.id"],
-            ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"],
-        ),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["created_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["updated_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["deleted_id"], ["users.id"]),
@@ -290,8 +268,4 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["deleted_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_operations_queue",
-        "operations",
-        ["kind", "target_id", "finished_at", "lease_expires_at"],
-    )
+    op.create_index("ix_operations_queue", "operations", ["kind", "target_id", "finished_at", "lease_expires_at"])

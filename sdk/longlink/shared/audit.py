@@ -18,11 +18,7 @@ async def sync(conn: AsyncConnection, rows: Sequence[Mapping[str, object]]) -> N
     await conn.execute(
         statement.on_conflict_do_update(
             index_elements=[statement.table.c.id],
-            set_={
-                "name": statement.excluded.name,
-                "email": statement.excluded.email,
-                "avatar": statement.excluded.avatar,
-            },
+            set_={"name": statement.excluded.name, "email": statement.excluded.email, "avatar": statement.excluded.avatar},
         ),
         rows,
     )

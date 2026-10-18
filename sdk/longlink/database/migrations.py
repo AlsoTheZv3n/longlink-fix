@@ -81,11 +81,7 @@ def make_migrations() -> bool:
             directives.clear()
 
     # Invoke Alembic while suppressing revisions with no schema operations.
-    revisions = command.revision(
-        cfg,
-        autogenerate=True,
-        process_revision_directives=_skip_empty_revision,
-    )
+    revisions = command.revision(cfg, autogenerate=True, process_revision_directives=_skip_empty_revision)
     return bool(revisions)
 
 

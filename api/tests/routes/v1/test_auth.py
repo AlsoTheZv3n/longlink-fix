@@ -78,9 +78,7 @@ def oauth_responses(monkeypatch: pytest.MonkeyPatch, users: tuple[User, User, Us
 
 
 def override_oauth_email(
-    responses: dict[str, object],
-    users: tuple[User, User, User],
-    verification: dict[str, bool | str] | list[dict[str, bool]],
+    responses: dict[str, object], users: tuple[User, User, User], verification: dict[str, bool | str] | list[dict[str, bool]]
 ) -> None:
     """Apply one unverified provider email shape to the fake OAuth responses."""
 
@@ -133,9 +131,7 @@ def password_reset_token(captured_mail: list[tuple[str, str, str, str | None]]) 
 @pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
 @pytest.mark.no_db
 async def test_oauth_login_redirects_with_browser_bound_state_and_pkce(
-    client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-    provider: oauth.OAuthProvider,
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch, provider: oauth.OAuthProvider
 ) -> None:
     """Start configured OAuth login with browser-bound state and PKCE proof."""
 
@@ -169,10 +165,7 @@ async def test_oauth_login_redirects_with_browser_bound_state_and_pkce(
 
 
 @pytest.mark.no_db
-async def test_oauth_availability_reports_configured_providers(
-    client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_oauth_availability_reports_configured_providers(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Report OAuth availability without disclosing confidential client credentials."""
 
     # Arrange
@@ -211,10 +204,7 @@ async def test_oauth_login_rejects_unconfigured_provider_without_state_cookie(cl
     ],
 )
 async def test_oauth_callback_rejects_invalid_state_without_provider_exchange(
-    client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-    callback_provider: str,
-    state: str,
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch, callback_provider: str, state: str
 ) -> None:
     """Reject a callback whose browser-bound OAuth state is invalid."""
 
@@ -222,11 +212,7 @@ async def test_oauth_callback_rejects_invalid_state_without_provider_exchange(
     credential = token.create_oauth_state_token("google", "expected-state", "pkce-verifier")
     client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
 
-    async def unexpected_identity(
-        _provider: oauth.OAuthProvider,
-        _code: str,
-        _verifier: str,
-    ) -> oauth.OAuthIdentity | None:
+    async def unexpected_identity(_provider: oauth.OAuthProvider, _code: str, _verifier: str) -> oauth.OAuthIdentity | None:
         """Fail if invalid callback state reaches the external provider."""
 
         raise AssertionError("invalid OAuth state must not reach the provider")
@@ -235,9 +221,7 @@ async def test_oauth_callback_rejects_invalid_state_without_provider_exchange(
 
     # Act
     response = await client.get(
-        f"/api/v1/auth/oauth/{callback_provider}/callback",
-        params={"code": "provider-code", "state": state},
-        follow_redirects=False,
+        f"/api/v1/auth/oauth/{callback_provider}/callback", params={"code": "provider-code", "state": state}, follow_redirects=False
     )
 
     # Assert
@@ -252,9 +236,7 @@ async def test_oauth_callback_rejects_invalid_state_without_provider_exchange(
 @pytest.mark.no_db
 @pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
 async def test_oauth_callback_rejects_provider_error_and_missing_code_without_exchange(
-    client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-    provider: oauth.OAuthProvider,
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch, provider: oauth.OAuthProvider
 ) -> None:
     """Reject provider-cancelled and code-less callbacks before any code exchange."""
 
@@ -268,11 +250,7 @@ async def test_oauth_callback_rejects_provider_error_and_missing_code_without_ex
     credential = token.create_oauth_state_token(provider, "expected-state", "pkce-verifier")
     client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
 
-    async def unexpected_identity(
-        _provider: oauth.OAuthProvider,
-        _code: str,
-        _verifier: str,
-    ) -> oauth.OAuthIdentity | None:
+    async def unexpected_identity(_provider: oauth.OAuthProvider, _code: str, _verifier: str) -> oauth.OAuthIdentity | None:
         """Fail if a cancelled or code-less callback reaches the external provider."""
 
         raise AssertionError("cancelled OAuth callback must not reach the provider")
@@ -287,9 +265,7 @@ async def test_oauth_callback_rejects_provider_error_and_missing_code_without_ex
     )
     client.cookies.set("longlink_oauth", credential, domain="testserver.local", path="/api/v1/auth/oauth")
     missing_code_response = await client.get(
-        f"/api/v1/auth/oauth/{provider}/callback",
-        params={"state": "expected-state"},
-        follow_redirects=False,
+        f"/api/v1/auth/oauth/{provider}/callback", params={"state": "expected-state"}, follow_redirects=False
     )
 
     # Assert
@@ -303,10 +279,7 @@ async def test_oauth_callback_rejects_provider_error_and_missing_code_without_ex
 
 @pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
 async def test_oauth_callback_rejects_unresolved_identity_without_account_changes(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-    oauth_responses: dict[str, object],
-    provider: oauth.OAuthProvider,
+    client: AsyncClient, users: tuple[User, User, User], oauth_responses: dict[str, object], provider: oauth.OAuthProvider
 ) -> None:
     """Reject a valid callback when the provider code exchange yields no verified identity."""
 
@@ -317,9 +290,7 @@ async def test_oauth_callback_rejects_unresolved_identity_without_account_change
 
     # Act
     response = await client.get(
-        f"/api/v1/auth/oauth/{provider}/callback",
-        params={"code": "provider-code", "state": "expected-state"},
-        follow_redirects=False,
+        f"/api/v1/auth/oauth/{provider}/callback", params={"code": "provider-code", "state": "expected-state"}, follow_redirects=False
     )
 
     # Assert
@@ -360,9 +331,7 @@ async def test_oauth_callback_links_existing_email_and_authenticates_browser(
 
     # Act
     response = await client.get(
-        f"/api/v1/auth/oauth/{provider}/callback",
-        params={"code": "provider-code", "state": "expected-state"},
-        follow_redirects=False,
+        f"/api/v1/auth/oauth/{provider}/callback", params={"code": "provider-code", "state": "expected-state"}, follow_redirects=False
     )
     profile_response = await client.get("/api/v1/me")
 
@@ -398,9 +367,7 @@ async def test_oauth_callback_rejects_unverified_email_without_account_changes(
 
     # Act
     response = await client.get(
-        f"/api/v1/auth/oauth/{provider}/callback",
-        params={"code": "provider-code", "state": "expected-state"},
-        follow_redirects=False,
+        f"/api/v1/auth/oauth/{provider}/callback", params={"code": "provider-code", "state": "expected-state"}, follow_redirects=False
     )
 
     # Assert
@@ -422,10 +389,7 @@ async def test_oauth_callback_rejects_unverified_email_without_account_changes(
 
 @pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
 async def test_oauth_callback_prefers_linked_subject_over_another_accounts_email(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-    oauth_responses: dict[str, object],
-    provider: oauth.OAuthProvider,
+    client: AsyncClient, users: tuple[User, User, User], oauth_responses: dict[str, object], provider: oauth.OAuthProvider
 ) -> None:
     """Authenticate the subject owner even when the provider returns another account's email."""
 
@@ -448,9 +412,7 @@ async def test_oauth_callback_prefers_linked_subject_over_another_accounts_email
 
     # Act
     response = await client.get(
-        f"/api/v1/auth/oauth/{provider}/callback",
-        params={"code": "provider-code", "state": "expected-state"},
-        follow_redirects=False,
+        f"/api/v1/auth/oauth/{provider}/callback", params={"code": "provider-code", "state": "expected-state"}, follow_redirects=False
     )
     profile_response = await client.get("/api/v1/me")
 
@@ -474,10 +436,7 @@ async def test_oauth_callback_prefers_linked_subject_over_another_accounts_email
 
 @pytest.mark.parametrize("provider", OAUTH_PROVIDERS)
 async def test_oauth_callback_rejects_deleted_account_without_browser_session(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-    oauth_responses: dict[str, object],
-    provider: oauth.OAuthProvider,
+    client: AsyncClient, users: tuple[User, User, User], oauth_responses: dict[str, object], provider: oauth.OAuthProvider
 ) -> None:
     """Reject OAuth login for a soft-deleted account without linking its provider identity."""
 
@@ -493,9 +452,7 @@ async def test_oauth_callback_rejects_deleted_account_without_browser_session(
 
     # Act
     response = await client.get(
-        f"/api/v1/auth/oauth/{provider}/callback",
-        params={"code": "provider-code", "state": "expected-state"},
-        follow_redirects=False,
+        f"/api/v1/auth/oauth/{provider}/callback", params={"code": "provider-code", "state": "expected-state"}, follow_redirects=False
     )
 
     # Assert
@@ -539,10 +496,7 @@ async def test_verify_email_rejects_invalid_token_without_cookie(client: AsyncCl
 
 
 @pytest.mark.no_db
-async def test_malformed_browser_session_is_rejected_before_database_lookup(
-    client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_malformed_browser_session_is_rejected_before_database_lookup(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject malformed browser credentials without opening an identity lookup."""
 
     # Arrange
@@ -585,10 +539,7 @@ async def test_registration_completion_rejects_missing_verification_cookie(clien
     """Prevent account creation without verified browser registration state."""
 
     # Act
-    response = await client.post(
-        "/api/v1/auth/register/complete",
-        json={"name": "Registered User", "password": TEST_PASSWORD},
-    )
+    response = await client.post("/api/v1/auth/register/complete", json={"name": "Registered User", "password": TEST_PASSWORD})
 
     # Assert
     assert response.status_code == 400
@@ -597,9 +548,7 @@ async def test_registration_completion_rejects_missing_verification_cookie(clien
 
 
 async def test_registration_verification_is_stateless(
-    client: AsyncClient,
-    captured_mail: list[tuple[str, str, str, str | None]],
-    monkeypatch: pytest.MonkeyPatch,
+    client: AsyncClient, captured_mail: list[tuple[str, str, str, str | None]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Verify email ownership without creating an account or browser session."""
 
@@ -657,11 +606,7 @@ async def test_registration_completion_creates_authenticated_account(
     # Act
     unauthenticated_login = await client.post("/api/v1/auth/password/login", json=login_payload)
     restored_setup = await client.get("/api/v1/auth/register/setup")
-    complete_response = await client.post(
-        "/api/v1/auth/register/complete",
-        json=completion_payload,
-        headers={"Origin": env.PUBLIC_URL},
-    )
+    complete_response = await client.post("/api/v1/auth/register/complete", json=completion_payload, headers={"Origin": env.PUBLIC_URL})
     profile_response = await client.get("/api/v1/me")
     authenticated_login = await client.post("/api/v1/auth/password/login", json=login_payload)
 
@@ -683,8 +628,7 @@ async def test_registration_completion_creates_authenticated_account(
 
 
 async def test_password_login_rejects_wrong_password_and_unknown_email_without_session(
-    client: AsyncClient,
-    users: tuple[User, User, User],
+    client: AsyncClient, users: tuple[User, User, User]
 ) -> None:
     """Keep failed password login responses indistinguishable and unauthenticated."""
 
@@ -692,13 +636,9 @@ async def test_password_login_rejects_wrong_password_and_unknown_email_without_s
     email = users[0].email
 
     # Act
-    wrong_password_response = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": email, "password": "wrong-password"},
-    )
+    wrong_password_response = await client.post("/api/v1/auth/password/login", json={"email": email, "password": "wrong-password"})
     unknown_email_response = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": "missing@example.com", "password": TEST_PASSWORD},
+        "/api/v1/auth/password/login", json={"email": "missing@example.com", "password": TEST_PASSWORD}
     )
 
     # Assert
@@ -711,8 +651,7 @@ async def test_password_login_rejects_wrong_password_and_unknown_email_without_s
 
 
 async def test_password_login_rejects_deleted_account_with_correct_password_without_session(
-    client: AsyncClient,
-    users: tuple[User, User, User],
+    client: AsyncClient, users: tuple[User, User, User]
 ) -> None:
     """Reject a deleted account even when its password remains valid."""
 
@@ -725,10 +664,7 @@ async def test_password_login_rejects_deleted_account_with_correct_password_with
         await session.commit()
 
     # Act
-    response = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": user.email, "password": TEST_PASSWORD},
-    )
+    response = await client.post("/api/v1/auth/password/login", json={"email": user.email, "password": TEST_PASSWORD})
 
     # Assert
     assert response.status_code == 400
@@ -739,9 +675,7 @@ async def test_password_login_rejects_deleted_account_with_correct_password_with
 
 @pytest.mark.usefixtures("database_runtime")
 async def test_registration_completion_accepts_pending_organization_invitation(
-    client: AsyncClient,
-    captured_mail: list[tuple[str, str, str, str | None]],
-    users: tuple[User, User, User],
+    client: AsyncClient, captured_mail: list[tuple[str, str, str, str | None]], users: tuple[User, User, User]
 ) -> None:
     """Accept an email-bound Organization role while creating a verified account."""
 
@@ -758,9 +692,7 @@ async def test_registration_completion_accepts_pending_organization_invitation(
 
     # Act
     response = await client.post(
-        "/api/v1/auth/register/complete",
-        json={"name": "Invited User", "password": TEST_PASSWORD},
-        headers={"Origin": env.PUBLIC_URL},
+        "/api/v1/auth/register/complete", json={"name": "Invited User", "password": TEST_PASSWORD}, headers={"Origin": env.PUBLIC_URL}
     )
     organizations_response = await client.get("/api/v1/me/organizations")
     async with session_scope() as session:
@@ -772,15 +704,7 @@ async def test_registration_completion_accepts_pending_organization_invitation(
     assert response.status_code == 201
     assert organizations_response.status_code == 200
     assert organizations_response.json() == [
-        {
-            "organization": {
-                "id": str(organization.id),
-                "name": "acme",
-                "slug": "acme",
-                "status": "creating",
-            },
-            "role": "write",
-        }
+        {"organization": {"id": str(organization.id), "name": "acme", "slug": "acme", "status": "creating"}, "role": "write"}
     ]
     assert invitation is None
     assert client.cookies.get("longlink_auth") is not None
@@ -788,8 +712,7 @@ async def test_registration_completion_accepts_pending_organization_invitation(
 
 @pytest.mark.usefixtures("database_runtime")
 async def test_password_login_accepts_pending_organization_invitation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Accept pending Organization access when an existing user signs in."""
 
@@ -797,15 +720,9 @@ async def test_password_login_accepts_pending_organization_invitation(
     owner, invited_user, other_user = users
     organization = await create_organization(owner)
     other_organization = await create_organization(owner, name="other organization")
-    pending_invitation = OrganizationInvitation(
-        organization_id=organization.id,
-        email=invited_user.email,
-        role=OrganizationRoles.write,
-    )
+    pending_invitation = OrganizationInvitation(organization_id=organization.id, email=invited_user.email, role=OrganizationRoles.write)
     other_pending_invitation = OrganizationInvitation(
-        organization_id=other_organization.id,
-        email=other_user.email,
-        role=OrganizationRoles.write,
+        organization_id=other_organization.id, email=other_user.email, role=OrganizationRoles.write
     )
     async with session_scope() as session:
         session.add(pending_invitation)
@@ -813,10 +730,7 @@ async def test_password_login_accepts_pending_organization_invitation(
         await session.commit()
 
     # Act
-    response = await clients[1].post(
-        "/api/v1/auth/password/login",
-        json={"email": invited_user.email, "password": TEST_PASSWORD},
-    )
+    response = await clients[1].post("/api/v1/auth/password/login", json={"email": invited_user.email, "password": TEST_PASSWORD})
 
     # Assert
     assert response.status_code == 204
@@ -826,15 +740,13 @@ async def test_password_login_accepts_pending_organization_invitation(
         )
         membership = await session.scalar(
             select(UserOrganization).where(
-                col(UserOrganization.organization_id) == organization.id,
-                col(UserOrganization.user_id) == invited_user.id,
+                col(UserOrganization.organization_id) == organization.id, col(UserOrganization.user_id) == invited_user.id
             )
         )
         other_invitation = await session.get(OrganizationInvitation, other_pending_invitation.id)
         other_membership = await session.scalar(
             select(UserOrganization).where(
-                col(UserOrganization.organization_id) == other_organization.id,
-                col(UserOrganization.user_id) == invited_user.id,
+                col(UserOrganization.organization_id) == other_organization.id, col(UserOrganization.user_id) == invited_user.id
             )
         )
 
@@ -857,20 +769,14 @@ async def test_registration_completion_rejects_duplicate_account(
     register_response, verify_response, verification_token = await register_and_verify(client, captured_mail, email)
     assert register_response.status_code == 202
     assert verify_response.status_code == 200
-    first_completion = await client.post(
-        "/api/v1/auth/register/complete",
-        json=completion_payload,
-        headers={"Origin": env.PUBLIC_URL},
-    )
+    first_completion = await client.post("/api/v1/auth/register/complete", json=completion_payload, headers={"Origin": env.PUBLIC_URL})
     assert first_completion.status_code == 201
 
     # Act
     async with create_client() as repeat_client:
         repeat_verify_response = await repeat_client.post("/api/v1/auth/verify", json={"token": verification_token})
         repeat_response = await repeat_client.post(
-            "/api/v1/auth/register/complete",
-            json=completion_payload,
-            headers={"Origin": env.PUBLIC_URL},
+            "/api/v1/auth/register/complete", json=completion_payload, headers={"Origin": env.PUBLIC_URL}
         )
 
     assert repeat_verify_response.status_code == 200
@@ -907,10 +813,7 @@ async def test_password_reset_verify_rejects_invalid_token_without_cookie(client
 
 
 @pytest.mark.no_db
-async def test_password_reset_rejects_missing_reset_cookie(
-    client: AsyncClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_password_reset_rejects_missing_reset_cookie(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject password replacement without browser-only reset proof."""
 
     # Arrange
@@ -937,9 +840,7 @@ async def test_password_reset_rejects_missing_reset_cookie(
 
 
 async def test_password_reset_verify_sets_secure_browser_only_cookie_in_production(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    client: AsyncClient, users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Set a restricted secure reset cookie when production verifies reset proof."""
 
@@ -980,10 +881,7 @@ async def test_forgot_and_reset_password(
 
     # Act: Missing and existing accounts receive the same response, while only the account gets mail.
     missing_response = await client.post("/api/v1/auth/forgot-password", json={"email": "missing@example.com"})
-    forgot_response = await client.post(
-        "/api/v1/auth/forgot-password",
-        json={"email": user.email.upper()},
-    )
+    forgot_response = await client.post("/api/v1/auth/forgot-password", json={"email": user.email.upper()})
 
     assert missing_response.status_code == 202
     assert forgot_response.status_code == 202
@@ -998,9 +896,7 @@ async def test_forgot_and_reset_password(
     verify_response = await client.post("/api/v1/auth/reset-password/verify", json={"token": reset_token})
     setup_response = await client.get("/api/v1/auth/reset-password/setup")
     reset_response = await client.post(
-        "/api/v1/auth/reset-password",
-        json={"password": "replacement-password"},
-        headers={"Origin": env.PUBLIC_URL},
+        "/api/v1/auth/reset-password", json={"password": "replacement-password"}, headers={"Origin": env.PUBLIC_URL}
     )
     reused_token_response = await client.post("/api/v1/auth/reset-password/verify", json={"token": reset_token})
     revoked_session = await authenticated_client.get("/api/v1/me")
@@ -1021,14 +917,8 @@ async def test_forgot_and_reset_password(
     assert revoked_session.json() == {"detail": "Not authenticated"}
 
     # Prove only the new password can create a fresh session.
-    old_login = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": user.email, "password": TEST_PASSWORD},
-    )
-    new_login = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": user.email, "password": "replacement-password"},
-    )
+    old_login = await client.post("/api/v1/auth/password/login", json={"email": user.email, "password": TEST_PASSWORD})
+    new_login = await client.post("/api/v1/auth/password/login", json={"email": user.email, "password": "replacement-password"})
 
     assert old_login.status_code == 400
     assert old_login.json() == {"detail": "Invalid email or password."}
@@ -1037,10 +927,7 @@ async def test_forgot_and_reset_password(
 
 @pytest.mark.parametrize("endpoint", ["/api/v1/auth/forgot-password", "/api/v1/auth/register"])
 async def test_password_requests_do_not_send_mail_to_deleted_account(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-    captured_mail: list[tuple[str, str, str, str | None]],
-    endpoint: str,
+    client: AsyncClient, users: tuple[User, User, User], captured_mail: list[tuple[str, str, str, str | None]], endpoint: str
 ) -> None:
     """Keep deleted accounts indistinguishable from missing request recipients."""
 
@@ -1082,10 +969,7 @@ async def test_logout_rejects_untrusted_origin_without_browser_session(client: A
     ],
 )
 async def test_authenticated_logout_rejects_untrusted_origin(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    monkeypatch: pytest.MonkeyPatch,
-    public_origin: str | None,
-    origin: str,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], monkeypatch: pytest.MonkeyPatch, public_origin: str | None, origin: str
 ) -> None:
     """Reject untrusted origins without clearing an authenticated browser session."""
 
@@ -1114,10 +998,7 @@ async def test_authenticated_logout_rejects_untrusted_origin(
     ],
 )
 async def test_authenticated_logout_clears_browser_session_for_trusted_origins(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    headers: dict[str, str],
-    expected_secure: bool,
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], headers: dict[str, str], expected_secure: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Clear browser sessions requested from the explicitly configured frontend origin."""
 
@@ -1141,9 +1022,7 @@ async def test_authenticated_logout_clears_browser_session_for_trusted_origins(
 
 
 async def test_password_login_sets_production_session_security_and_cache_attributes(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-    monkeypatch,
+    client: AsyncClient, users: tuple[User, User, User], monkeypatch
 ) -> None:
     """Issue a production browser session only as a secure, private credential."""
 
@@ -1152,10 +1031,7 @@ async def test_password_login_sets_production_session_security_and_cache_attribu
     user = users[0]
 
     # Authenticate with the production cookie policy.
-    response = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": user.email, "password": TEST_PASSWORD},
-    )
+    response = await client.post("/api/v1/auth/password/login", json={"email": user.email, "password": TEST_PASSWORD})
 
     # Verify the credential cannot be read by scripts, sent insecurely, or cached.
     assert response.status_code == 204
@@ -1170,8 +1046,7 @@ async def test_password_login_sets_production_session_security_and_cache_attribu
 
 
 async def test_deleted_user_cannot_use_existing_browser_session(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject an already-issued session after its user is soft-deleted."""
 
@@ -1191,10 +1066,7 @@ async def test_deleted_user_cannot_use_existing_browser_session(
     assert response.json() == {"detail": "Not authenticated"}
 
 
-async def test_expired_browser_session_is_rejected_at_http(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-) -> None:
+async def test_expired_browser_session_is_rejected_at_http(client: AsyncClient, users: tuple[User, User, User]) -> None:
     """Reject an expired session cookie with the stable authentication error."""
 
     # Arrange
@@ -1204,7 +1076,7 @@ async def test_expired_browser_session_is_rejected_at_http(
             "sub": str(user.id),
             "password_fingerprint": token.password_fingerprint(user.password),
             "aud": token.AUTH_TOKEN_AUDIENCE,
-            "iat": datetime.now(UTC) - timedelta(seconds=env.AUTH_SESSION_LIFETIME_SECONDS + 60),
+            "iat": datetime.now(UTC) - timedelta(days=30, seconds=60),
             "exp": datetime.now(UTC) - timedelta(seconds=60),
         },
         env.SESSION_KEY,
@@ -1220,10 +1092,7 @@ async def test_expired_browser_session_is_rejected_at_http(
     assert response.json() == {"detail": "Not authenticated"}
 
 
-async def test_wrong_audience_browser_session_is_rejected_at_http(
-    client: AsyncClient,
-    users: tuple[User, User, User],
-) -> None:
+async def test_wrong_audience_browser_session_is_rejected_at_http(client: AsyncClient, users: tuple[User, User, User]) -> None:
     """Reject valid password-reset proof presented as a browser session."""
 
     # Arrange

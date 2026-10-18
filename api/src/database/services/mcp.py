@@ -92,14 +92,7 @@ async def _permitted_solution(session: AsyncSession, user: User, solution_id: UU
     # Load only permission and consent metadata, without decrypting runtime secrets.
     solution = await session.scalar(
         select(Solution)
-        .options(
-            load_only(
-                attr(Solution.id),
-                attr(Solution.name),
-                attr(Solution.deleted_at),
-                attr(Solution.organization_id),
-            )
-        )
+        .options(load_only(attr(Solution.id), attr(Solution.name), attr(Solution.deleted_at), attr(Solution.organization_id)))
         .where(col(Solution.id) == solution_id)
     )
     if solution is None or solution.deleted_at is not None:
@@ -139,10 +132,7 @@ async def register(session: AsyncSession, payload: mcp.ClientRegistration) -> UU
     """Persist immutable callbacks and return the unprivileged client identifier."""
 
     # Registration is public; the only assigned identity is an unprivileged client identifier.
-    client = MCPClient(
-        name=payload.client_name,
-        redirects=payload.redirect_uris,
-    )
+    client = MCPClient(name=payload.client_name, redirects=payload.redirect_uris)
     session.add(client)
     return client.id
 
@@ -247,14 +237,7 @@ async def tokens(session: AsyncSession, user_id: UUID) -> Sequence[MCPToken]:
 
     result = await session.scalars(
         select(MCPToken)
-        .options(
-            load_only(
-                attr(MCPToken.id),
-                attr(MCPToken.client_id),
-                attr(MCPToken.expires_at),
-                attr(MCPToken.solution_id),
-            )
-        )
+        .options(load_only(attr(MCPToken.id), attr(MCPToken.client_id), attr(MCPToken.expires_at), attr(MCPToken.solution_id)))
         .where(col(MCPToken.user_id) == user_id, col(MCPToken.expires_at) > datetime.now(UTC))
     )
     return result.all()

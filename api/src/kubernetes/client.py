@@ -48,10 +48,7 @@ class Kubernetes:
         return self
 
     async def __aexit__(
-        self,
-        _exc_type: type[BaseException] | None,
-        _exc_value: BaseException | None,
-        _traceback: TracebackType | None,
+        self, _exc_type: type[BaseException] | None, _exc_value: BaseException | None, _traceback: TracebackType | None
     ) -> None:
         """Close this Kubernetes client when its async resource scope ends."""
 

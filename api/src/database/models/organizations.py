@@ -57,8 +57,7 @@ class Organization(AuditTable, table=True):
     status: Status = Field(
         default=Status.creating,
         sa_column=Column(
-            Enum(Status, name="organization_status_enum", native_enum=False, create_constraint=True, validate_strings=True),
-            nullable=False,
+            Enum(Status, name="organization_status_enum", native_enum=False, create_constraint=True, validate_strings=True), nullable=False
         ),
     )
 

@@ -57,24 +57,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
                 await dispose_engine()
 
 
-app = FastAPI(
-    lifespan=lifespan,
-    docs_url=None,
-    redoc_url=None,
-    openapi_url=None,
-    title="LongLink Platform API",
-    version="1.0.0",
-)
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None, title="LongLink Platform API", version="1.0.0")
 
 
-AUTHENTICATION_COOKIES = frozenset(
-    {
-        AUTH_COOKIE,
-        OAUTH_STATE_COOKIE,
-        PASSWORD_RESET_COOKIE,
-        REGISTRATION_COOKIE,
-    }
-)
+AUTHENTICATION_COOKIES = frozenset({AUTH_COOKIE, OAUTH_STATE_COOKIE, PASSWORD_RESET_COOKIE, REGISTRATION_COOKIE})
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 

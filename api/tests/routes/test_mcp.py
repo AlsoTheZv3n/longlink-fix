@@ -23,8 +23,7 @@ from src.database.models.association import UserOrganization
 
 @pytest_asyncio.fixture
 async def authorization_request(
-    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient], users: tuple[User, User, User]
 ) -> tuple[Solution, dict[str, str]]:
     """Register a real client and prepare a Solution authorization request without granting access."""
 
@@ -50,8 +49,7 @@ async def authorization_request(
 
 @pytest_asyncio.fixture
 async def authorization(
-    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient],
-    authorization_request: tuple[Solution, dict[str, str]],
+    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient], authorization_request: tuple[Solution, dict[str, str]]
 ) -> tuple[Solution, dict[str, str], dict[str, str]]:
     """Approve the registered request through browser authentication and prepare its code exchange."""
 
@@ -146,9 +144,7 @@ async def test_mcp_authorization_navigates_to_first_party_approval_and_loads_con
     "resource", ["https://attacker.example/mcp", "not-a-resource", f"{env.PUBLIC_URL}/api/v1/solutions/{UUID(int=2)}/proxy/api/data"]
 )
 async def test_mcp_exchange_rejects_non_mcp_resource_audiences(
-    client: httpx2.AsyncClient,
-    authorization: tuple[Solution, dict[str, str], dict[str, str]],
-    resource: str,
+    client: httpx2.AsyncClient, authorization: tuple[Solution, dict[str, str], dict[str, str]], resource: str
 ) -> None:
     """Reject foreign or non-MCP audiences before consuming the approved code."""
 
@@ -164,8 +160,7 @@ async def test_mcp_exchange_rejects_non_mcp_resource_audiences(
 
 
 async def test_mcp_expired_code_cannot_be_exchanged(
-    client: httpx2.AsyncClient,
-    authorization: tuple[Solution, dict[str, str], dict[str, str]],
+    client: httpx2.AsyncClient, authorization: tuple[Solution, dict[str, str], dict[str, str]]
 ) -> None:
     """Reject expired authorization proof even with the correct verifier and callback."""
 
@@ -218,17 +213,13 @@ async def test_mcp_code_exchange_rechecks_identity_and_membership(
 
 
 async def test_mcp_concurrent_code_exchange_issues_only_one_token(
-    client: httpx2.AsyncClient,
-    authorization: tuple[Solution, dict[str, str], dict[str, str]],
+    client: httpx2.AsyncClient, authorization: tuple[Solution, dict[str, str], dict[str, str]]
 ) -> None:
     """Keep single-use authorization proof single-use when requests overlap."""
 
     # Race two independent client requests against the same approved code.
     _, _, exchange = authorization
-    responses = await asyncio.gather(
-        client.post("/api/v1/mcp/token", data=exchange),
-        client.post("/api/v1/mcp/token", data=exchange),
-    )
+    responses = await asyncio.gather(client.post("/api/v1/mcp/token", data=exchange), client.post("/api/v1/mcp/token", data=exchange))
     assert sorted(response.status_code for response in responses) == [200, 400]
     async with session_scope() as session:
         tokens = await session.scalars(select(MCPToken))
@@ -283,10 +274,7 @@ async def test_mcp_exchange_is_single_use_and_stores_only_hashes(
     ],
 )
 async def test_mcp_exchange_rejects_mismatched_bindings(
-    client: httpx2.AsyncClient,
-    authorization: tuple[Solution, dict[str, str], dict[str, str]],
-    field: str,
-    value: str,
+    client: httpx2.AsyncClient, authorization: tuple[Solution, dict[str, str], dict[str, str]], field: str, value: str
 ) -> None:
     """Require the exact approved client, callback, Solution, and PKCE verifier."""
 
@@ -314,8 +302,7 @@ async def test_mcp_registration_rejects_unsafe_callbacks(client: httpx2.AsyncCli
 
 
 async def test_mcp_consent_rejects_unregistered_callbacks_and_untrusted_origins(
-    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient],
-    authorization_request: tuple[Solution, dict[str, str]],
+    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient], authorization_request: tuple[Solution, dict[str, str]]
 ) -> None:
     """Keep explicit consent inside the same-origin browser trust boundary."""
 
@@ -343,8 +330,7 @@ async def test_mcp_consent_rejects_unregistered_callbacks_and_untrusted_origins(
 
 
 async def test_mcp_bearer_is_limited_to_its_resource_and_cannot_authenticate_platform_routes(
-    client: httpx2.AsyncClient,
-    authorization: tuple[Solution, dict[str, str], dict[str, str]],
+    client: httpx2.AsyncClient, authorization: tuple[Solution, dict[str, str], dict[str, str]]
 ) -> None:
     """Admit the scoped token only to the approved MCP endpoint, without browser cookies."""
 
@@ -407,8 +393,7 @@ async def test_mcp_grants_recheck_expiry_revocation_identity_and_permissions(
 
 
 async def test_mcp_client_revocation_cannot_revoke_another_clients_grant(
-    client: httpx2.AsyncClient,
-    authorization: tuple[Solution, dict[str, str], dict[str, str]],
+    client: httpx2.AsyncClient, authorization: tuple[Solution, dict[str, str], dict[str, str]]
 ) -> None:
     """Keep client-bound grants intact when another registered client requests revocation."""
 
@@ -527,11 +512,7 @@ async def test_oauth_mcp_session_discovers_and_calls_real_sdk_tools(
 
 
 @pytest_asyncio.fixture
-async def mcp_gateway(
-    users: tuple[User, User, User],
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> tuple[Solution, LongLink]:
+async def mcp_gateway(users: tuple[User, User, User], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Solution, LongLink]:
     """Route the external gateway transport into a real isolated Solution runtime."""
 
     # Create valid persisted runtime state without contacting Kubernetes.
@@ -571,11 +552,7 @@ async def test_mcp_proxy_supports_session_initialization_discovery_and_invocatio
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": "initialize",
-                "params": {
-                    "protocolVersion": "2025-11-25",
-                    "capabilities": {},
-                    "clientInfo": {"name": "proxy-tests", "version": "1"},
-                },
+                "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "proxy-tests", "version": "1"}},
             },
         )
         assert initialized.status_code == 200, initialized.text
@@ -638,8 +615,7 @@ async def test_mcp_proxy_supports_current_protocol_without_a_session(
 
 
 async def test_mcp_proxy_explains_browser_navigation_without_a_session(
-    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient],
-    mcp_gateway: tuple[Solution, LongLink],
+    clients: tuple[httpx2.AsyncClient, httpx2.AsyncClient, httpx2.AsyncClient], mcp_gateway: tuple[Solution, LongLink]
 ) -> None:
     """Explain an actual uninitialized MCP GET instead of leaking its JSON-RPC error."""
 

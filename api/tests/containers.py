@@ -29,13 +29,7 @@ def postgres_server() -> Iterator[PostgresContainer]:
 
     # Probe Docker before delegating server startup and cleanup to Testcontainers.
     require_docker_daemon()
-    container = PostgresContainer(
-        "postgres:16-alpine",
-        username="longlink",
-        password="sec@ret",
-        dbname="postgres",
-        driver="psycopg",
-    )
+    container = PostgresContainer("postgres:16-alpine", username="longlink", password="sec@ret", dbname="postgres", driver="psycopg")
 
     with container:
         yield container
@@ -48,12 +42,7 @@ def mysql_server() -> Iterator[MySqlContainer]:
     # Keep root credentials confined to test-local database provisioning and cleanup.
     require_docker_daemon()
     container = MySqlContainer(
-        "mysql:8.4",
-        username="longlink",
-        password="sec@ret",
-        root_password="test-root-password",
-        dbname="longlink",
-        dialect="pymysql",
+        "mysql:8.4", username="longlink", password="sec@ret", root_password="test-root-password", dbname="longlink", dialect="pymysql"
     )
 
     with container:

@@ -35,9 +35,7 @@ async def unexpected_error_response(_request: Request, error: Exception) -> JSON
     )
     logger.error("Unhandled error %s\n%s", type(error).__name__, stack)
     return JSONResponse(
-        status_code=500,
-        content={"detail": "An unexpected error occurred. Please try again later."},
-        headers={"cache-control": "no-store"},
+        status_code=500, content={"detail": "An unexpected error occurred. Please try again later."}, headers={"cache-control": "no-store"}
     )
 
 

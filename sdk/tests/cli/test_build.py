@@ -159,13 +159,7 @@ def test_read_env_spec_emits_supported_environment_metadata(tmp_path: Path) -> N
     ("project_config", "module_path", "module_source", "message"),
     [
         pytest.param("", None, None, r"\[tool\.longlink\]\.environments", id="missing-config"),
-        pytest.param(
-            '[tool.longlink]\nenvironments = "invalid"\n',
-            None,
-            None,
-            r"\[tool\.longlink\]\.environments",
-            id="invalid-import",
-        ),
+        pytest.param('[tool.longlink]\nenvironments = "invalid"\n', None, None, r"\[tool\.longlink\]\.environments", id="invalid-import"),
         pytest.param('[tool.longlink]\nenvironments = "src.envs:Env"\n', None, None, "Environment model not found", id="missing-module"),
         pytest.param(
             '[tool.longlink]\nenvironments = "src.envs:Settings"\n',
@@ -205,11 +199,7 @@ def test_read_env_spec_emits_supported_environment_metadata(tmp_path: Path) -> N
     ],
 )
 def test_read_env_spec_rejects_invalid_environment_model_configuration(
-    tmp_path: Path,
-    project_config: str,
-    module_path: str | None,
-    module_source: str | None,
-    message: str,
+    tmp_path: Path, project_config: str, module_path: str | None, module_source: str | None, message: str
 ) -> None:
     """Reject environment model configuration before Docker build preparation."""
 
@@ -310,16 +300,12 @@ def test_read_env_spec_rejects_malformed_child_response(build_project: Path, mon
         build.read_env_spec(build_project, config)
 
 
-def test_build_solution_generates_docker_artifacts_from_project_metadata(
-    chdir_project: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_build_solution_generates_docker_artifacts_from_project_metadata(chdir_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Generate Docker instructions and ignore rules from project metadata."""
 
     # Arrange
     chdir_project.joinpath("src", "envs.py").write_text(
-        "from pydantic import BaseModel\n\nclass Env(BaseModel):\n    API_KEY: str\n",
-        encoding="utf-8",
+        "from pydantic import BaseModel\n\nclass Env(BaseModel):\n    API_KEY: str\n", encoding="utf-8"
     )
     chdir_project.joinpath(".env").write_text("SECRET=value\n", encoding="utf-8")
     chdir_project.joinpath("dev.db").write_text("local database", encoding="utf-8")
@@ -376,11 +362,7 @@ def test_build_solution_generates_docker_artifacts_from_project_metadata(
     ],
 )
 def test_build_rejects_invalid_project_metadata_before_generating_artifacts(
-    chdir_project: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    project_data: str,
-    message: str,
+    chdir_project: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], project_data: str, message: str
 ) -> None:
     """Reject incomplete project metadata before creating Docker artifacts."""
 
@@ -473,12 +455,10 @@ def test_resolve_docker_paths_includes_transitive_local_workspace_projects(build
             '[project]\nname = "common"\nversion = "0.1.0"\n[tool.uv.sources]\ndemo = { path = "../solution" }\n', encoding="utf-8"
         )
         dependency.joinpath("pyproject.toml").write_text(
-            '[project]\nname = "shared"\nversion = "0.1.0"\n[tool.uv.sources]\ncommon = { path = "../common" }\n',
-            encoding="utf-8",
+            '[project]\nname = "shared"\nversion = "0.1.0"\n[tool.uv.sources]\ncommon = { path = "../common" }\n', encoding="utf-8"
         )
         build_project.joinpath("pyproject.toml").write_text(
-            '[project]\nname = "demo"\nversion = "0.1.0"\n[tool.uv.sources]\nshared = { path = "../shared" }\n',
-            encoding="utf-8",
+            '[project]\nname = "demo"\nversion = "0.1.0"\n[tool.uv.sources]\nshared = { path = "../shared" }\n', encoding="utf-8"
         )
 
     # Act
@@ -532,8 +512,7 @@ def test_resolve_docker_paths_rejects_local_dependencies_outside_workspace(
         encoding="utf-8",
     )
     build_project.joinpath("pyproject.toml").write_text(
-        f'[project]\nname = "demo"\nversion = "0.1.0"\n\n[tool.uv.sources]\noutside = {source_config}\n',
-        encoding="utf-8",
+        f'[project]\nname = "demo"\nversion = "0.1.0"\n\n[tool.uv.sources]\noutside = {source_config}\n', encoding="utf-8"
     )
 
     # Act and assert
@@ -591,20 +570,10 @@ def test_build_solution_filters_expanded_context(chdir_project: Path) -> None:
 WORKSPACE_SOURCE_CASES = [
     pytest.param("{ workspace = true }", "", "", False, id="none"),
     pytest.param(
-        "{ workspace = true }",
-        'dependencies = ["shared"]\n[tool.uv.sources]\nshared = {{ path = {shared_path} }}\n',
-        "",
-        True,
-        id="path",
+        "{ workspace = true }", 'dependencies = ["shared"]\n[tool.uv.sources]\nshared = {{ path = {shared_path} }}\n', "", True, id="path"
     ),
     pytest.param("{ workspace = true }", 'dependencies = ["shared"]\n', "", True, id="workspace"),
-    pytest.param(
-        "{ workspace = true }",
-        '[build-system]\nrequires = ["shared"]\nbuild-backend = "shared"\n',
-        "",
-        True,
-        id="build",
-    ),
+    pytest.param("{ workspace = true }", '[build-system]\nrequires = ["shared"]\nbuild-backend = "shared"\n', "", True, id="build"),
     pytest.param(
         "[{ workspace = true }]",
         'dependencies = ["shared"]\n[tool.uv.sources]\nshared = [{{ path = {shared_path} }}]\n',
@@ -613,13 +582,7 @@ WORKSPACE_SOURCE_CASES = [
         id="path-list",
     ),
     pytest.param("[{ workspace = true }]", 'dependencies = ["shared"]\n', "", True, id="workspace-list"),
-    pytest.param(
-        "[{ workspace = true }]",
-        '[build-system]\nrequires = ["shared"]\nbuild-backend = "shared"\n',
-        "",
-        True,
-        id="build-list",
-    ),
+    pytest.param("[{ workspace = true }]", '[build-system]\nrequires = ["shared"]\nbuild-backend = "shared"\n', "", True, id="build-list"),
     pytest.param(
         "[{ workspace = true }]",
         'dependencies = ["shared"]\n[tool.uv.sources]\nshared = [{{ path = {shared_path} }}]\n',
@@ -801,10 +764,7 @@ def test_resolve_docker_paths_ignores_invalid_uv_sources(build_project: Path, so
 
     # Arrange
     build_project.parent.joinpath("incomplete-dependency").mkdir()
-    build_project.joinpath("pyproject.toml").write_text(
-        f'[project]\nname = "demo"\nversion = "0.1.0"\n\n{sources}',
-        encoding="utf-8",
-    )
+    build_project.joinpath("pyproject.toml").write_text(f'[project]\nname = "demo"\nversion = "0.1.0"\n\n{sources}', encoding="utf-8")
 
     # Act
     source_root, dependencies, manifests = build.resolve_docker_paths(build_project, build.read_pyproject(build_project))
@@ -839,12 +799,7 @@ def test_resolve_image_tag_returns_valid_image_references(solution_name: str, ve
         pytest.param("demo", "dev", "localhost:15000/team/invalid?", "Invalid Docker image path", id="invalid-namespace"),
     ],
 )
-def test_resolve_image_tag_rejects_invalid_image_references(
-    solution_name: str,
-    version: str,
-    registry: str | None,
-    message: str,
-) -> None:
+def test_resolve_image_tag_rejects_invalid_image_references(solution_name: str, version: str, registry: str | None, message: str) -> None:
     """Reject image reference values outside the supported Docker boundary."""
 
     with pytest.raises(errors.Error, match=message):
@@ -853,14 +808,7 @@ def test_resolve_image_tag_rejects_invalid_image_references(
 
 @pytest.mark.parametrize(
     ("arguments", "expected_commands"),
-    [
-        pytest.param(
-            ["--push"],
-            [["/usr/bin/docker", "push", "localhost:15000/demo:dev"]],
-            id="push",
-        ),
-        pytest.param([], [], id="local-only"),
-    ],
+    [pytest.param(["--push"], [["/usr/bin/docker", "push", "localhost:15000/demo:dev"]], id="push"), pytest.param([], [], id="local-only")],
 )
 @pytest.mark.usefixtures("chdir_project")
 def test_build_command_reports_built_image(
@@ -901,10 +849,7 @@ def test_build_command_reports_built_image(
 
 @pytest.mark.parametrize(
     ("failed_command", "exit_code", "expected_commands"),
-    [
-        pytest.param("build", 23, ["build"], id="build"),
-        pytest.param("push", 24, ["build", "push"], id="push"),
-    ],
+    [pytest.param("build", 23, ["build"], id="build"), pytest.param("push", 24, ["build", "push"], id="push")],
 )
 @pytest.mark.usefixtures("chdir_project")
 def test_build_command_reports_docker_failure(

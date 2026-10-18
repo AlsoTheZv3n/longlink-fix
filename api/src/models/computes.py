@@ -60,6 +60,8 @@ def kubeconfig_mapping(value: object) -> dict[str, object]:
         not cluster_names
         or not user_names
         or selected_context is None
+        or not isinstance(selected_context.get("cluster"), str)
+        or not isinstance(selected_context.get("user"), str)
         or selected_context.get("cluster") not in cluster_names
         or selected_context.get("user") not in user_names
     ):

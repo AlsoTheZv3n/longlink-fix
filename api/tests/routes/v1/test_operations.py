@@ -20,9 +20,7 @@ async def test_operations_endpoint_rejects_anonymous_requests(client: AsyncClien
     assert response.json() == {"detail": "Not authenticated"}
 
 
-async def test_operations_endpoint_rejects_non_administrators(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-) -> None:
+async def test_operations_endpoint_rejects_non_administrators(clients: tuple[AsyncClient, AsyncClient, AsyncClient]) -> None:
     """Require Platform administrator access for reconciliation history."""
 
     # Act
@@ -33,9 +31,7 @@ async def test_operations_endpoint_rejects_non_administrators(
     assert response.json() == {"detail": "Permission required"}
 
 
-async def test_operations_endpoint_paginates_history(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-) -> None:
+async def test_operations_endpoint_paginates_history(clients: tuple[AsyncClient, AsyncClient, AsyncClient]) -> None:
     """Return each reconciliation operation once across paginated history."""
 
     # Arrange
@@ -67,8 +63,7 @@ async def test_operations_endpoint_paginates_history(
 
 
 async def test_operations_endpoint_serializes_failed_organization_operation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Expose terminal failure details and the resolved organization name to administrators."""
 
@@ -101,8 +96,7 @@ async def test_operations_endpoint_serializes_failed_organization_operation(
     ],
 )
 async def test_operations_endpoint_rejects_out_of_bounds_pagination(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    query: str,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], query: str
 ) -> None:
     """Reject offset-based page requests outside the published bounds."""
 

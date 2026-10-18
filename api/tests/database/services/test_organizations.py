@@ -49,13 +49,7 @@ async def test_update_member_role_rejects_owner_changes_from_non_owners(users: t
     # Act and assert
     async with session_scope() as session:
         with pytest.raises(HTTPException, match="403: Owner management permissions required"):
-            await organizations.update_member_role(
-                session,
-                organization.id,
-                owner.id,
-                OrganizationRoles.read,
-                administrator.id,
-            )
+            await organizations.update_member_role(session, organization.id, owner.id, OrganizationRoles.read, administrator.id)
 
 
 async def test_membership_mutation_services_revalidate_demoted_administrator_access(users: tuple[User, User, User]) -> None:
@@ -71,10 +65,7 @@ async def test_membership_mutation_services_revalidate_demoted_administrator_acc
     # Preserve legitimate owner invitation access before revoking the administrator.
     async with session_scope() as session:
         await organizations.create_invitation(
-            session,
-            organization.id,
-            OrganizationInvitationCreate(email="owner-invited@example.com", role=OrganizationRoles.read),
-            owner.id,
+            session, organization.id, OrganizationInvitationCreate(email="owner-invited@example.com", role=OrganizationRoles.read), owner.id
         )
         await session.commit()
 
@@ -82,11 +73,7 @@ async def test_membership_mutation_services_revalidate_demoted_administrator_acc
         invitation_id = (await organizations.invitations(session, organization.id))[0].id
 
     # Cache authorization in independent request sessions before concurrently demoting the administrator.
-    async with (
-        session_scope() as create_invitation_session,
-        session_scope() as revoke_invitation_session,
-        session_scope() as role_session,
-    ):
+    async with session_scope() as create_invitation_session, session_scope() as revoke_invitation_session, session_scope() as role_session:
         for request_session in (create_invitation_session, revoke_invitation_session, role_session):
             cached_membership = await organizations.membership(request_session, administrator.id, organization.id)
             assert cached_membership is not None
@@ -108,13 +95,7 @@ async def test_membership_mutation_services_revalidate_demoted_administrator_acc
         with pytest.raises(HTTPException, match="403: Permission required"):
             await organizations.revoke_invitation(revoke_invitation_session, organization.id, invitation_id, administrator.id)
         with pytest.raises(HTTPException, match="403: Permission required"):
-            await organizations.update_member_role(
-                role_session,
-                organization.id,
-                owner.id,
-                OrganizationRoles.admin,
-                administrator.id,
-            )
+            await organizations.update_member_role(role_session, organization.id, owner.id, OrganizationRoles.admin, administrator.id)
 
     # Verify none of the rejected mutations persisted in an independent session.
     async with session_scope() as session:
@@ -209,13 +190,7 @@ async def test_soft_delete_tombstones_solutions_and_retains_memberships(users: t
             user_id=owner.id,
         )
         session.add(OrganizationInvitation(organization_id=organization.id, email="invited@example.com", role=OrganizationRoles.write))
-        session.add(
-            UserOrganization(
-                user_id=member.id,
-                organization_id=organization.id,
-                role=OrganizationRoles.write,
-            )
-        )
+        session.add(UserOrganization(user_id=member.id, organization_id=organization.id, role=OrganizationRoles.write))
         await session.commit()
 
     # Act

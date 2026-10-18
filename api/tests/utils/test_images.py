@@ -19,23 +19,15 @@ def mock_async_client(monkeypatch: pytest.MonkeyPatch, respond: Callable[[httpx2
 
 @pytest.mark.parametrize(
     "manifest_headers",
-    [
-        pytest.param({"Docker-Content-Digest": "sha256:deadbeef"}, id="digest-header"),
-        pytest.param({}, id="digest-reference-fallback"),
-    ],
+    [pytest.param({"Docker-Content-Digest": "sha256:deadbeef"}, id="digest-header"), pytest.param({}, id="digest-reference-fallback")],
 )
-async def test_metadata_fetches_digest_image_references(
-    monkeypatch: pytest.MonkeyPatch,
-    manifest_headers: dict[str, str],
-) -> None:
+async def test_metadata_fetches_digest_image_references(monkeypatch: pytest.MonkeyPatch, manifest_headers: dict[str, str]) -> None:
     """Inspect public GHCR digest-pinned image references."""
 
     # Arrange
     image = "ghcr.io/longlink/dashboard@sha256:deadbeef"
     expected_metadata = LongLinkMetadata(
-        image=Image(image),
-        description="Demo app",
-        environments=[EnvironmentMetadata(name="API_KEY", required=True)],
+        image=Image(image), description="Demo app", environments=[EnvironmentMetadata(name="API_KEY", required=True)]
     )
     captured: list[tuple[str, dict[str, str]]] = []
 
@@ -50,18 +42,10 @@ async def test_metadata_fetches_digest_image_references(
             captured.append(
                 (
                     "manifest",
-                    {
-                        "url": str(request.url),
-                        "accept": request.headers["Accept"],
-                        "authorization": request.headers["Authorization"],
-                    },
+                    {"url": str(request.url), "accept": request.headers["Accept"], "authorization": request.headers["Authorization"]},
                 )
             )
-            return httpx2.Response(
-                200,
-                json={"config": {"digest": "sha256:config"}},
-                headers=manifest_headers,
-            )
+            return httpx2.Response(200, json={"config": {"digest": "sha256:config"}}, headers=manifest_headers)
         captured.append(("blob", {"url": str(request.url), "authorization": request.headers["Authorization"]}))
         return httpx2.Response(
             200,
@@ -83,10 +67,7 @@ async def test_metadata_fetches_digest_image_references(
     # Assert
     assert image_metadata == expected_metadata
     assert captured == [
-        (
-            "token",
-            {"url": "https://ghcr.io/token?service=ghcr.io&scope=repository%3Alonglink%2Fdashboard%3Apull"},
-        ),
+        ("token", {"url": "https://ghcr.io/token?service=ghcr.io&scope=repository%3Alonglink%2Fdashboard%3Apull"}),
         (
             "manifest",
             {
@@ -95,13 +76,7 @@ async def test_metadata_fetches_digest_image_references(
                 "authorization": "Bearer pull-token",
             },
         ),
-        (
-            "blob",
-            {
-                "url": "https://ghcr.io/v2/longlink/dashboard/blobs/sha256:config",
-                "authorization": "Bearer pull-token",
-            },
-        ),
+        ("blob", {"url": "https://ghcr.io/v2/longlink/dashboard/blobs/sha256:config", "authorization": "Bearer pull-token"}),
     ]
 
 
@@ -122,9 +97,7 @@ async def test_metadata_rejects_mismatched_registry_digest(monkeypatch: pytest.M
         if request.url.path == f"/v2/longlink/dashboard/manifests/{digest}":
             assert request.headers["Authorization"] == "Bearer pull-token"
             return httpx2.Response(
-                200,
-                json={"config": {"digest": "sha256:config"}},
-                headers={"Docker-Content-Digest": f"sha256:{'b' * 64}"},
+                200, json={"config": {"digest": "sha256:config"}}, headers={"Docker-Content-Digest": f"sha256:{'b' * 64}"}
             )
         raise AssertionError("Mismatched registry digests must not fetch config blobs")
 
@@ -148,11 +121,7 @@ async def test_metadata_follows_config_blob_redirects(monkeypatch: pytest.Monkey
         if request.url.path == "/token":
             return httpx2.Response(200, json={"token": "pull-token"})
         if "/manifests/" in request.url.path:
-            return httpx2.Response(
-                200,
-                json={"config": {"digest": "sha256:config"}},
-                headers={"Docker-Content-Digest": "sha256:deadbeef"},
-            )
+            return httpx2.Response(200, json={"config": {"digest": "sha256:config"}}, headers={"Docker-Content-Digest": "sha256:deadbeef"})
         if request.url.host == "ghcr.io":
             assert request.headers["Authorization"] == "Bearer pull-token"
             return httpx2.Response(307, headers={"Location": "https://pkg-containers.githubusercontent.com/config"})
@@ -233,21 +202,14 @@ async def test_registry_json_rejects_streamed_metadata_larger_than_limit() -> No
             id="failed-manifest",
         ),
         pytest.param(
-            [
-                httpx2.Response(200, json={"token": "pull-token"}),
-                httpx2.Response(200, json={"config": {"digest": "sha256:config"}}),
-            ],
+            [httpx2.Response(200, json={"token": "pull-token"}), httpx2.Response(200, json={"config": {"digest": "sha256:config"}})],
             ["/token", "/v2/longlink/dashboard/manifests/latest"],
             id="missing-registry-digest",
         ),
         pytest.param(
             [
                 httpx2.Response(200, json={"token": "pull-token"}),
-                httpx2.Response(
-                    200,
-                    json={"config": {"digest": "invalid"}},
-                    headers={"Docker-Content-Digest": "sha256:deadbeef"},
-                ),
+                httpx2.Response(200, json={"config": {"digest": "invalid"}}, headers={"Docker-Content-Digest": "sha256:deadbeef"}),
             ],
             ["/token", "/v2/longlink/dashboard/manifests/latest"],
             id="invalid-config",
@@ -263,11 +225,7 @@ async def test_registry_json_rejects_streamed_metadata_larger_than_limit() -> No
         pytest.param(
             [
                 httpx2.Response(200, json={"token": "pull-token"}),
-                httpx2.Response(
-                    200,
-                    json={"config": {"digest": "sha256:config"}},
-                    headers={"Docker-Content-Digest": "sha256:deadbeef"},
-                ),
+                httpx2.Response(200, json={"config": {"digest": "sha256:config"}}, headers={"Docker-Content-Digest": "sha256:deadbeef"}),
                 httpx2.Response(503),
             ],
             ["/token", "/v2/longlink/dashboard/manifests/latest", "/v2/longlink/dashboard/blobs/sha256:config"],
@@ -310,11 +268,7 @@ async def test_metadata_accepts_config_without_labels(monkeypatch: pytest.Monkey
         if request.url.path == "/token":
             return httpx2.Response(200, json={"token": "pull-token"})
         if "/manifests/" in request.url.path:
-            return httpx2.Response(
-                200,
-                json={"config": {"digest": "sha256:config"}},
-                headers={"Docker-Content-Digest": "sha256:deadbeef"},
-            )
+            return httpx2.Response(200, json={"config": {"digest": "sha256:config"}}, headers={"Docker-Content-Digest": "sha256:deadbeef"})
         return httpx2.Response(200, json={"config": {}})
 
     mock_async_client(monkeypatch, respond)
@@ -336,8 +290,7 @@ async def test_metadata_accepts_config_without_labels(monkeypatch: pytest.Monkey
         pytest.param({"config": {"Labels": {"dev.longlink.environments": "not-json"}}}, id="invalid-environments-json"),
         pytest.param({"config": {"Labels": {"dev.longlink.environments": "{}"}}}, id="invalid-environments-shape"),
         pytest.param(
-            {"config": {"Labels": {"dev.longlink.environments": '[{"name":"API_KEY","required":[]}]'}}},
-            id="invalid-environment-entry",
+            {"config": {"Labels": {"dev.longlink.environments": '[{"name":"API_KEY","required":[]}]'}}}, id="invalid-environment-entry"
         ),
     ],
 )
@@ -355,11 +308,7 @@ async def test_metadata_rejects_malformed_config_metadata(monkeypatch: pytest.Mo
             return httpx2.Response(200, json={"token": "pull-token"})
         if "/manifests/" in request.url.path:
             assert request.headers["Authorization"] == "Bearer pull-token"
-            return httpx2.Response(
-                200,
-                json={"config": {"digest": "sha256:config"}},
-                headers={"Docker-Content-Digest": "sha256:deadbeef"},
-            )
+            return httpx2.Response(200, json={"config": {"digest": "sha256:config"}}, headers={"Docker-Content-Digest": "sha256:deadbeef"})
         assert request.headers["Authorization"] == "Bearer pull-token"
         return httpx2.Response(200, json=config_blob)
 
@@ -386,8 +335,7 @@ def test_missing_envs_returns_required_unconfigured_values(envs: dict[str, str],
 
     # Arrange
     metadata = LongLinkMetadata(
-        image=Image("ghcr.io/longlink/dashboard:latest"),
-        environments=[EnvironmentMetadata(name="API_KEY", required=True)],
+        image=Image("ghcr.io/longlink/dashboard:latest"), environments=[EnvironmentMetadata(name="API_KEY", required=True)]
     )
 
     # Act
@@ -468,8 +416,7 @@ async def test_local_registry_selects_amd64_child_without_authentication(monkeyp
     mock_async_client(monkeypatch, respond)
     result = await images.required_metadata(Image("localhost:15000/sample:dev"))
     assert result == LongLinkMetadata(
-        image=Image("localhost:15000/sample@sha256:amd"),
-        environments=[EnvironmentMetadata(name="NEW", required=True)],
+        image=Image("localhost:15000/sample@sha256:amd"), environments=[EnvironmentMetadata(name="NEW", required=True)]
     )
     assert paths == ["/v2/sample/manifests/dev", "/v2/sample/manifests/sha256:amd", "/v2/sample/blobs/sha256:config"]
 

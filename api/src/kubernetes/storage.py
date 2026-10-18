@@ -35,17 +35,9 @@ class Storage:
         # Route administrator requests through the bound Kubernetes connection.
         async with self._cluster.forward_storage() as port:
             # Close the workflow's HTTP transport before the Kubernetes tunnel is released.
-            client = httpx2.AsyncClient(
-                trust_env=False,
-                timeout=30,
-                follow_redirects=False,
-            )
+            client = httpx2.AsyncClient(trust_env=False, timeout=30, follow_redirects=False)
             async with client:
-                admin = rustfs.RustFS(
-                    f"http://127.0.0.1:{port}",
-                    self._credentials,
-                    client,
-                )
+                admin = rustfs.RustFS(f"http://127.0.0.1:{port}", self._credentials, client)
                 yield admin
 
     @staticmethod
@@ -79,11 +71,7 @@ class Storage:
         # kr8s starts the remote port-forward only when a request enters its local listener.
         async with self._cluster.forward_storage() as port:
             # Release the readiness HTTP client before closing its tunnel.
-            client = httpx2.AsyncClient(
-                trust_env=False,
-                timeout=5.0,
-                follow_redirects=False,
-            )
+            client = httpx2.AsyncClient(trust_env=False, timeout=5.0, follow_redirects=False)
             async with client:
                 response = await client.get(f"http://127.0.0.1:{port}/health/ready")
                 response.raise_for_status()

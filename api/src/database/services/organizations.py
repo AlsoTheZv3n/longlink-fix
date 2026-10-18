@@ -42,10 +42,7 @@ def _membership_query(user_id: UUID) -> Select[UserOrganization]:
                 attr(Organization.storage_quota_bytes),
             )
         )
-        .where(
-            col(UserOrganization.user_id) == user_id,
-            col(Organization.deleted_at).is_(None),
-        )
+        .where(col(UserOrganization.user_id) == user_id, col(Organization.deleted_at).is_(None))
     )
 
 
@@ -58,10 +55,7 @@ async def membership(session: AsyncSession, user_id: UUID, organization_id: UUID
 
 
 async def require_membership(
-    session: AsyncSession,
-    user_id: UUID,
-    organization_id: UUID,
-    minimum_role: OrganizationRoles = OrganizationRoles.read,
+    session: AsyncSession, user_id: UUID, organization_id: UUID, minimum_role: OrganizationRoles = OrganizationRoles.read
 ) -> UserOrganization:
     """Require active Organization access with the requested minimum role without taking command locks."""
 
@@ -100,17 +94,8 @@ async def solution_runtime_access(
         select(Solution, col(UserOrganization.role), ComputeRegistry)
         .execution_options(populate_existing=True)
         .options(
-            load_only(
-                attr(Solution.id),
-                attr(Solution.organization_id),
-                attr(Solution.secrets),
-                attr(Solution.status),
-            ),
-            load_only(
-                attr(ComputeRegistry.id),
-                attr(ComputeRegistry.gateway_url),
-                attr(ComputeRegistry.gateway_certificate),
-            ),
+            load_only(attr(Solution.id), attr(Solution.organization_id), attr(Solution.secrets), attr(Solution.status)),
+            load_only(attr(ComputeRegistry.id), attr(ComputeRegistry.gateway_url), attr(ComputeRegistry.gateway_certificate)),
         )
         .join(Organization, col(Organization.id) == col(Solution.organization_id))
         .join(UserOrganization, col(UserOrganization.organization_id) == col(Organization.id))
@@ -122,7 +107,7 @@ async def solution_runtime_access(
             col(UserOrganization.user_id) == user_id,
         )
     )
-    return result.tuples().one_or_none()
+    return result.one_or_none()
 
 
 async def solution_logs_access(
@@ -144,7 +129,7 @@ async def solution_logs_access(
             col(UserOrganization.user_id) == user_id,
         )
     )
-    return result.tuples().one_or_none()
+    return result.one_or_none()
 
 
 async def storage_infrastructure(session: AsyncSession, organization_id: UUID) -> ComputeRegistry | None:
@@ -185,7 +170,7 @@ async def database_infrastructure(session: AsyncSession, organization_id: UUID) 
         .join(ComputeRegistry, col(ComputeRegistry.id) == col(Organization.compute_id))
         .where(col(Organization.id) == organization_id, col(Organization.deleted_at).is_(None))
     )
-    return result.tuples().one_or_none()
+    return result.one_or_none()
 
 
 def _infrastructure_query() -> Select[Organization, ComputeRegistry]:
@@ -203,7 +188,7 @@ def _infrastructure_query() -> Select[Organization, ComputeRegistry]:
                 attr(ComputeRegistry.storage_access_key),
                 attr(ComputeRegistry.storage_secret_key),
                 attr(ComputeRegistry.storage_certificate),
-            ),
+            )
         )
         .join(ComputeRegistry, col(ComputeRegistry.id) == col(Organization.compute_id))
     )
@@ -215,7 +200,7 @@ async def infrastructure(session: AsyncSession, organization_id: UUID) -> tuple[
     # Load only the Organization lifecycle fields and provider connections consumed by reconciliation.
     statement = _infrastructure_query().where(col(Organization.id) == organization_id)
     result = await session.execute(statement)
-    return result.tuples().one_or_none()
+    return result.one_or_none()
 
 
 async def solution_cleanup_infrastructure(session: AsyncSession, solution_id: UUID) -> tuple[Organization, ComputeRegistry] | None:
@@ -228,7 +213,7 @@ async def solution_cleanup_infrastructure(session: AsyncSession, solution_id: UU
         .where(col(Solution.id) == solution_id)
     )
     result = await session.execute(statement)
-    return result.tuples().one_or_none()
+    return result.one_or_none()
 
 
 async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> tuple[Solution, Organization, ComputeRegistry] | None:
@@ -253,7 +238,7 @@ async def solution_infrastructure(session: AsyncSession, solution_id: UUID) -> t
         .where(col(Solution.id) == solution_id)
     )
     result = await session.execute(statement)
-    return result.tuples().one_or_none()
+    return result.one_or_none()
 
 
 async def fetch(session: AsyncSession, pagination: Pagination, search: str = "") -> tuple[Sequence[Organization], int]:
@@ -268,14 +253,7 @@ async def fetch(session: AsyncSession, pagination: Pagination, search: str = "")
 
     # Load only Organization identity fields using a stable page order.
     statement = (
-        query.options(
-            load_only(
-                attr(Organization.id),
-                attr(Organization.name),
-                attr(Organization.slug),
-                attr(Organization.status),
-            )
-        )
+        query.options(load_only(attr(Organization.id), attr(Organization.name), attr(Organization.slug), attr(Organization.status)))
         .order_by(col(Organization.created_at).desc(), col(Organization.id).desc())
         .offset(pagination.offset)
         .limit(pagination.page_size)
@@ -306,10 +284,7 @@ async def solutions(session: AsyncSession, organization_id: UUID) -> Sequence[So
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.failed), raiseload=True),
             selectinload(attr(Solution.deployed_revision)).load_only(attr(Revision.version), raiseload=True),
         )
-        .where(
-            col(Solution.organization_id) == organization_id,
-            col(Solution.deleted_at).is_(None),
-        )
+        .where(col(Solution.organization_id) == organization_id, col(Solution.deleted_at).is_(None))
         .order_by(col(Solution.created_at))
     )
     result = await session.scalars(statement)
@@ -340,17 +315,8 @@ async def members(session: AsyncSession, organization_id: UUID) -> Sequence[User
     # Load memberships with the user identity fields required by API payloads.
     statement = (
         select(UserOrganization)
-        .options(
-            joinedload(attr(UserOrganization.user)).load_only(
-                attr(User.id),
-                attr(User.name),
-                attr(User.email),
-                attr(User.avatar),
-            )
-        )
-        .where(
-            col(UserOrganization.organization_id) == organization_id,
-        )
+        .options(joinedload(attr(UserOrganization.user)).load_only(attr(User.id), attr(User.name), attr(User.email), attr(User.avatar)))
+        .where(col(UserOrganization.organization_id) == organization_id)
     )
 
     result = await session.scalars(statement)
@@ -388,12 +354,7 @@ async def locked_membership(
     """Refresh and authorize a membership after the caller has locked its Organization."""
 
     # Lock and refresh caller access so previously loaded memberships cannot authorize revoked users.
-    membership = await session.get(
-        UserOrganization,
-        (user_id, organization_id),
-        populate_existing=True,
-        with_for_update=True,
-    )
+    membership = await session.get(UserOrganization, (user_id, organization_id), populate_existing=True, with_for_update=True)
     if membership is None:
         raise HTTPException(status_code=403, detail="Access required")
     if not roles.atleast(membership.role, minimum_role):
@@ -513,10 +474,7 @@ async def create(session: AsyncSession, name: str, user: User) -> Organization:
 
     organization_limit_result = await session.execute(
         select(1)
-        .where(
-            col(Organization.created_id) == user.id,
-            col(Organization.deleted_at).is_(None),
-        )
+        .where(col(Organization.created_id) == user.id, col(Organization.deleted_at).is_(None))
         .offset(2)
         .limit(1)
         .with_for_update()
@@ -547,11 +505,7 @@ async def create(session: AsyncSession, name: str, user: User) -> Organization:
         raise HTTPException(status_code=503, detail="No compute registry available")
 
     # Build the Organization with its immutable infrastructure assignments.
-    organization = Organization(
-        name=name,
-        slug=names.slugify(name),
-        compute_id=compute_id,
-    )
+    organization = Organization(name=name, slug=names.slugify(name), compute_id=compute_id)
 
     # Attach the creator as the initial owner for every organization.
     organization.created_id = user.id
@@ -559,13 +513,7 @@ async def create(session: AsyncSession, name: str, user: User) -> Organization:
     # Translate unique conflicts from autoflush without invalidating the caller's transaction.
     try:
         async with session.begin_nested():
-            session.add(
-                UserOrganization(
-                    user_id=user.id,
-                    organization_id=organization.id,
-                    role=OrganizationRoles.owner,
-                )
-            )
+            session.add(UserOrganization(user_id=user.id, organization_id=organization.id, role=OrganizationRoles.owner))
             session.add(organization)
             await session.flush()
     # Keep Organization uniqueness collisions at the service boundary as an API conflict.
@@ -597,10 +545,7 @@ async def create_invitation(session: AsyncSession, organization_id: UUID, payloa
         await session.scalar(
             select(col(User.id))
             .join(UserOrganization, col(UserOrganization.user_id) == col(User.id))
-            .where(
-                col(UserOrganization.organization_id) == organization_id,
-                col(User.email) == payload.email,
-            )
+            .where(col(UserOrganization.organization_id) == organization_id, col(User.email) == payload.email)
         )
         is not None
     ):
@@ -609,10 +554,7 @@ async def create_invitation(session: AsyncSession, organization_id: UUID, payloa
     # Re-inviting replaces the existing active grant and refreshes its delivery timestamp.
     invitation_statement = (
         select(OrganizationInvitation)
-        .where(
-            col(OrganizationInvitation.organization_id) == organization_id,
-            col(OrganizationInvitation.email) == payload.email,
-        )
+        .where(col(OrganizationInvitation.organization_id) == organization_id, col(OrganizationInvitation.email) == payload.email)
         .with_for_update()
     )
     invitation = await session.scalar(invitation_statement)
@@ -679,10 +621,7 @@ async def soft_delete(session: AsyncSession, organization_id: UUID, user: User) 
         # Tombstone every active Solution without loading each object.
         await session.execute(
             sql_update(Solution)
-            .where(
-                col(Solution.organization_id) == organization_id,
-                col(Solution.deleted_at).is_(None),
-            )
+            .where(col(Solution.organization_id) == organization_id, col(Solution.deleted_at).is_(None))
             .values(deleted_at=now, deleted_id=user.id, updated_at=now, updated_id=user.id)
         )
 

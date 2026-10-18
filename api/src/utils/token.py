@@ -44,11 +44,7 @@ def create_registration_token(email: Email) -> str:
 
     # Sign the request identity into immutable registration proof.
     return jwt.encode(
-        {
-            "email": email,
-            "aud": REGISTRATION_TOKEN_AUDIENCE,
-            "exp": datetime.now(UTC) + timedelta(seconds=EMAIL_TOKEN_LIFETIME_SECONDS),
-        },
+        {"email": email, "aud": REGISTRATION_TOKEN_AUDIENCE, "exp": datetime.now(UTC) + timedelta(seconds=EMAIL_TOKEN_LIFETIME_SECONDS)},
         env.SESSION_KEY,
         algorithm=JWT_ALGORITHM,
     )
@@ -150,7 +146,7 @@ def create_auth_token(user: User) -> str:
             "password_fingerprint": password_fingerprint(user.password),
             "aud": AUTH_TOKEN_AUDIENCE,
             "iat": issued_at,
-            "exp": issued_at + timedelta(seconds=env.AUTH_SESSION_LIFETIME_SECONDS),
+            "exp": issued_at + timedelta(days=30),
         },
         env.SESSION_KEY,
         algorithm=JWT_ALGORITHM,

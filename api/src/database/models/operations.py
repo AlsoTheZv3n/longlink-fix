@@ -11,15 +11,7 @@ class Operation(AuditTable, table=True):
     """Persist one durable Platform request and its expiring worker lock."""
 
     __tablename__: ClassVar[str] = "operations"
-    __table_args__ = (
-        Index(
-            "ix_operations_queue",
-            "kind",
-            "target_id",
-            "finished_at",
-            "lease_expires_at",
-        ),
-    )
+    __table_args__ = (Index("ix_operations_queue", "kind", "target_id", "finished_at", "lease_expires_at"),)
 
     # Identifier
     id: UUID = Field(default_factory=uuid4, primary_key=True)

@@ -8,8 +8,4 @@ class Environments(BaseSettings):
     bind shorter names to ``ENV_``-prefixed variables in ``.env``).
     """
 
-    model_config = SettingsConfigDict(
-        env_file=(".env.sample", ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=(".env.sample", ".env"), env_file_encoding="utf-8", extra="ignore")
