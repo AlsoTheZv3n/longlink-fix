@@ -34,8 +34,8 @@ async def username(credential: SecretStr) -> str:
                     "X-GitHub-Api-Version": "2022-11-28",
                 },
             )
-    except httpx2.HTTPError as exc:
-        raise HTTPException(status_code=503, detail="GitHub account lookup is unavailable. Try again later.") from exc
+    except httpx2.HTTPError:
+        raise HTTPException(status_code=503, detail="GitHub account lookup is unavailable. Try again later.")
 
     # Reject invalid credentials and surface provider failures before persisting a connection.
     if response.status_code == 401:
@@ -48,6 +48,6 @@ async def username(credential: SecretStr) -> str:
     # Validate the provider's username before it becomes a registry authentication identity.
     try:
         profile = Profile.model_validate(response.json())
-    except ValueError as exc:
-        raise HTTPException(status_code=503, detail="GitHub returned an invalid account profile") from exc
+    except ValueError:
+        raise HTTPException(status_code=503, detail="GitHub returned an invalid account profile")
     return profile.login

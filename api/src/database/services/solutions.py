@@ -117,8 +117,8 @@ async def create(
         async with session.begin_nested():
             session.add(solution)
             await session.flush()
-    except IntegrityError as exc:
-        raise HTTPException(status_code=409, detail="Solution slug already exists") from exc
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Solution slug already exists")
 
     # Creation uses the same immutable release boundary as subsequent updates.
     await deploy(
@@ -205,7 +205,7 @@ async def deploy(
     try:
         validate_environment_variables(merged)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc))
     missing = images.missing_envs(metadata, merged)
     if missing:
         raise HTTPException(status_code=422, detail=f"Solution environment does not satisfy required image variables: {', '.join(missing)}")
@@ -218,7 +218,7 @@ async def deploy(
     try:
         validate_idle_seconds(idle_seconds)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc))
 
     # Never change Solution-owned runtime credentials when appending a release.
     revision = Revision(

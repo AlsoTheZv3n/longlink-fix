@@ -31,7 +31,7 @@ async def get_cards(ctx: Context, organization_id: UUID):
         customer = await connection.v1.customers.retrieve_async(organization.stripe_customer_id)
         if customer.get("deleted", False):
             return []
-        default = customer.invoice_settings.default_payment_method
+        default = customer.invoice_settings.default_payment_method if customer.invoice_settings is not None else None
         methods = await connection.v1.payment_methods.list_async(
             {"customer": organization.stripe_customer_id, "type": "card", "limit": 100}
         )
@@ -121,7 +121,11 @@ async def receive_webhook(ctx: Context, request: Request):
     if organization_id is None:
         return
     organization = await organizations.lock(ctx.database, organization_id)
-    if organization.deleted_at is None and event.data.object.get("id") == organization.stripe_checkout_id:
+    if (
+        organization.deleted_at is None
+        and organization.stripe_checkout_id is not None
+        and event.data.object.get("id") == organization.stripe_checkout_id
+    ):
         async with stripe.client() as connection:
             hosted = await connection.v1.checkout.sessions.retrieve_async(organization.stripe_checkout_id)
             await payments.save_card(ctx.database, organization, hosted, connection)

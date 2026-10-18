@@ -9,11 +9,7 @@ router = APIRouter(dependencies=[Depends(auth.authadmin)])
 
 
 @router.get("/operations", response_model=Page[OperationResponse])
-async def list_operations(
-    ctx: Context,
-    pagination: Pagination = Depends(),
-    search: str = Query(default="", max_length=200),
-):
+async def list_operations(ctx: Context, pagination: Pagination = Depends(), search: str = Query(default="", max_length=200)):
     """Return Platform reconciliation history for administrators."""
 
     # Search the full administrator listing before pagination.

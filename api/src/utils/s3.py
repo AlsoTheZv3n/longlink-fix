@@ -24,12 +24,7 @@ class Credentials:
 class S3:
     """Perform bucket-owner operations against a TLS-verified S3 endpoint."""
 
-    def __init__(
-        self,
-        endpoint: str,
-        credentials: Credentials,
-        certificate: str | None = None,
-    ) -> None:
+    def __init__(self, endpoint: str, credentials: Credentials, certificate: str | None = None) -> None:
         """Store connection settings without opening a transport."""
 
         # Keep transport routing separate from the signed and TLS-verified endpoint.

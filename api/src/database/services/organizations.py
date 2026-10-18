@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import cast
 from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
@@ -9,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
 from src.models.roles import OrganizationRoles
+from sqlalchemy.engine import CursorResult
 from src.database.types import attr
 from src.models.pricing import FREE_USERS
 from src.database.services import operations
@@ -413,13 +415,7 @@ async def _lock_active_membership(
     return await locked_membership(session, user_id, organization_id, minimum_role)
 
 
-async def update_member_role(
-    session: AsyncSession,
-    organization_id: UUID,
-    member_id: UUID,
-    role: OrganizationRoles,
-    user_id: UUID,
-) -> None:
+async def update_member_role(session: AsyncSession, organization_id: UUID, member_id: UUID, role: OrganizationRoles, user_id: UUID) -> None:
     """Change one active Organization membership role."""
 
     # Lock the Organization before revalidating the caller's active access.
@@ -505,11 +501,7 @@ async def remove_member(session: AsyncSession, organization_id: UUID, member_id:
     await session.delete(membership)
 
 
-async def create(
-    session: AsyncSession,
-    name: str,
-    user: User,
-) -> Organization:
+async def create(session: AsyncSession, name: str, user: User) -> Organization:
     """Create an Organization on the least-assigned available infrastructure."""
 
     # Serialize each creator's quota check and insert to prevent concurrent requests exceeding the beta limit.
@@ -545,8 +537,11 @@ async def create(
         raise HTTPException(status_code=503, detail="No ready compute registry available")
 
     # A no-op write serializes admission on every supported backend, including SQLite.
-    result = await session.execute(
-        sql_update(ComputeRegistry).where(col(ComputeRegistry.id) == compute_id).values(name=col(ComputeRegistry.name))
+    result = cast(
+        CursorResult[tuple[object, ...]],
+        await session.execute(
+            sql_update(ComputeRegistry).where(col(ComputeRegistry.id) == compute_id).values(name=col(ComputeRegistry.name))
+        ),
     )
     if result.rowcount != 1:
         raise HTTPException(status_code=503, detail="No compute registry available")
@@ -574,20 +569,15 @@ async def create(
             session.add(organization)
             await session.flush()
     # Keep Organization uniqueness collisions at the service boundary as an API conflict.
-    except IntegrityError as exc:
-        raise HTTPException(status_code=409, detail="Organization already exists") from exc
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Organization already exists")
 
     # Queue infrastructure creation in the caller's transaction after persisting the Organization.
     await operations.enqueue(session, kind=OperationKind.organization_create, target_id=organization.id)
     return organization
 
 
-async def create_invitation(
-    session: AsyncSession,
-    organization_id: UUID,
-    payload: OrganizationInvitationCreate,
-    user_id: UUID,
-) -> None:
+async def create_invitation(session: AsyncSession, organization_id: UUID, payload: OrganizationInvitationCreate, user_id: UUID) -> None:
     """Authorize and create one Organization invitation."""
 
     # Lock the Organization before revalidating the caller's active invitation permission.
@@ -635,10 +625,10 @@ async def create_invitation(
                 session.add(invitation)
                 await session.flush()
             return
-        except IntegrityError as exc:
+        except IntegrityError:
             invitation = await session.scalar(invitation_statement)
             if invitation is None:
-                raise HTTPException(status_code=409, detail="Invitation could not be created") from exc
+                raise HTTPException(status_code=409, detail="Invitation could not be created")
 
     invitation.role = payload.role
     invitation.created_at = datetime.now(UTC)

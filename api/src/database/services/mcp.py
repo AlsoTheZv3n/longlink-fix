@@ -3,8 +3,10 @@ import base64
 import hashlib
 import secrets
 from uuid import UUID
+from typing import cast
 from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
+from sqlmodel import col
 from src.utils import token
 from sqlalchemy import delete, select
 from src.models import mcp
@@ -13,6 +15,7 @@ from sqlalchemy.orm import load_only
 from collections.abc import Sequence
 from src.environments import env
 from src.models.roles import OrganizationRoles
+from sqlalchemy.engine import CursorResult
 from src.database.types import attr
 from src.database.services import organizations
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -97,7 +100,7 @@ async def _permitted_solution(session: AsyncSession, user: User, solution_id: UU
                 attr(Solution.organization_id),
             )
         )
-        .where(Solution.id == solution_id)
+        .where(col(Solution.id) == solution_id)
     )
     if solution is None or solution.deleted_at is not None:
         raise HTTPException(status_code=403, detail="Access required")
@@ -120,7 +123,7 @@ async def authenticate(session: AsyncSession, credential: str, solution_id: UUID
                 attr(MCPToken.solution_id),
             )
         )
-        .where(MCPToken.hash == digest(credential))
+        .where(col(MCPToken.hash) == digest(credential))
     )
     if (
         grant is None
@@ -162,8 +165,8 @@ async def approve(session: AsyncSession, user: User, payload: mcp.Approval) -> s
         return redirect(payload.redirect_uri, {"error": "access_denied", "state": payload.state})
 
     # Expire stale proof and store only the hash of the new code in the same transaction.
-    await session.execute(delete(MCPCode).where(MCPCode.expires_at <= datetime.now(UTC)))
-    await session.execute(delete(MCPToken).where(MCPToken.expires_at <= datetime.now(UTC)))
+    await session.execute(delete(MCPCode).where(col(MCPCode.expires_at) <= datetime.now(UTC)))
+    await session.execute(delete(MCPToken).where(col(MCPToken.expires_at) <= datetime.now(UTC)))
     code = secrets.token_urlsafe(32)
     proof = MCPCode(
         hash=digest(code),
@@ -213,7 +216,10 @@ async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[st
         raise OAuthError("invalid_grant", "Authorization is no longer valid") from exc
 
     # Exactly one overlapping exchange may consume this code and issue a token.
-    consumed = await session.execute(delete(MCPCode).where(MCPCode.hash == proof.hash, MCPCode.expires_at > datetime.now(UTC)))
+    consumed = cast(
+        CursorResult[tuple[object, ...]],
+        await session.execute(delete(MCPCode).where(col(MCPCode.hash) == proof.hash, col(MCPCode.expires_at) > datetime.now(UTC))),
+    )
     if consumed.rowcount != 1:
         raise OAuthError("invalid_grant", "Authorization code already used")
     credential = secrets.token_urlsafe(32)
@@ -233,7 +239,7 @@ async def exchange(session: AsyncSession, payload: mcp.TokenExchange) -> dict[st
 async def revoke(session: AsyncSession, credential: str, client_id: UUID) -> None:
     """Revoke the presented client credential without revealing whether it exists."""
 
-    await session.execute(delete(MCPToken).where(MCPToken.hash == digest(credential), MCPToken.client_id == client_id))
+    await session.execute(delete(MCPToken).where(col(MCPToken.hash) == digest(credential), col(MCPToken.client_id) == client_id))
 
 
 async def tokens(session: AsyncSession, user_id: UUID) -> Sequence[MCPToken]:
@@ -249,7 +255,7 @@ async def tokens(session: AsyncSession, user_id: UUID) -> Sequence[MCPToken]:
                 attr(MCPToken.solution_id),
             )
         )
-        .where(MCPToken.user_id == user_id, MCPToken.expires_at > datetime.now(UTC))
+        .where(col(MCPToken.user_id) == user_id, col(MCPToken.expires_at) > datetime.now(UTC))
     )
     return result.all()
 
@@ -257,4 +263,4 @@ async def tokens(session: AsyncSession, user_id: UUID) -> Sequence[MCPToken]:
 async def delete_token(session: AsyncSession, user_id: UUID, token_id: UUID) -> None:
     """Revoke only a grant owned by the requesting browser user."""
 
-    await session.execute(delete(MCPToken).where(MCPToken.id == token_id, MCPToken.user_id == user_id))
+    await session.execute(delete(MCPToken).where(col(MCPToken.id) == token_id, col(MCPToken.user_id) == user_id))

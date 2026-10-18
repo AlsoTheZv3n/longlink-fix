@@ -68,7 +68,7 @@ class Env(BaseSettings):
 
         # Paid deployments require a complete Stripe configuration; unconfigured installations remain free.
         if self.STRIPE_SECRET_KEY or self.STRIPE_WEBHOOK_SECRET:
-            if not self.stripe_enabled:
+            if self.STRIPE_SECRET_KEY is None or self.STRIPE_WEBHOOK_SECRET is None:
                 raise ValueError("Stripe requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET")
             if not self.STRIPE_SECRET_KEY.startswith(("sk_test_", "sk_live_", "rk_test_", "rk_live_")):
                 raise ValueError("STRIPE_SECRET_KEY must be a Stripe secret or restricted key")

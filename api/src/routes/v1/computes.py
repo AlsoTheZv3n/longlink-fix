@@ -34,12 +34,12 @@ async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) 
                     gateway_certificate = await tls.certificate(cluster, "knative-serving", "longlink-gateway-tls")
                     storage_certificate = await tls.certificate(cluster, "rustfs", "longlink-storage-tls")
                 except ValueError as exc:
-                    raise HTTPException(status_code=422, detail=str(exc)) from exc
+                    raise HTTPException(status_code=422, detail=str(exc))
                 except (NotFoundError, ServerError, TimeoutError, OSError) as exc:
                     logger.warning("Compute infrastructure unavailable: %s", exc)
                     raise HTTPException(
                         status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
-                    ) from exc
+                    )
                 candidate = ComputeRegistry(
                     **payload.model_dump(),
                     database_storage_class=database_storage_class,
@@ -64,12 +64,12 @@ async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) 
                     logger.warning("Compute infrastructure unavailable: %s", exc)
                     raise HTTPException(
                         status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
-                    ) from exc
-    except TimeoutError as exc:
+                    )
+    except TimeoutError:
         logger.warning("Compute infrastructure unavailable: registration timed out")
         raise HTTPException(
             status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
-        ) from exc
+        )
 
     # Persist the verified connection as immediately assignable.
     ctx.database.add(candidate)
@@ -77,8 +77,8 @@ async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) 
     # Translate duplicate names or physical clusters to one stable API conflict.
     try:
         await ctx.database.flush()
-    except IntegrityError as exc:
-        raise HTTPException(status_code=409, detail="Compute registry already exists") from exc
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Compute registry already exists")
     await ctx.database.commit()
     return candidate
 

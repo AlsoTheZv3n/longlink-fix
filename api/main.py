@@ -83,10 +83,7 @@ solution_errors.install_error_handlers(app)
 
 
 @app.middleware("http")
-async def apply_response_policies(
-    request: Request,
-    call_next: Callable[[Request], Awaitable[Response]],
-) -> Response:
+async def apply_response_policies(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     """Enforce browser write origins and protect authenticated or missing-page responses."""
 
     # Cookie-authenticated browser writes must originate from a trusted frontend origin.
@@ -116,10 +113,7 @@ app.add_middleware(MCPMiddleware)
 
 
 @app.middleware("http")
-async def redirect_public_hostname(
-    request: Request,
-    call_next: Callable[[Request], Awaitable[Response]],
-) -> Response:
+async def redirect_public_hostname(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     """Redirect the production apex hostname without affecting other installations."""
 
     # Normalize the public hostname before frontend routing or authentication runs.
