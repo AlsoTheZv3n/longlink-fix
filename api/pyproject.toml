@@ -66,8 +66,7 @@ py-modules = ['main']
 include = ['scripts*', 'src*']
 
 [tool.setuptools.package-data]
-"src.kubernetes.templates" = ["solution/*.yml"]
-"src.utils" = ["templates/*.mjml"]
+src = [".static/kubernetes/*.yml", ".static/email/*.mjml"]
 
 [tool.ruff]
 line-length = 140
