@@ -3,6 +3,7 @@ import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
+import { Blockquote } from '@astryxdesign/core/Blockquote';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { DocumentationArticle } from '@/platform/components/Article';
 
@@ -26,6 +27,14 @@ export default function Billing() {
                 <Heading id="billing" level={1}>
                     Billing
                 </Heading>
+                <Blockquote className="border-s-(--color-text-orange) text-(--color-text-orange)">
+                    <Stack gap={0}>
+                        <Text type="inherit">Beta notice: This page is being built.</Text>
+                        <Link color="inherit" href={article.editUrl} hasUnderline isExternalLink type="inherit">
+                            Edit on GitHub
+                        </Link>
+                    </Stack>
+                </Blockquote>
                 <Text as="p">
                     Manage usage, payment methods, and invoices in Organization Settings → Billing. You only pay for
                     usage above the free amounts below.
