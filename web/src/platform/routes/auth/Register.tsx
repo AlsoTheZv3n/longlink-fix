@@ -4,13 +4,13 @@ import { AuthLayout } from './AuthLayout';
 import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { useSearchParams } from 'react-router';
+import { Welcome } from '@/components/Wordmark';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { useToast } from '@astryxdesign/core/Toast';
 import { useForm, useWatch } from 'react-hook-form';
 import { Divider } from '@astryxdesign/core/Divider';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { WelcomeTitle } from '@/components/WelcomeTitle';
 import { emailPayloadSchema, type EmailPayload } from './validation';
 
 /** Starts stateless account registration with an email verification link. */
@@ -27,7 +27,7 @@ export default function Register() {
     const signInSearch = trimmedEmail ? `?${new URLSearchParams({ email: trimmedEmail })}` : '';
 
     return (
-        <AuthLayout description={<Divider label="Please enter your email" />} title={<WelcomeTitle />}>
+        <AuthLayout description={<Divider label="Please enter your email" />} title={<Welcome />}>
             <NoIndex title="Create Account | LongLink" />
             <Stack gap={3}>
                 <form

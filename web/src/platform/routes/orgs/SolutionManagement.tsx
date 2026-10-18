@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { api } from '@/lib/api';
 import { useState } from 'react';
-import { OpenAI } from '@/components/OpenAI';
 import { useApi } from '@/lib/hooks/use-api';
 import CreateSolution from './CreateSolution';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
+import { OpenAI } from '@/components/svg/OpenAI';
 import { Button } from '@astryxdesign/core/Button';
 import { Dialog } from '@astryxdesign/core/Dialog';
 import { useToast } from '@astryxdesign/core/Toast';

@@ -1,3 +1,4 @@
+import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { useTheme } from '@astryxdesign/core/theme';
 
@@ -6,6 +7,15 @@ const wordmarkSizeClasses = {
     heading: ' text-2xl',
     inherit: '',
 };
+
+/** Renders the shared LongLink welcome title used by authentication screens. */
+export function Welcome() {
+    return (
+        <Text display="block" justify="center" textWrap="nowrap" type="inherit">
+            Welcome to <Wordmark size="inherit" />
+        </Text>
+    );
+}
 
 /** Renders the hand-drawn LongLink wordmark in the surrounding theme and text size. */
 export function Wordmark({ size = 'default' }: { size?: 'default' | 'heading' | 'inherit' }) {
