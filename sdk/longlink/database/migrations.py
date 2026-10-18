@@ -23,8 +23,8 @@ def migration_config(migrations_path: Path) -> Config:
 def include_object(_object: object, name: str | None, type_: str, _reflected: bool, _compare_to: object | None) -> bool:
     """Return whether Alembic should manage one metadata object."""
 
-    # The Platform owns the shared audit table represented in SDK metadata for Solution reads and relationships.
-    return not (type_ == "table" and name == "audit")
+    # The SDK bootstraps users before Solution migrations create referencing tables.
+    return not (type_ == "table" and name == "users")
 
 
 def load_solution_models() -> None:

@@ -138,7 +138,9 @@ async def test_solution_proxy_forwards_safe_content(
         captured["content"] = await request.aread()
         captured["content_type"] = request.headers.get("content-type")
         captured["has_content_type"] = "content-type" in request.headers
-        captured["user_id"] = str(identity.identity_token_user(request.headers["x-longlink-identity"], "test-identity-secret-01234567890"))
+        captured["user_id"] = str(
+            identity.identity_token_user(request.headers["x-longlink-identity"], "test-identity-secret-01234567890").id
+        )
 
         def close() -> None:
             """Record upstream response cleanup."""
@@ -335,7 +337,11 @@ async def test_solution_proxy_preserves_mcp_transport_metadata(
     assert captured["mcp-method"] == "tools/list"
     assert captured["mcp-name"] == "list_tools"
     assert captured["last-event-id"] == "caller-event"
-    assert identity.identity_token_user(captured["x-longlink-identity"], "test-identity-secret-01234567890") == users[0].id
+    profile = identity.identity_token_user(captured["x-longlink-identity"], "test-identity-secret-01234567890")
+    assert profile.id == users[0].id
+    assert profile.name == users[0].name
+    assert profile.email == users[0].email
+    assert profile.avatar == users[0].avatar
     assert "authorization" not in captured
     assert "cookie" not in captured
     assert response.headers["mcp-session-id"] == "negotiated-session"
@@ -984,7 +990,7 @@ def request_scope(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         secrets={"LONGLINK_IDENTITY_SECRET": "identity-secret-012345678901234567"},
     )
     registry = SimpleNamespace(gateway_url="https://gateway.example/", gateway_certificate=None)
-    user = SimpleNamespace(id=uuid4())
+    user = User(id=uuid4(), name="Gateway User", email="gateway@example.com", password="unused-test-password")
 
     async def access(*args: object) -> tuple[SimpleNamespace, OrganizationRoles, SimpleNamespace]:
         """Return the authorized running Solution before and after admission."""
@@ -1157,7 +1163,7 @@ async def test_gateway_request_forwards_identity_and_defers_cleanup(
         assert captured_request is not None
         request = captured_request
         identity_token = request.headers["x-longlink-identity"]
-        assert proxy_routes.identity.identity_token_user(identity_token, "identity-secret-012345678901234567") == request_scope.user.id
+        assert proxy_routes.identity.identity_token_user(identity_token, "identity-secret-012345678901234567").id == request_scope.user.id
         assert request.method == "POST"
         assert request.url == "https://gateway.example/health%2Fstatus?verbose=true&raw=%2F+%25"
         assert request.url.raw_path == b"/health%2Fstatus?verbose=true&raw=%2F+%25"

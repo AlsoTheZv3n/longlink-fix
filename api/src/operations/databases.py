@@ -4,21 +4,16 @@ from uuid import UUID
 from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
-from src.utils import postgres
 from sqlalchemy import text, delete, select, update
 from dataclasses import dataclass
 from src.kubernetes import databases as database_resources
 from collections.abc import AsyncGenerator
-from longlink.shared import audit as shared_audit
 from src.models.statuses import Status
 from src.database.session import session_scope
-from src.database.services import organizations
 from src.kubernetes.client import Kubernetes
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.organizations import DatabaseState
-from src.database.models.users import User
 from src.database.models.computes import ComputeRegistry
-from src.database.models.association import UserOrganization
 from src.database.models.organizations import Organization, OrganizationActivity
 
 LEASE_SECONDS = 180
@@ -33,27 +28,6 @@ async def lock(session: AsyncSession, organization_id: UUID) -> Organization | N
         update(Organization).where(col(Organization.id) == organization_id).values(updated_at=col(Organization.updated_at))
     )
     return await session.get(Organization, organization_id, populate_existing=True)
-
-
-async def _project_users(session: AsyncSession, organization_id: UUID, db: postgres.Postgres) -> None:
-    """Project a Platform snapshot while runtime coordination owns synchronization."""
-
-    # Load every authoritative membership for the Organization database snapshot.
-    statement = (
-        select(col(User.id), col(User.name), col(User.email), col(User.avatar))
-        .join(UserOrganization, col(UserOrganization.user_id) == col(User.id))
-        .where(col(UserOrganization.organization_id) == organization_id)
-    )
-    result = await session.execute(statement)
-    rows = result.mappings().all()
-
-    # Empty snapshots must not open an Organization database connection.
-    if not rows:
-        return
-
-    # The Platform owns the transaction for its authoritative Organization user projection.
-    async with db.connection(organization_id.hex, search_path="shared") as conn:
-        await shared_audit.sync(conn, rows)
 
 
 @dataclass
@@ -174,45 +148,8 @@ async def deleting(organization_id: UUID) -> AsyncGenerator[None]:
     yield
 
 
-async def sync_users(user_id: UUID) -> None:
-    """Synchronize a user's Organization profiles in place after Platform changes commit."""
-
-    # Resolve active memberships without holding a request transaction during database provisioning.
-    async with session_scope() as session:
-        result = await session.scalars(
-            select(col(UserOrganization.organization_id))
-            .join(Organization, col(Organization.id) == col(UserOrganization.organization_id))
-            .where(col(UserOrganization.user_id) == user_id, col(Organization.deleted_at).is_(None))
-        )
-        organization_ids = result.all()
-
-    # Wait for the shared schema before refreshing each Organization's user snapshot.
-    for organization_id in organization_ids:
-        if not await ready(organization_id):
-            continue
-
-        # Serialize snapshots with concurrent syncs and deletion, then read fresh committed profiles.
-        async with session_scope() as session:
-            organization = await lock(session, organization_id)
-            if organization is None or organization.deleted_at is not None:
-                continue
-
-            # Load the assigned Compute only while the Organization remains locked and active.
-            target = await organizations.database_infrastructure(session, organization_id)
-            if target is None:
-                continue
-            organization, compute = target
-            cluster = Kubernetes(compute.kubeconfig)
-
-            # Upsert shared profiles without removing records referenced by historical Solution audits.
-            async with cluster:
-                database = await database_resources.connection(organization, cluster)
-                await _project_users(session, organization_id, database)
-            await session.commit()
-
-
 async def ready(organization_id: UUID) -> bool:
-    """Provision the database and shared projection behind one persisted transition lease."""
+    """Provision the database behind one persisted transition lease."""
 
     while True:
         # Provisioning decisions share the same short write transaction.
@@ -264,16 +201,14 @@ async def ready(organization_id: UUID) -> bool:
                         await lease.check()
                         await database.prepare_organization_database(organization_id)
 
-                    # Verify ownership before taking the snapshot; the publish gate rechecks shared state.
+                    # Verify ownership before checking the tenant connection and publishing readiness.
                     await lease.check()
-                    async with session_scope() as session:
-                        await _project_users(session, organization_id, database)
 
-                    # Empty snapshots skip SQL; verify the tenant connection immediately before publication.
+                    # Verify the tenant connection immediately before publication.
                     async with asyncio.timeout(10), database.connection(organization_id.hex) as sql:
                         await sql.execute(text("SELECT 1"))
 
-                    # Publish the provisioned database and its shared projection.
+                    # Publish the provisioned database.
                     async with session_scope() as session:
                         organization = await lock(session, organization_id)
                         if organization is None or organization.deleted_at is not None or not await lease.owned(session):
@@ -282,7 +217,7 @@ async def ready(organization_id: UUID) -> bool:
                         await session.commit()
                         return True
             except BaseException:
-                # An interrupted snapshot is retried through the failed state.
+                # Interrupted provisioning is retried through the failed state.
                 async with session_scope() as session:
                     organization = await lock(session, organization_id)
                     if organization is not None and await lease.owned(session):

@@ -1,7 +1,7 @@
 from typing import Self, Literal
 from pydantic import Field, HttpUrl, model_validator
+from longlink.types import Email
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from longlink.shared.models import Email
 
 
 class Env(BaseSettings):

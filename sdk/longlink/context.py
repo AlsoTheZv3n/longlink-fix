@@ -5,7 +5,7 @@ from fsspec.spec import AbstractFileSystem
 from collections.abc import AsyncGenerator
 from longlink.database import audit
 from longlink.responses import FileResponse
-from longlink.shared.models import User
+from longlink.database.users import User
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 

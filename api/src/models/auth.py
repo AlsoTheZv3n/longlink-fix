@@ -1,5 +1,5 @@
 from pydantic import Field, BaseModel
-from longlink.shared.models import Email
+from longlink.types import Email
 
 
 class TokenPayload(BaseModel):

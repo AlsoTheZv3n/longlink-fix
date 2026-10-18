@@ -1,12 +1,9 @@
 import pytest
-from httpx2 import AsyncClient, ASGITransport
+from httpx2 import AsyncClient
 from factories import create_organization
-from collections.abc import Mapping, Sequence
 from src.database.session import session_scope
 from src.database.services import organizations
-from src.models.organizations import DatabaseState
 from src.database.models.users import User
-from src.database.models.organizations import Organization
 
 
 async def test_get_me_returns_authenticated_user_profile_and_separate_org_memberships(
@@ -93,64 +90,29 @@ async def test_list_users_rejects_anonymous_requests(client: AsyncClient) -> Non
     assert response.json() == {"detail": "Not authenticated"}
 
 
-async def test_patch_me_commits_before_shared_delivery_and_retries_unchanged_profile(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    database_runtime: None,
-    monkeypatch: pytest.MonkeyPatch,
+async def test_patch_me_persists_without_organization_database_access(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Keep authoritative updates after failed delivery and retry an identical payload."""
-
-    from main import app
+    """Update and repeat a profile change without contacting Organization infrastructure."""
 
     # Arrange
     user = users[1]
-    organization = await create_organization(user)
-    async with session_scope() as session:
-        current = await session.get(Organization, organization.id)
-        assert current is not None
-        current.database_state = DatabaseState.available
-        await session.commit()
+    await create_organization(user)
     expected_name = "Updated User"
-    delivered: list[dict[str, object]] = []
 
-    async def deliver(_connection: object, rows: Sequence[Mapping[str, object]]) -> None:
-        """Observe committed Platform state at the shared-database delivery boundary."""
+    async def unavailable(*args: object, **kwargs: object) -> None:
+        """Reject any attempt to provision an Organization for a profile change."""
 
-        # Read independently so an uncommitted request identity map cannot satisfy the assertion.
-        async with session_scope() as session:
-            persisted_user = await session.get(User, user.id)
-            assert persisted_user is not None
-            assert persisted_user.name == expected_name
-        assert [dict(row) for row in rows] == [{"id": user.id, "name": expected_name, "email": user.email, "avatar": user.avatar}]
-        delivered.append(dict(rows[0]))
-        if len(delivered) == 1:
-            raise RuntimeError("shared profile delivery failed")
+        pytest.fail("Profile updates must not access Organization databases")
 
-    monkeypatch.setattr("src.operations.databases.shared_audit.sync", deliver)
+    monkeypatch.setattr("src.operations.databases.ready", unavailable)
 
     # Act
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
-        base_url="http://testserver",
-        cookies=clients[1].cookies,
-        headers=clients[1].headers,
-    ) as client:
-        failed = await client.patch("/api/v1/me", json={"name": expected_name})
-
-        # Assert the failed external delivery did not undo the authoritative commit.
-        assert failed.status_code == 500
-        assert failed.json() == {"detail": "An unexpected error occurred. Please try again later."}
-        assert len(delivered) == 1
-        async with session_scope() as session:
-            persisted_user = await session.get(User, user.id)
-            assert persisted_user is not None
-            assert persisted_user.name == expected_name
-
-        # Act: repeat exactly the same profile payload to retry delivery.
-        retried = await client.patch("/api/v1/me", json={"name": expected_name})
+    response = await clients[1].patch("/api/v1/me", json={"name": expected_name})
+    retried = await clients[1].patch("/api/v1/me", json={"name": expected_name})
 
     # Assert
+    assert response.status_code == 200
     assert retried.status_code == 200
     assert retried.json() == {
         "id": str(user.id),
@@ -159,5 +121,7 @@ async def test_patch_me_commits_before_shared_delivery_and_retries_unchanged_pro
         "avatar": user.avatar,
         "administrator": user.administrator,
     }
-    assert len(delivered) == 2
-    assert delivered[1] == delivered[0]
+    async with session_scope() as session:
+        persisted_user = await session.get(User, user.id)
+        assert persisted_user is not None
+        assert persisted_user.name == expected_name

@@ -3,10 +3,10 @@ import hmac
 from uuid import UUID
 from datetime import UTC, datetime, timedelta
 from pydantic import TypeAdapter, ValidationError
+from longlink.types import Email
 from src.utils.oauth import OAuthProvider
 from src.environments import env
 from src.database.services import users
-from longlink.shared.models import Email
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
 

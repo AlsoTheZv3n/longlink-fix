@@ -3,6 +3,7 @@ from uuid import UUID
 from pwdlib import PasswordHash
 from sqlmodel import col
 from sqlalchemy import or_, func, select
+from longlink.types import Email
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 from collections.abc import Sequence
@@ -10,7 +11,6 @@ from src.utils.oauth import OAuthProvider
 from src.environments import env
 from src.database.types import attr
 from src.models.pagination import Pagination
-from longlink.shared.models import Email
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
 

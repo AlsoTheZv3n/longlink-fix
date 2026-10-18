@@ -12,13 +12,13 @@ from longlink.database import migrations as database_migrations
 @pytest.mark.parametrize(
     ("name", "type_", "expected"),
     [
-        pytest.param("audit", "table", False, id="shared-audit-table"),
+        pytest.param("users", "table", False, id="sdk-users-table"),
         pytest.param("inventory", "table", True, id="solution-table"),
         pytest.param("audit", "index", True, id="audit-index"),
     ],
 )
-def test_include_object_excludes_only_platform_owned_audit_table(name: str, type_: str, expected: bool) -> None:
-    """Keep Platform-owned audit tables out of Solution Alembic revisions."""
+def test_include_object_excludes_only_sdk_owned_users_table(name: str, type_: str, expected: bool) -> None:
+    """Keep SDK-owned users out of Solution Alembic revisions."""
 
     # Act
     included = database_migrations.include_object(object(), name, type_, False, None)

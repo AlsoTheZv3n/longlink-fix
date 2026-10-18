@@ -5,8 +5,8 @@ from typing import Literal
 from pydantic import TypeAdapter, ValidationError
 from dataclasses import dataclass
 from urllib.parse import urlencode
+from longlink.types import Email
 from src.environments import env
-from longlink.shared.models import Email
 
 OAuthProvider = Literal["google", "github"]
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"

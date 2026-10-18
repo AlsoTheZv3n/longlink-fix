@@ -9,7 +9,7 @@ from longlink.database.migrations import include_object
 # Load the migration environment.
 settings = Envs()
 
-# Keep Solution migration state out of the shared schema resolved by the production search path.
+# Keep migration state in the Solution schema.
 version_table_schema = settings.DATABASE_SCHEMA if settings.ENV == "production" else None
 
 
@@ -36,7 +36,7 @@ def _run_migrations(connection: Connection | None = None, *, url: str | None = N
 async def run_migrations_online() -> None:
     """Run Alembic migrations in online mode."""
 
-    # Initialize SDK-owned local audit data before Solution migrations reference it.
+    # Initialize SDK-owned users before Solution migrations reference them.
     database = Database(settings)
 
     # Release migration-engine resources even when the migration fails.
