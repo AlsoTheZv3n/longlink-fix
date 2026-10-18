@@ -5,7 +5,6 @@ from src import auth
 from uuid import UUID
 from fastapi import Depends, Response, APIRouter, HTTPException
 from src.utils import images
-from src.logger import logger
 from src.context import Context
 from src.kubernetes import solutions as solution_resources
 from src.environments import env
@@ -167,8 +166,7 @@ async def get_solution_logs(solution_id: UUID, access: auth.SolutionLogAccess):
         cluster = Kubernetes(kubeconfig)
         async with cluster:
             return await solution_resources.logs(cluster, organization_id, solution_id)
-    except RuntimeError as exc:
-        logger.warning("Solution logs unavailable for '%s': %s", solution_id, exc)
+    except RuntimeError:
         raise HTTPException(status_code=503, detail="Solution logs unavailable")
 
 

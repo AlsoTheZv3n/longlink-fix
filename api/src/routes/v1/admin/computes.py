@@ -2,7 +2,6 @@ import asyncio
 from kr8s import ServerError, NotFoundError
 from uuid import UUID
 from fastapi import Query, Depends, APIRouter, HTTPException
-from src.logger import logger
 from src.context import Context
 from sqlalchemy.exc import IntegrityError
 from src.kubernetes import tls, gateway, storageclasses
@@ -34,8 +33,7 @@ async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) 
                     storage_certificate = await tls.certificate(cluster, "rustfs", "longlink-storage-tls")
                 except ValueError as exc:
                     raise HTTPException(status_code=422, detail=str(exc))
-                except (NotFoundError, ServerError, TimeoutError, OSError) as exc:
-                    logger.warning("Compute infrastructure unavailable: %s", exc)
+                except (NotFoundError, ServerError, TimeoutError, OSError):
                     raise HTTPException(
                         status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
                     )
@@ -54,14 +52,12 @@ async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) 
                     await gateway.verify(cluster, candidate.gateway_url, candidate.gateway_certificate)
                     storage = Storage(candidate, cluster)
                     await storage.verify()
-                except Exception as exc:
+                except Exception:
                     # Any verification failure means unreachable infrastructure.
-                    logger.warning("Compute infrastructure unavailable: %s", exc)
                     raise HTTPException(
                         status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
                     )
     except TimeoutError:
-        logger.warning("Compute infrastructure unavailable: registration timed out")
         raise HTTPException(
             status_code=503, detail="Compute infrastructure is unavailable; verify endpoints, credentials, and certificates"
         )

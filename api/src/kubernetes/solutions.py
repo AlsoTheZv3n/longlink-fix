@@ -5,19 +5,17 @@ from kr8s import ServerError, NotFoundError, APITimeoutError, ConnectionClosedEr
 from uuid import UUID
 from typing import TYPE_CHECKING, cast
 from src.utils import templates
-from src.logger import logger
 from kr8s.asyncio import Api
 from src.kubernetes import utils, namespace
 from collections.abc import AsyncIterator
 from src.models.types import MinScale
 from importlib.resources import files
-from kr8s.asyncio.objects import Job, Pod, Event, Secret, APIObject, Namespace, new_class
+from kr8s.asyncio.objects import Job, Pod, Secret, APIObject, Namespace, new_class
 
 if TYPE_CHECKING:
     from src.kubernetes.client import Kubernetes
 
 SOLUTION_ID_LABEL = "longlink.io/solution-id"
-MIGRATION_DIAGNOSTIC_TIMEOUT_SECONDS = 10
 KnativeServiceResource = new_class("Service", "serving.knative.dev/v1", asyncio=True, plural="services")
 
 
@@ -53,7 +51,6 @@ async def _wait_for_job_condition(job: Job, wanted: set[str]) -> None:
             raise RuntimeError(f"Migration Job '{job.name}' disappeared while waiting") from exc
         except (APITimeoutError, ConnectionClosedError, ServerError, httpx.HTTPError):
             # Transient transport failures retry under the operation timeout.
-            logger.warning("Migration Job %s status refresh failed; retrying", job.name)
             await asyncio.sleep(5)
             continue
 
@@ -85,77 +82,17 @@ async def _stop_migrations(api: Api, namespace: str, solution_id: UUID, resume_j
             await asyncio.sleep(5)
 
 
-async def _log_migration_diagnostics(migration_job: Job) -> None:
-    """Log the current Kubernetes state for one unsuccessful migration Job."""
-
-    # Bound best-effort diagnostics so cluster failures cannot hide the original outcome.
-    migration_id = migration_job.name
-    try:
-        async with asyncio.timeout(MIGRATION_DIAGNOSTIC_TIMEOUT_SECONDS):
-            status = migration_job.raw.get("status", {})
-            logger.error("Migration Job %s status: %s", migration_id, json.dumps(status, sort_keys=True, default=str))
-
-            # Capture each bounded Job Pod's status and available output once.
-            resource_names: set[str] = set()
-            async for candidate in Pod.list(
-                api=migration_job.api, namespace=migration_job.namespace, label_selector={"job-name": migration_id}
-            ):
-                pod = cast(Pod, candidate)
-                resource_names.add(pod.name)
-                pod_status = pod.raw.get("status", {})
-                logger.error("Migration Pod %s status: %s", pod.name, json.dumps(pod_status, sort_keys=True, default=str))
-
-                phase = pod_status.get("phase")
-                if phase in {"Running", "Succeeded", "Failed"}:
-                    output = [line async for line in pod.logs(tail_lines=200)]
-                    logger.error("Recent output from migration Pod %s:\n%s", pod.name, "\n".join(output) or "(no output)")
-            if not resource_names:
-                logger.error("Migration Job %s has not created a Pod", migration_id)
-
-            # One namespace Event query covers admission, quota, scheduling, volume, and image failures.
-            resource_names.add(migration_id)
-            async for event in Event.list(api=migration_job.api, namespace=migration_job.namespace, field_selector={"type": "Warning"}):
-                event_resource = cast(Event, event)
-                involved_object = event_resource.raw.get("involvedObject", {})
-                if involved_object.get("name") not in resource_names:
-                    continue
-                logger.error(
-                    "Kubernetes warning for %s: %s: %s",
-                    involved_object["name"],
-                    event_resource.raw.get("reason", "Unknown"),
-                    event_resource.raw.get("message", "No message"),
-                )
-    except TimeoutError:
-        logger.error("Migration Job %s diagnostics timed out", migration_id)
-    except Exception:
-        logger.exception("Could not collect migration Job %s diagnostics", migration_id)
-
-
 async def _run_migration(migration_job: Job) -> None:
-    """Apply a migration once and report terminal failure or cancellation diagnostics."""
+    """Apply a migration once and reject terminal failure."""
 
     # Keep the rendered identity available even before Kubernetes accepts the Job.
-    metadata = migration_job.raw["metadata"]
-    migration_id = metadata["name"]
+    migration_id = migration_job.raw["metadata"]["name"]
     await utils.apply(migration_job)
-    try:
-        await _wait_for_job_condition(migration_job, {"Complete", "Failed"})
-    except asyncio.CancelledError:
-        # Preserve the operation timeout or worker shutdown after bounded diagnostics.
-        logger.error("Migration Job %s did not reach a terminal state before the operation stopped", migration_id)
-        await _log_migration_diagnostics(migration_job)
-        raise
+    await _wait_for_job_condition(migration_job, {"Complete", "Failed"})
 
     # Treat the Kubernetes terminal condition as the authoritative Job outcome.
     conditions = migration_job.raw.get("status", {}).get("conditions", [])
     if any(condition.get("type") == "Failed" and condition.get("status") == "True" for condition in conditions):
-        logger.error(
-            "Migration Job %s failed for Solution %s in namespace %s",
-            migration_id,
-            metadata["labels"][SOLUTION_ID_LABEL],
-            metadata["namespace"],
-        )
-        await _log_migration_diagnostics(migration_job)
         raise RuntimeError(f"Solution migration Job '{migration_id}' failed")
 
 
@@ -170,7 +107,6 @@ async def _wait_for_rollout(deployed: APIObject) -> None:
             raise RuntimeError("Knative Solution Service disappeared during rollout") from exc
         except (APITimeoutError, ConnectionClosedError, ServerError, httpx.HTTPError):
             # Transient transport failures retry under the operation timeout.
-            logger.warning("Knative Solution Service status refresh failed; retrying")
             await asyncio.sleep(5)
             continue
 
@@ -259,14 +195,8 @@ async def apply(
 
     # Apply migrations once without restarting a failed migration container.
     if migrate:
-        logger.info(
-            "Starting migration Job %s for Solution %s in namespace %s from image %s", migration_id, solution_id, compute_namespace, image
-        )
         migration_job = Job(migration, api=api)
         await _run_migration(migration_job)
-        logger.info("Migration Job %s completed for Solution %s in namespace %s", migration_id, solution_id, compute_namespace)
-    else:
-        logger.info("Restoring Solution %s revision %s without running migrations", solution_id, revision_id)
 
     # Knative owns revision Deployments, Services, routing, and scale-to-zero activation.
     deployed = KnativeServiceResource(service, api=api)

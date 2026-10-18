@@ -5,12 +5,9 @@ from src.logger import logger
 pytestmark = pytest.mark.no_db
 
 
-def test_operation_logs_use_platform_namespace(caplog: pytest.LogCaptureFixture) -> None:
-    """Keep worker failures attributable to the Platform operation logger."""
+def test_operation_logger_remains_registered() -> None:
+    """Keep the configured Platform operation logger available."""
 
-    # Act
-    with caplog.at_level(logging.ERROR, logger="longlink.operations"):
-        logger.error("Reconciliation failed")
-
-    # Assert
-    assert [(record.name, record.getMessage()) for record in caplog.records] == [("longlink.operations", "Reconciliation failed")]
+    # Assert the logger remains registered without emitting application logs.
+    assert logger is logging.getLogger("longlink.operations")
+    assert logger.handlers

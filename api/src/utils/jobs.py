@@ -1,9 +1,9 @@
 import asyncio
+import contextlib
 from uuid import UUID
 from fastapi import HTTPException
 from datetime import UTC, datetime
 from functools import partial
-from src.logger import logger
 from src.operations import handlers, databases
 from collections.abc import Callable, Awaitable
 from src.environments import env
@@ -27,23 +27,18 @@ async def _finish_transition(transition: Callable[[AsyncSession, UUID], Awaitabl
 
     task = asyncio.create_task(persist())
     cancelled = False
-    while True:
+    while not task.done():
         try:
-            updated = await asyncio.shield(task)
+            await asyncio.wait({task})
         except asyncio.CancelledError:
             cancelled = True
-            continue
-        except Exception:
-            if cancelled:
-                logger.exception("Terminal Operation transition failed during cancellation")
-                raise asyncio.CancelledError from None
-            raise
-        break
 
     # Preserve shutdown after the terminal database transition finishes.
     if cancelled:
+        if not task.cancelled():
+            task.exception()
         raise asyncio.CancelledError
-    return updated
+    return task.result()
 
 
 async def execute(operation: Operation) -> None:
@@ -53,37 +48,29 @@ async def execute(operation: Operation) -> None:
     if operation.lease_expires_at is None or operation.lease_expires_at <= datetime.now(UTC):
         raise ValueError("Operation must be claimed before execution")
 
-    # Emit stable identifiers so Grafana can follow a complete operation attempt.
-    logger.info("Operation started id=%s kind=%s target_id=%s", operation.id, operation.kind, operation.target_id)
-
     # Bound one complete handler execution under its worker lease.
     try:
         async with asyncio.timeout(env.OPERATION_TIMEOUT_SECONDS):
-            handler = handlers[operation.kind]
-            await handler(operation.target_id)
-        reason = None
+            await handlers[operation.kind](operation.target_id)
     except asyncio.CancelledError:
         # Graceful shutdown leaves interrupted work available for the next scheduler.
-        try:
+        with contextlib.suppress(Exception):
             await _finish_transition(operations.release, operation.id)
-        except Exception:
-            logger.exception("Operation release failed id=%s kind=%s target_id=%s", operation.id, operation.kind, operation.target_id)
-        logger.info("Operation cancelled id=%s kind=%s target_id=%s", operation.id, operation.kind, operation.target_id)
         raise
     except TimeoutError:
         reason = f"Operation timed out after {env.OPERATION_TIMEOUT_SECONDS} seconds"
     except HTTPException as exc:
         reason = str(exc.detail)
     except Exception as exc:
-        logger.exception("Operation exception id=%s kind=%s target_id=%s", operation.id, operation.kind, operation.target_id)
-        reason = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+        message = str(exc)
+        reason = f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+    else:
+        reason = None
 
     # Persist exactly one transition that releases the claimed operation.
     if reason is None:
-        logger.info("Operation completed id=%s kind=%s target_id=%s", operation.id, operation.kind, operation.target_id)
         transition = operations.complete
     else:
-        logger.error("Operation failed id=%s kind=%s target_id=%s reason=%s", operation.id, operation.kind, operation.target_id, reason)
         transition = partial(operations.fail, reason=reason)
 
     # Finish the terminal database transition even when shutdown cancels this worker.
@@ -97,26 +84,22 @@ async def execute(operation: Operation) -> None:
 async def run_operation_scheduler() -> None:
     """Run this replica's serial Operation worker while polling through scheduler failures."""
 
-    # Keep polling after transient database failures so the worker remains available.
+    # Keep polling after transient failures so the worker remains available.
     while True:
-        operation: Operation | None = None
         try:
             async with session_scope() as session:
                 operation = await operations.claim(session)
                 await session.commit()
-        except Exception:
-            logger.exception("Operation scheduler polling failed")
 
-        # Sleep briefly when the queue has no claimable work.
-        if operation is None:
-            await asyncio.sleep(1)
-            continue
+            # Sleep briefly when the queue has no claimable work.
+            if operation is None:
+                await asyncio.sleep(1)
+                continue
 
-        # Execute and release one claimed operation before locking more work.
-        try:
+            # Execute and release one claimed operation before locking more work.
             await execute(operation)
         except Exception:
-            logger.exception("Operation scheduler failed for %s", operation.id)
+            await asyncio.sleep(1)
 
 
 async def run_administrator_reconciler() -> None:
@@ -131,9 +114,6 @@ async def run_administrator_reconciler() -> None:
 
             # Refresh administrator profiles in place before declaring reconciliation complete.
             await databases.sync_users(administrator.id)
+            return
         except Exception:
-            logger.exception("Administrator reconciliation failed")
             await asyncio.sleep(1)
-            continue
-
-        return

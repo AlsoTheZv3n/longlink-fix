@@ -2,7 +2,6 @@ import stripe
 import asyncio
 import contextlib
 from fastapi import HTTPException
-from src.logger import logger
 from collections.abc import AsyncGenerator
 from src.environments import env
 
@@ -21,8 +20,7 @@ async def client() -> AsyncGenerator[stripe.StripeClient]:
         # Retries remain bounded and shutdown cancellation releases the transport.
         async with asyncio.timeout(60):
             yield connection
-    except (stripe.StripeError, TimeoutError) as exc:
-        logger.warning("Stripe request failed: %s", type(exc).__name__)
+    except (stripe.StripeError, TimeoutError):
         raise HTTPException(status_code=503, detail="Payment provider unavailable. Please try again.") from None
     finally:
         await transport.close_async()
