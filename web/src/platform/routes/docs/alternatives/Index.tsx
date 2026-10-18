@@ -1,5 +1,5 @@
 import { Heading } from '@astryxdesign/core/Heading';
-import { DocumentationArticle } from '@/platform/components/Article';
+import { DocumentationArticle } from '@/components/Article';
 
 const article = {
     title: 'Alternatives | LongLink',

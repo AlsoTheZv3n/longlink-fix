@@ -1,12 +1,12 @@
 import type { z } from 'zod';
+import { ProfileMenu } from '@/components/Profile';
 import { AppWindow, Settings2 } from 'lucide-react';
 import Platform from '@/components/layouts/Platform';
 import { ApiBoundary } from '@/components/ApiBoundary';
 import { PageContainer } from '@/components/PageContainer';
 import { useAuthenticatedUser } from '@/lib/hooks/use-user';
-import { ProfileMenu } from '@/platform/components/Profile';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 import { Outlet, useParams, useOutletContext } from 'react-router';
-import { PageBreadcrumb } from '@/platform/components/PageBreadcrumb';
 import { zUserOrganizationMembership } from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Renders the fixed navigation around organization pages. */

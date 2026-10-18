@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { it, expect } from 'vitest';
-import { renderStatic } from '../../render';
-import { PageBreadcrumb } from '@/platform/components/PageBreadcrumb';
+import { renderStatic } from '../render';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 
 it('uses the resolved Solution name rather than its slug for the current breadcrumb', () => {
     // Act

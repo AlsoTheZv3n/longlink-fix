@@ -1,5 +1,6 @@
 import { ApiError } from '@/lib/api';
 import { useApi } from '@/lib/hooks/use-api';
+import { ProfileMenu } from '@/components/Profile';
 import Platform from '@/components/layouts/Platform';
 import { ApiBoundary } from '@/components/ApiBoundary';
 import NotFoundLayout from '@/components/layouts/NotFound';
@@ -7,8 +8,7 @@ import { PageContainer } from '@/components/PageContainer';
 import { Outlet, useMatch, useParams } from 'react-router';
 import { PageError, PageLoading } from '@/components/Utils';
 import { useAuthenticatedUser } from '@/lib/hooks/use-user';
-import { ProfileMenu } from '@/platform/components/Profile';
-import { PageBreadcrumb } from '@/platform/components/PageBreadcrumb';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 import { zUserOrganizationMembership } from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Resolves organization access before either organization or Solution pages mount. */

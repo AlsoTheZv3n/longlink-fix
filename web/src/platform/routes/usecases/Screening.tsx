@@ -1,16 +1,16 @@
 import Calculator from './Calculator';
+import { Page } from '@/components/Page';
 import { Card } from '@astryxdesign/core/Card';
 import { Grid } from '@astryxdesign/core/Grid';
 import { Icon } from '@astryxdesign/core/Icon';
 import { Text } from '@astryxdesign/core/Text';
-import { Seo } from '@/platform/components/Seo';
 import { useCasePaths } from '@/platform/routes';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Token } from '@astryxdesign/core/Token';
 import { Button } from '@astryxdesign/core/Button';
+import { ArticleFooter } from '@/components/Article';
 import { Heading } from '@astryxdesign/core/Heading';
 import { PageContainer } from '@/components/PageContainer';
-import { ArticleFooter } from '@/platform/components/Article';
 import { ArrowRight, ClipboardCheck, FolderInput, ListChecks, Mail } from 'lucide-react';
 
 // Record the authored page's actual revision date and repository source location.
@@ -23,11 +23,10 @@ const article = {
 export default function Screening() {
     // Use the standard 1000px Platform frame with a desktop illustration and flexible summary text.
     return (
-        <>
-            <Seo
-                description="An illustrative Real Estate use case: organize property evidence, apply acquisition criteria, and record screening decisions in a LongLink Solution."
-                title="Property Acquisition Screening | Real Estate | LongLink"
-            />
+        <Page
+            description="An illustrative Real Estate use case: organize property evidence, apply acquisition criteria, and record screening decisions in a LongLink Solution."
+            title="Property Acquisition Screening | Real Estate | LongLink"
+        >
             <PageContainer gap={8} padding={2}>
                 <Stack gap={6}>
                     <Stack direction="horizontal" gap={6} align="stretch" wrap="wrap">
@@ -195,6 +194,6 @@ export default function Screening() {
                     />
                 </Stack>
             </PageContainer>
-        </>
+        </Page>
     );
 }

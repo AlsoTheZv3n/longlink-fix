@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { act } from 'react';
-import { Root } from '@/components/Root';
+import PlatformRoot from '@/platform/root';
 import { createRoot } from 'react-dom/client';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -157,7 +157,7 @@ describe('DeploymentReview', () => {
             mountedRoot.render(
                 <MemoryRouter>
                     <Routes>
-                        <Route element={<Root />}>
+                        <Route element={<PlatformRoot />}>
                             <Route
                                 path="/"
                                 element={

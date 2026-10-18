@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { useApi } from '@/lib/hooks/use-api';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
+import { ProfileMenu } from '@/components/Profile';
 import { Center } from '@astryxdesign/core/Center';
 import Platform from '@/components/layouts/Platform';
 import { Heading } from '@astryxdesign/core/Heading';
@@ -13,8 +14,7 @@ import { PageContainer } from '@/components/PageContainer';
 import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { useParams, useOutletContext } from 'react-router';
 import { useAuthenticatedUser } from '@/lib/hooks/use-user';
-import { ProfileMenu } from '@/platform/components/Profile';
-import { PageBreadcrumb } from '@/platform/components/PageBreadcrumb';
+import { PageBreadcrumb } from '@/components/PageBreadcrumb';
 import { zUserOrganizationMembership, zOrganizationSolutionSummary } from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Renders one proxy-backed organization solution after membership resolves. */

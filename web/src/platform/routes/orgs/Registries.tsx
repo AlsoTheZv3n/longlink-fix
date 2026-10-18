@@ -10,10 +10,10 @@ import { Button } from '@astryxdesign/core/Button';
 import { Dialog } from '@astryxdesign/core/Dialog';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
+import { DeletionDialog } from '@/components/Deletion';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { DialogClose } from '@/components/ui/DialogClose';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { DeletionDialog } from '@/platform/components/Deletion';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
