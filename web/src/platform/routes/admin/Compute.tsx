@@ -3,7 +3,6 @@ import { api, ApiError } from '@/lib/api';
 import { useApiError } from '@/lib/errors';
 import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
-import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Form, FormStep } from '@/components/Form';
@@ -48,7 +47,7 @@ export default function Compute() {
 
     return (
         <Stack gap={2}>
-            <NoIndex title="Compute | LongLink" />
+            <title>Compute | LongLink</title>
             <Stack direction="horizontal" justify="between" align="center" wrap="wrap">
                 <Heading level={1}>Compute</Heading>
                 <Button label="Register Compute" onClick={() => setDialog({ kind: 'registration' })} />

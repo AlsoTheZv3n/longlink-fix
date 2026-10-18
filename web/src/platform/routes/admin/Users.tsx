@@ -1,6 +1,5 @@
 import { Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
-import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Stack } from '@astryxdesign/core/Stack';
@@ -25,7 +24,7 @@ export default function Users() {
 
     return (
         <Stack gap={2}>
-            <NoIndex title="Users | LongLink" />
+            <title>Users | LongLink</title>
             <Heading level={1}>Users</Heading>
             <TextInput
                 label="Search users"

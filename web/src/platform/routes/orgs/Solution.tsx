@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { useApi } from '@/lib/hooks/use-api';
-import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Center } from '@astryxdesign/core/Center';
@@ -73,7 +72,7 @@ export default function OrganizationSolution() {
 
         return (
             <Platform action={action} breadcrumb={breadcrumb} tabs={[]}>
-                <NoIndex title={`${solutionAccess.name} | LongLink`} />
+                <title>{`${solutionAccess.name} | LongLink`}</title>
                 <Center
                     axis={solutionAccess.status === 'failed' ? 'horizontal' : 'both'}
                     minHeight="calc(100vh - 14rem)"
@@ -104,7 +103,7 @@ export default function OrganizationSolution() {
         >
             {({ content, tabs, title }) => (
                 <Platform action={action} breadcrumb={breadcrumb} tabs={tabs}>
-                    <NoIndex title={`${title ?? solutionAccess.name} | LongLink`} />
+                    <title>{`${title ?? solutionAccess.name} | LongLink`}</title>
                     <PageContainer height="100%" minHeight={0} padding={2}>
                         {content}
                     </PageContainer>

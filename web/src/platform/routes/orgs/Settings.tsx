@@ -7,7 +7,6 @@ import Registries from './Registries';
 import { useApiError } from '@/lib/errors';
 import { useApi } from '@/lib/hooks/use-api';
 import PaymentMethods from './PaymentMethods';
-import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Stack } from '@astryxdesign/core/Stack';
@@ -65,7 +64,7 @@ export default function OrganizationSettings() {
 
     return (
         <Stack gap={8}>
-            <NoIndex title="Organization Settings | LongLink" />
+            <title>Organization Settings | LongLink</title>
             <Stack direction="horizontal" gap={3} align="center">
                 <Avatar kind="organization" name={membership.organization.name} />
                 <Stack gap={0}>

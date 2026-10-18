@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { it, expect } from 'vitest';
+import Brand from '@/platform/layouts/Brand';
 import { renderPlatform } from '../../render';
 import Page from '@/platform/routes/auth/VerifyEmail';
 import { ApiBoundary } from '@/components/ApiBoundary';
@@ -7,9 +8,11 @@ import { ApiBoundary } from '@/components/ApiBoundary';
 it('does not expose account credential entry before email proof is verified', () => {
     // Act
     const output = renderPlatform(
-        <ApiBoundary>
-            <Page />
-        </ApiBoundary>,
+        <Brand>
+            <ApiBoundary>
+                <Page />
+            </ApiBoundary>
+        </Brand>,
         '/auth/verify-email'
     );
 

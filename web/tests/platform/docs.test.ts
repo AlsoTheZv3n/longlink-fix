@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { componentDocumentation, documentationPaths } from '@/platform/docs';
+import { componentDocumentation, documentationPaths } from '@/platform/routes';
 
 it('uses the public Buttons route without publishing companion-only components', () => {
     // Assert

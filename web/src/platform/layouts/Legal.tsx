@@ -1,10 +1,9 @@
 import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
-import { legalPages } from '@/platform/legal';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Outlet, useLocation } from 'react-router';
-import { brandingPages } from '@/platform/branding';
 import { AppShell } from '@astryxdesign/core/AppShell';
+import { legalPages, brandingPages } from '@/platform/routes';
 import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
 
 /** Renders legal and branding pages with the public article layout. */

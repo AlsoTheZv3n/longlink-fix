@@ -5,10 +5,8 @@ import { api, ApiError } from '@/lib/api';
 import { useApiError } from '@/lib/errors';
 import { Eye, EyeOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
-import { Seo } from '@/platform/components/Seo';
 import { Wordmark } from '@/components/Wordmark';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
@@ -77,7 +75,7 @@ export default function Login() {
     if (user) {
         return (
             <>
-                <NoIndex title="LongLink" />
+                <title>LongLink</title>
                 <Navigate replace to={destination} />
             </>
         );
@@ -92,10 +90,7 @@ export default function Login() {
             }
             description={null}
         >
-            <Seo
-                title="Sign In | LongLink"
-                description="Sign in to LongLink to access your organizations and build, deploy, and manage your business process Solutions."
-            />
+            <title>Sign In | LongLink</title>
             <Stack gap={4}>
                 <Divider />
                 <Stack gap={2}>

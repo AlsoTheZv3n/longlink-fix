@@ -1,5 +1,5 @@
 import { Wordmark } from '@/components/Wordmark';
-import { useCasePages } from '@/platform/usecases';
+import { useCasePages } from '@/platform/routes';
 import { Button } from '@astryxdesign/core/Button';
 import { Outlet, useLocation } from 'react-router';
 import Platform from '@/components/layouts/Platform';

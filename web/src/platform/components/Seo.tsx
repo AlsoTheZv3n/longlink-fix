@@ -1,8 +1,7 @@
 import { siteName, siteUrl } from '@/site';
 import { useLocation } from 'react-router';
-import { useCasePages } from '@/platform/usecases';
-import { brandingPages } from '@/platform/branding';
 import { buildBreadcrumbs } from '@/components/breadcrumb/text';
+import { useCasePages, brandingPages } from '@/platform/routes';
 
 /** Labels for public article route segments shared with visible breadcrumbs. */
 export const articleRouteLabels = {

@@ -1,5 +1,4 @@
 import type { z } from 'zod';
-import { NoIndex } from '@/components/NoIndex';
 import { useOutletContext } from 'react-router';
 import SolutionManagement from './SolutionManagement';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
@@ -10,7 +9,7 @@ export default function Organization() {
 
     return (
         <>
-            <NoIndex title="Organization Solutions | LongLink" />
+            <title>Organization Solutions | LongLink</title>
             <SolutionManagement
                 organization={membership.organization}
                 canMaintain={['maintain', 'admin', 'owner'].includes(membership.role)}

@@ -59,7 +59,7 @@ export function JsxView({
                 return url.href;
             });
 
-            const assets = await Promise.all(
+            const [script, styles] = await Promise.all(
                 urls.map(async (url) => {
                     const body = await host.load(url, { signal });
 
@@ -68,16 +68,13 @@ export function JsxView({
             );
 
             // Reject stale or mixed runtime assets instead of silently rendering with the wrong components.
-            const digest = await crypto.subtle.digest(
-                'SHA-256',
-                new TextEncoder().encode(`${assets[0]}\n${assets[1]}`)
-            );
+            const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${script}\n${styles}`));
 
             const version = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 
             if (version !== runtime.version) throw new Error('The Solution View runtime does not match its manifest');
 
-            return assets;
+            return { script, styles };
         },
     });
 
@@ -88,7 +85,7 @@ export function JsxView({
 
     useEffect(() => {
         if (!kernel) return;
-        const [script, styles] = kernel;
+        const { script, styles } = kernel;
         const controller = new AbortController();
         const channel = new MessageChannel();
         const session = crypto.randomUUID();
@@ -194,12 +191,16 @@ export function JsxView({
                     host.requestUrl(navigationBaseUrl, command.path);
                     const destination = resolveNavigationUrl(navigationBaseUrl, command.path);
 
-                    if (destination) {
-                        if (command.newTab) {
-                            if (navigator.userActivation.isActive) {
-                                window.open(destination, '_blank', 'noopener,noreferrer');
-                            }
-                        } else await navigate(destination);
+                    if (!destination) return;
+
+                    if (!command.newTab) {
+                        await navigate(destination);
+
+                        return;
+                    }
+
+                    if (navigator.userActivation.isActive) {
+                        window.open(destination, '_blank', 'noopener,noreferrer');
                     }
                 } catch {
                     // Invalid navigation does not acquire any host capability.

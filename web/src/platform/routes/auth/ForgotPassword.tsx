@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { TextField } from './Field';
 import { AuthLayout } from './AuthLayout';
 import { useForm } from 'react-hook-form';
-import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
@@ -28,7 +27,7 @@ export default function ForgotPassword() {
             title="Reset your password"
             description="Enter your account email and LongLink will send password reset instructions."
         >
-            <NoIndex title="Reset Your Password | LongLink" />
+            <title>Reset Your Password | LongLink</title>
             {sent ? (
                 <Stack gap={4}>
                     <Banner

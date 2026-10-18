@@ -1,7 +1,6 @@
 import { api } from '@/lib/api';
 import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
-import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
@@ -40,7 +39,7 @@ export default function Organizations() {
 
     return (
         <Stack gap={2}>
-            <NoIndex title="Organizations | LongLink" />
+            <title>Organizations | LongLink</title>
             <Heading level={1}>Organizations</Heading>
             <TextInput
                 label="Search organizations"

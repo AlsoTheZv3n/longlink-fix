@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { brandingPaths } from '@/platform/branding';
+import { brandingPaths } from '@/platform/routes';
 
 it('preserves the published branding URLs', () => {
     // Assert

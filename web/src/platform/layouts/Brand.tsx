@@ -14,6 +14,7 @@ export default function Brand({ children = <Outlet /> }: { children?: ReactNode 
             }
             tabs={[]}
         >
+            <meta name="robots" content="noindex, nofollow" />
             {children}
         </Platform>
     );

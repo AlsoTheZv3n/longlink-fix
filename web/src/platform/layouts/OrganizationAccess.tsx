@@ -1,6 +1,5 @@
 import { ApiError } from '@/lib/api';
 import { useApi } from '@/lib/hooks/use-api';
-import { NoIndex } from '@/components/NoIndex';
 import Platform from '@/components/layouts/Platform';
 import { ApiBoundary } from '@/components/ApiBoundary';
 import NotFoundLayout from '@/components/layouts/NotFound';
@@ -24,7 +23,7 @@ export default function OrganizationAccess() {
             fallback={
                 solutionRoute ? (
                     <>
-                        <NoIndex title="Solution | LongLink" />
+                        <title>Solution | LongLink</title>
                         <PageLoading label="Loading solution" />
                     </>
                 ) : (
@@ -41,7 +40,7 @@ export default function OrganizationAccess() {
                         <NotFoundLayout />
                     ) : (
                         <>
-                            <NoIndex title="Solution | LongLink" />
+                            <title>Solution | LongLink</title>
                             <PageError description="We couldn't load this solution." title="Unable to load solution" />
                         </>
                     )

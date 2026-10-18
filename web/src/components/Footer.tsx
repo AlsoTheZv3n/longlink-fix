@@ -72,11 +72,6 @@ export function Footer({ maxWidth = 1000 }: { maxWidth?: number }) {
                         wrap="wrap"
                         aria-label="Footer navigation"
                     >
-                        {/* Use cases are a work in progress; keep hidden until ready.
-                                <Link href="/use-cases/" color="secondary" type="supporting" weight="medium">
-                                    Use cases
-                                </Link>
-                                */}
                         <Link href="/docs/" color="secondary" type="supporting" weight="medium">
                             Documentation
                         </Link>

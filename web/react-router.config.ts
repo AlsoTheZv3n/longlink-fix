@@ -1,10 +1,8 @@
 import path from 'node:path';
 import { siteUrl } from './src/site';
-import { legalPaths } from './src/platform/legal';
 // Use cases are a work in progress; exclude them from prerendering and the sitemap.
-// import { useCasePaths } from './src/platform/usecases';
+// import { useCasePaths } from './src/platform/routes';
 import type { Config } from '@react-router/dev/config';
-import { brandingPaths } from './src/platform/branding';
 import { cp, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 
 const requestedMode = import.meta.env.MODE;
@@ -17,7 +15,9 @@ if (requestedMode === 'api' || requestedMode === 'sdk') {
 const isSolution = process.env.LONGLINK_WEB_TARGET === 'sdk';
 
 // Only Platform builds need the documentation catalog for publication paths.
-const documentationPaths = isSolution ? [] : (await import('./src/platform/docs')).documentationPaths;
+const { legalPaths, brandingPaths, documentationPaths } = isSolution
+    ? { legalPaths: [], brandingPaths: [], documentationPaths: [] }
+    : await import('./src/platform/routes');
 
 const publicPagePaths = [
     '/',

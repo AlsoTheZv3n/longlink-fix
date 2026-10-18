@@ -6,7 +6,6 @@ import { api, ApiError } from '@/lib/api';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { passwordSchema } from './validation';
-import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Welcome } from '@/components/Wordmark';
@@ -113,7 +112,7 @@ export default function VerifyEmail() {
         ? `/auth/register?${new URLSearchParams({ email: verifiedEmail })}`
         : '/auth/register';
 
-    const pageMetadata = <NoIndex title="Verify Your Email | LongLink" />;
+    const pageMetadata = <title>Verify Your Email | LongLink</title>;
 
     // Invalid credentials require a replacement registration link.
     if (verification?.status === 'error') {

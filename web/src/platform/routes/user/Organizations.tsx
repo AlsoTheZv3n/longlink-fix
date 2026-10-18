@@ -1,4 +1,3 @@
-import { NoIndex } from '@/components/NoIndex';
 import { ApiBoundary } from '@/components/ApiBoundary';
 import { PageContainer } from '@/components/PageContainer';
 import OrganizationManagement from './OrganizationManagement';
@@ -8,7 +7,7 @@ export default function Organizations() {
     // Keep the page inside the existing Platform shell and request boundary.
     return (
         <PageContainer padding={2}>
-            <NoIndex title="Organizations | LongLink" />
+            <title>Organizations | LongLink</title>
             <ApiBoundary>
                 <OrganizationManagement presentation="overview" />
             </ApiBoundary>

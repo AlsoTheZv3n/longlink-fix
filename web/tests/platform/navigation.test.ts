@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { adminNavigation, userNavigation } from '@/platform/navigation';
+import { adminNavigation, userNavigation } from '@/platform/routes';
 
 it('keeps administrator destinations out of the ordinary account navigation', () => {
     // Assert

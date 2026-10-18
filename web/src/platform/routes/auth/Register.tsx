@@ -1,7 +1,6 @@
 import { api } from '@/lib/api';
 import { TextField } from './Field';
 import { AuthLayout } from './AuthLayout';
-import { NoIndex } from '@/components/NoIndex';
 import { Link } from '@astryxdesign/core/Link';
 import { useSearchParams } from 'react-router';
 import { Welcome } from '@/components/Wordmark';
@@ -28,7 +27,7 @@ export default function Register() {
 
     return (
         <AuthLayout description={<Divider label="Please enter your email" />} title={<Welcome />}>
-            <NoIndex title="Create Account | LongLink" />
+            <title>Create Account | LongLink</title>
             <Stack gap={3}>
                 <form
                     action={() =>
