@@ -48,7 +48,7 @@ async def authuser(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     # Mark validated browser sessions so response middleware can prevent sensitive caching.
-    request.state.authenticated = True
+    request.state.user = user
 
     # Keep the current user available to database audit hooks for the whole route lifecycle.
     with audit.actor(user.id):

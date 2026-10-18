@@ -1,8 +1,9 @@
 from src import auth
 from uuid import UUID
-from fastapi import APIRouter
+from fastapi import Depends, APIRouter
 from sqlmodel import col
 from sqlalchemy import select
+from src.context import Context
 from sqlalchemy.orm import defer
 from src.database.services import registries
 from src.models.registries import RegistryCreate, RegistryResponse
@@ -12,11 +13,11 @@ router = APIRouter()
 
 
 @router.get("/organizations/{organization_id}/registries", response_model=list[RegistryResponse])  # noqa: FAST003 - Consumed by auth.OrganizationMember.
-async def list_registries(membership: auth.OrganizationMember, session: auth.Session):
+async def list_registries(ctx: Context, membership: auth.OrganizationMember):
     """List connection identities visible to organization members."""
 
     # Load only connection metadata belonging to the authorized Organization.
-    result = await session.scalars(
+    result = await ctx.database.scalars(
         select(RegistryConnection)
         .options(defer(RegistryConnection.credential))
         .where(col(RegistryConnection.organization_id) == membership.organization_id)
@@ -25,22 +26,22 @@ async def list_registries(membership: auth.OrganizationMember, session: auth.Ses
     return result.all()
 
 
-@router.post("/organizations/{organization_id}/registries", response_model=RegistryResponse, status_code=201)
-async def create_registry(
-    organization_id: UUID, payload: RegistryCreate, user: auth.CurrentUser, session: auth.Session
-) -> RegistryConnection:
+@router.post(
+    "/organizations/{organization_id}/registries", response_model=RegistryResponse, status_code=201, dependencies=[Depends(auth.authuser)]
+)
+async def create_registry(ctx: Context, organization_id: UUID, payload: RegistryCreate) -> RegistryConnection:
     """Create an organization-owned connection and queue secret synchronization."""
 
     # The service owns authorization and synchronization; the route commits the final command.
-    connection = await registries.create(session, organization_id, payload, user.id)
-    await session.commit()
+    connection = await registries.create(ctx.database, organization_id, payload, ctx.user.id)
+    await ctx.database.commit()
     return connection
 
 
 @router.delete("/organizations/{organization_id}/registries/{connection_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
-async def delete_registry(connection_id: UUID, membership: auth.OrganizationMaintainer, session: auth.Session) -> None:
+async def delete_registry(ctx: Context, connection_id: UUID, membership: auth.OrganizationMaintainer) -> None:
     """Remove unused credentials without breaking retained deployment revisions."""
 
     # Commit authorized credential removal and synchronization demand together.
-    await registries.delete(session, membership.organization_id, connection_id, membership.user_id)
-    await session.commit()
+    await registries.delete(ctx.database, membership.organization_id, connection_id, membership.user_id)
+    await ctx.database.commit()

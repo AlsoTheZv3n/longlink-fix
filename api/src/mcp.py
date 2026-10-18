@@ -33,7 +33,7 @@ async def proxyuser(request: Request, solution_id: UUID, session: auth.Session, 
             )
 
         # Keep the admitted identity bound until FastAPI finishes the dependency's request lifetime.
-        request.state.authenticated = True
+        request.state.user = user
         with audit.actor(user.id):
             yield user  # noqa: ASYNC119
         return
