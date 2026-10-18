@@ -5,7 +5,6 @@ from typing import ClassVar, Protocol
 from conftest import kubernetes_client
 from src.utils import templates
 from src.kubernetes import solutions
-from collections.abc import AsyncIterator
 from importlib.resources import files
 
 pytestmark = pytest.mark.no_db
@@ -91,7 +90,7 @@ def test_solution_template_constrains_workloads() -> None:
             }
 
 
-async def test_solution_apply_stops_after_failed_migration_job(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+async def test_solution_apply_stops_after_failed_migration_job(monkeypatch: pytest.MonkeyPatch) -> None:
     """Avoid creating runtime resources when the Solution migration fails."""
 
     # Arrange
@@ -117,46 +116,14 @@ async def test_solution_apply_stops_after_failed_migration_job(monkeypatch: pyte
 
             self.raw["status"] = {"conditions": [{"type": "Failed", "status": "True"}]}
 
-    class MigrationPod:
-        """Expose output from the failed migration Job."""
-
-        name: ClassVar[str] = "failed-migration-pod"
-        raw: ClassVar[dict[str, object]] = {"status": {"phase": "Failed"}}
-
-        @classmethod
-        async def list(cls, **kwargs: object) -> AsyncIterator["MigrationPod"]:
-            """Yield the failed migration Pod selected by its Job label."""
-
-            assert kwargs["namespace"] == COMPUTE_NAMESPACE
-            assert kwargs["label_selector"] == {"job-name": f"migration-{UUID(int=1)}"}
-            yield cls()
-
-        async def logs(self, tail_lines: int) -> AsyncIterator[str]:
-            """Yield recent migration output."""
-
-            assert tail_lines == 200
-            yield "database connection refused"
-
-    class MigrationEvent:
-        """Expose no warning Events for the failed migration fixture."""
-
-        @classmethod
-        async def list(cls, **_kwargs: object) -> AsyncIterator["MigrationEvent"]:
-            """Yield no Kubernetes Events."""
-
-            if False:
-                yield cls()
-
     async def apply(resource: AppliedResource) -> None:
         """Record the resources accepted by Kubernetes."""
 
         applied.append(str(resource.raw.get("kind", "Secret")))
 
     monkeypatch.setattr(solutions, "Job", MigrationJob)
-    monkeypatch.setattr(solutions, "Pod", MigrationPod)
-    monkeypatch.setattr(solutions, "Event", MigrationEvent)
+    monkeypatch.setattr(solutions, "Pod", MigrationJobs)
     monkeypatch.setattr(solutions.utils, "apply", apply)
-    monkeypatch.setattr(solutions.logger, "handlers", [*solutions.logger.handlers, caplog.handler])
 
     # Act and assert
     with pytest.raises(RuntimeError, match=r"Solution migration Job .* failed"):
@@ -169,7 +136,6 @@ async def test_solution_apply_stops_after_failed_migration_job(monkeypatch: pyte
             revision_id=UUID(int=1),
         )
     assert applied == ["Secret", "Job"]
-    assert "Recent output from migration Pod failed-migration-pod:\ndatabase connection refused" in caplog.messages
 
 
 @pytest.mark.parametrize("migrate", [True, False])

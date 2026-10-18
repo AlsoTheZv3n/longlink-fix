@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from sqlmodel import col
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import update
-from src.logger import logger
 from src.kubernetes import databases as database_resources
 from src.kubernetes import namespace
 from src.kubernetes import solutions as solution_resources
@@ -30,7 +29,6 @@ async def deploy(revision_id: UUID) -> None:
         solution_id = revision.solution_id
         target = await organizations.solution_infrastructure(session, solution_id)
         if target is None:
-            logger.info("Solution %s no longer exists; skipping reconciliation", solution_id)
             return
         solution, organization, compute = target
         if revision.id != solution.effective_revision_id:
@@ -67,7 +65,6 @@ async def deploy(revision_id: UUID) -> None:
         # Reuse generated credentials after an interrupted creation attempt.
         if "LONGLINK_ENV" not in runtime_secrets:
             # RustFS service accounts are scoped to this Solution and owner keys never reach workloads.
-            logger.info("Creating object storage credentials for Solution %s", solution.id)
             database_password = secrets.token_urlsafe(24)
             credentials = await storage.service_account(organization.id, solution.id)
             database = await database_resources.connection(organization, cluster, certificate=database_certificate)
@@ -86,7 +83,6 @@ async def deploy(revision_id: UUID) -> None:
 
         # Issue a solution-specific key so only Platform-originated requests can assert an audit identity.
         if "LONGLINK_IDENTITY_SECRET" not in runtime_secrets:
-            logger.info("Persisting runtime credentials for Solution %s", solution.id)
             runtime_secrets["LONGLINK_IDENTITY_SECRET"] = secrets.token_urlsafe(32)
 
         # Resolve current infrastructure settings without persisting a second configuration owner.
@@ -124,7 +120,6 @@ async def deploy(revision_id: UUID) -> None:
                 await session.commit()
 
         # Apply the captured desired release so reconciliation repairs workload drift.
-        logger.info("Applying Kubernetes workload for Solution %s", solution.id)
         if revision.registry_connection_id is not None:
             await registries.synchronize(cluster, organization.id)
         await solution_resources.apply(
@@ -141,7 +136,6 @@ async def deploy(revision_id: UUID) -> None:
         )
 
     # Publish the applied release only after workload readiness.
-    logger.info("Publishing Solution %s", solution.id)
     async with session_scope() as session:
         await session.execute(
             update(Solution)
@@ -159,19 +153,16 @@ async def delete(solution_id: UUID) -> None:
     async with session_scope() as session:
         target = await organizations.solution_cleanup_infrastructure(session, solution_id)
         if target is None:
-            logger.info("Solution %s no longer exists; skipping deletion", solution_id)
             return
         organization, compute = target
         if organization.deleted_at is not None:
             return
 
     # Remove Solution Kubernetes resources before revoking provider credentials.
-    logger.info("Deleting Kubernetes workload for Solution %s", solution_id)
     cluster = Kubernetes(compute.kubeconfig)
     async with cluster:
         await solution_resources.delete(cluster, organization.id, solution_id)
         db = await database_resources.connection(organization, cluster)
-        logger.info("Deleting PostgreSQL schema for Solution %s", solution_id)
         await db.delete_solution_schema(organization.id, solution_id)
 
         # Revoke the service account before owner credentials remove its private objects.
@@ -179,7 +170,6 @@ async def delete(solution_id: UUID) -> None:
         await storage.delete_solution(organization.id, solution_id)
 
     # Purge the tombstone only after all external resources are absent.
-    logger.info("Purging Solution %s", solution_id)
     async with session_scope() as session:
         # The delete statement locks the tombstone while making completed cleanup idempotent.
         await session.execute(

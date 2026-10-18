@@ -4,13 +4,11 @@ import asyncio
 import pydantic_core
 from fastapi import HTTPException
 from pydantic import TypeAdapter
-from src.logger import logger
 from collections.abc import Mapping
 from src.models.types import IMAGE_DIGEST_PATTERN, Image
 from src.models.metadata import LongLinkMetadata
 from src.database.models.registries import RegistryConnection
 
-IMAGE_METADATA_MAX_BYTES = 1024 * 1024
 LABELS_ADAPTER = TypeAdapter(dict[str, str])
 MANIFEST_ACCEPT = (
     "application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, "
@@ -62,14 +60,14 @@ async def registry_json(
 
         # Reject declared oversized or malformed response lengths before consuming the body.
         content_length = response.headers.get("Content-Length")
-        if content_length is not None and (not content_length.isdecimal() or int(content_length) > IMAGE_METADATA_MAX_BYTES):
+        if content_length is not None and (not content_length.isdecimal() or int(content_length) > 1024 * 1024):
             return None
 
         # Stop reading once streamed response data exceeds the metadata boundary.
         content = bytearray()
         async for chunk in response.aiter_bytes():
             content.extend(chunk)
-            if len(content) > IMAGE_METADATA_MAX_BYTES:
+            if len(content) > 1024 * 1024:
                 return None
 
         # Return decoded metadata only when the registry supplied a non-null JSON value.
@@ -96,8 +94,7 @@ async def required_metadata(image: Image, connection: RegistryConnection | None 
             # Bound the whole lookup as well as individual network reads.
             async with asyncio.timeout(20):
                 result = await inspect(client, image, base, connection)
-        except (httpx2.HTTPError, TimeoutError, TypeError, ValueError) as exc:
-            logger.warning("Failed to inspect image metadata: %s", exc)
+        except (httpx2.HTTPError, TimeoutError, TypeError, ValueError):
             result = None
 
     # Require declared metadata before callers mutate durable Solution state.

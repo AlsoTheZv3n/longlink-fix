@@ -2,7 +2,6 @@ from src import auth
 from uuid import UUID
 from typing import Annotated
 from fastapi import Form, Query, Request, Response, APIRouter
-from src.logger import logger
 from src.models import mcp as models
 from src.context import Context
 from urllib.parse import urlencode
@@ -32,14 +31,13 @@ class OAuthRoute(APIRoute):
                 code = "invalid_client_metadata" if request.url.path == "/api/v1/mcp/register" else "invalid_request"
                 description = "Invalid request parameters"
 
-                # Identify rejected registration fields without logging request values, callbacks, or credentials.
+                # Identify rejected registration fields without exposing request values, callbacks, or credentials.
                 if request.url.path == "/api/v1/mcp/register":
                     details = ", ".join(
                         f"{issue['loc'][1]} ({issue['type']})"
                         for issue in exc.errors()
                         if len(issue["loc"]) > 1 and issue["loc"][1] in models.ClientRegistration.model_fields
                     )
-                    logger.warning("MCP client registration rejected: %s", details or "request body")
                     description = f"Invalid client metadata: {details or 'request body'}"
             except mcp.OAuthError as exc:
                 # Preserve the domain-authored OAuth error fields.

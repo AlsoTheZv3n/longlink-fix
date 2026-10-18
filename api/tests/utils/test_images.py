@@ -139,7 +139,7 @@ async def test_metadata_follows_config_blob_redirects(monkeypatch: pytest.Monkey
 
 
 INVALID_METADATA_LENGTH_HEADERS = [
-    pytest.param({"Content-Length": str(images.IMAGE_METADATA_MAX_BYTES + 1)}, id="declared-oversize"),
+    pytest.param({"Content-Length": str(1024 * 1024 + 1)}, id="declared-oversize"),
     pytest.param({"Content-Length": "invalid"}, id="invalid-content-length"),
 ]
 
@@ -172,7 +172,7 @@ async def test_registry_json_rejects_streamed_metadata_larger_than_limit() -> No
         async def __aiter__(self) -> AsyncIterator[bytes]:
             """Yield one oversized metadata chunk."""
 
-            yield b"x" * (images.IMAGE_METADATA_MAX_BYTES + 1)
+            yield b"x" * (1024 * 1024 + 1)
 
         async def aclose(self) -> None:
             """Close the in-memory stream."""

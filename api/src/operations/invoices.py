@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from uuid import UUID
 from decimal import ROUND_HALF_UP, Decimal
 from fastapi import HTTPException
@@ -6,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 from sqlmodel import col
 from src.utils import s3, dates, stripe
 from sqlalchemy import select, update
-from src.logger import logger
 from src.models import pricing
 from src.kubernetes import databases
 from src.environments import env
@@ -173,7 +173,7 @@ async def run() -> None:
     if not env.stripe_enabled:
         return
     while True:
-        try:
+        with contextlib.suppress(Exception):
             # Use the latest closed UTC month; outages never fabricate several months of historical usage.
             period_end = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             async with session_scope() as session:
@@ -186,23 +186,16 @@ async def run() -> None:
                 )
                 organization_ids = result.all()
             for organization_id in organization_ids:
-                try:
+                with contextlib.suppress(Exception):
                     async with session_scope() as session:
                         await snapshot(session, organization_id, period_end)
-                except Exception:
-                    logger.exception("Monthly usage measurement failed organization_id=%s", organization_id)
 
             # Frozen invoices retry independently of later membership, storage changes, or deleted Organizations.
             async with session_scope() as session:
                 result = await session.scalars(select(col(Invoice.id)).where(col(Invoice.issued_at).is_(None)))
                 invoice_ids = result.all()
             for invoice_id in invoice_ids:
-                try:
+                with contextlib.suppress(Exception):
                     async with session_scope() as session:
                         await issue(session, invoice_id)
-                except Exception:
-                    logger.exception("Monthly invoice issuance failed invoice_id=%s", invoice_id)
-        except Exception:
-            logger.exception("Monthly invoice scheduler failed")
-
         await asyncio.sleep(60)

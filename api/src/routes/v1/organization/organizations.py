@@ -6,7 +6,6 @@ from kr8s import ServerError, NotFoundError, APITimeoutError, ConnectionClosedEr
 from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from src.utils import s3, mail, roles
-from src.logger import logger
 from src.context import Context
 from sqlalchemy.exc import SQLAlchemyError
 from src.kubernetes import databases
@@ -80,10 +79,7 @@ async def get_organization_storage_usage(ctx: Context, membership: auth.Organiza
             credentials = s3.Credentials(compute.storage_access_key, compute.storage_secret_key)
             storage = s3.S3(compute.storage_endpoint, credentials, compute.storage_certificate)
             usage = await storage.usage(Storage.bucket_name(membership.organization_id))
-    except (TimeoutError, BotoCoreError, ClientError) as exc:
-        logger.warning(
-            "Storage resources unavailable for organization '%s' through registry '%s': %s", membership.organization.slug, compute.id, exc
-        )
+    except (TimeoutError, BotoCoreError, ClientError):
         raise HTTPException(status_code=503, detail="Storage resources unavailable")
     return {"space_used": usage, "quota_bytes": membership.organization.storage_quota_bytes}
 
@@ -120,8 +116,7 @@ async def get_organization_database_usage(ctx: Context, membership: auth.Organiz
         APITimeoutError,
         ConnectionClosedError,
         httpx.HTTPError,
-    ) as exc:
-        logger.warning("Database usage unavailable for organization '%s': %s", organization.id, exc)
+    ):
         raise HTTPException(status_code=503, detail="Database usage unavailable")
 
     return {"space_used": usage, "quota_bytes": organization.database_size_mib * 1024 * 1024}
@@ -140,8 +135,7 @@ async def create_organization_invitation(ctx: Context, payload: OrganizationInvi
     # Deliver only after the invitation transaction commits, and tell the inviter when delivery fails.
     try:
         await mail.send_organization_invitation_email(payload.email, organization_name, payload.role)
-    except aiosmtplib.SMTPException as exc:
-        logger.warning("Invitation email delivery failed for organization '%s': %s", membership.organization_id, exc)
+    except aiosmtplib.SMTPException:
         raise HTTPException(
             status_code=503, detail="The invitation was saved, but its email could not be sent. Invite the same address again to resend it."
         )
