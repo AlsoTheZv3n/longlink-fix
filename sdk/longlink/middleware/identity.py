@@ -33,10 +33,12 @@ class IdentityMiddleware:
 
         # Verify the Platform-signed user assertion before exposing it to Solution code.
         request = Request(scope)
+        user = None
         user_id = None
         if self.identity_secret:
             try:
-                user_id = identity.identity_token_user(request.headers.get("x-longlink-identity", ""), self.identity_secret)
+                user = identity.identity_token_user(request.headers.get("x-longlink-identity", ""), self.identity_secret)
+                user_id = user.id
             except jwt.PyJWTError:
                 pass
 
@@ -49,6 +51,10 @@ class IdentityMiddleware:
         # Use the seeded local user when no signed Platform identity was supplied.
         if user_id is None:
             user_id = self.local_user_id
+
+        # Persist verified profiles before any route can create user-referencing records.
+        if user is not None:
+            await request.app.state.longlink.database.sync_user(user)
 
         # Reset audit identity after response streaming, background work, or failure.
         with audit.actor(user_id):

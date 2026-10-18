@@ -2,11 +2,11 @@ from enum import StrEnum
 from uuid import UUID
 from datetime import datetime
 from pydantic import Field, BaseModel, ConfigDict
+from longlink.types import Email
 from src.models.roles import OrganizationRoles
 from src.models.users import UserIdentity
 from src.models.pricing import UsageRates
 from src.models.resources import OrganizationIdentity
-from longlink.shared.models import Email
 
 
 class DatabaseState(StrEnum):

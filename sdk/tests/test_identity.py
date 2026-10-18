@@ -2,7 +2,7 @@ import jwt
 import pytest
 from uuid import UUID
 from datetime import UTC, datetime
-from longlink import identity
+from longlink import User, identity
 
 IDENTITY_SECRET = "test-identity-secret-01234567890"
 
@@ -16,7 +16,7 @@ def mint_identity_token(
     """Mint one execution-time identity token with controlled defects."""
 
     # Start with a real current assertion and decode it only to construct controlled test defects.
-    token = identity.create_identity_token(UUID(int=1), secret)
+    token = identity.create_identity_token(User(id=UUID(int=1), name="Test User", email="test@example.com"), secret)
     payload = jwt.decode(token, options={"verify_signature": False})
 
     # Apply only the requested claim defects before signing with the requested algorithm.
@@ -34,13 +34,14 @@ def test_identity_token_user_returns_identity_from_created_token() -> None:
 
     # Arrange
     user_id = UUID("00000000-0000-0000-0000-000000000001")
-    token = identity.create_identity_token(user_id, IDENTITY_SECRET)
+    user = User(id=user_id, name="Test User", email="test@example.com", avatar="https://example.com/avatar.png")
+    token = identity.create_identity_token(user, IDENTITY_SECRET)
 
     # Act
     result = identity.identity_token_user(token, IDENTITY_SECRET)
 
     # Assert
-    assert result == user_id
+    assert result.model_dump() == user.model_dump()
     claims = jwt.decode(token, IDENTITY_SECRET, algorithms=["HS256"], audience="longlink:identity")
     assert claims["sub"] == str(user_id)
     assert claims["aud"] == "longlink:identity"
@@ -59,6 +60,20 @@ INVALID_SIGNED_TOKENS = [
     pytest.param(IDENTITY_SECRET, {"exp": datetime(2000, 1, 1, tzinfo=UTC)}, jwt.ExpiredSignatureError, id="expired"),
     pytest.param(IDENTITY_SECRET, {"aud": "other-audience"}, jwt.InvalidAudienceError, id="wrong-audience"),
     pytest.param("other-identity-secret-01234567890", {}, jwt.InvalidSignatureError, id="wrong-secret"),
+    pytest.param(IDENTITY_SECRET, {"profile": None}, jwt.InvalidTokenError, id="invalid-profile"),
+    pytest.param(IDENTITY_SECRET, {"profile": {}}, jwt.InvalidTokenError, id="missing-profile-timestamp"),
+    pytest.param(
+        IDENTITY_SECRET,
+        {"profile": {"name": "User", "email": "invalid", "updated_at": "2026-10-18T00:00:00Z"}},
+        jwt.InvalidTokenError,
+        id="invalid-profile-email",
+    ),
+    pytest.param(
+        IDENTITY_SECRET,
+        {"profile": {"name": "User", "email": "user@example.com", "updated_at": "2026-10-18T00:00:00"}},
+        jwt.InvalidTokenError,
+        id="naive-profile-timestamp",
+    ),
 ]
 
 
@@ -99,7 +114,7 @@ def test_identity_token_user_rejects_malformed_subject() -> None:
         identity.identity_token_user(token, IDENTITY_SECRET)
 
 
-@pytest.mark.parametrize("missing_claim", ["sub", "aud", "iat", "exp"])
+@pytest.mark.parametrize("missing_claim", ["sub", "aud", "iat", "exp", "profile"])
 def test_identity_token_user_rejects_missing_required_claim(missing_claim: str) -> None:
     """Reject an otherwise valid identity token missing any required claim."""
 

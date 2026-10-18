@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from datetime import UTC, datetime
 from functools import partial
-from src.operations import handlers, databases
+from src.operations import handlers
 from collections.abc import Callable, Awaitable
 from src.environments import env
 from src.database.session import session_scope
@@ -109,11 +109,9 @@ async def run_administrator_reconciler() -> None:
     while True:
         try:
             async with session_scope() as session:
-                administrator = await users.ensure_administrator(session)
+                await users.ensure_administrator(session)
                 await session.commit()
 
-            # Refresh administrator profiles in place before declaring reconciliation complete.
-            await databases.sync_users(administrator.id)
             return
         except Exception:
             await asyncio.sleep(1)

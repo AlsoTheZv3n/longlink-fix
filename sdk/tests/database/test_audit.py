@@ -55,8 +55,8 @@ async def test_audit_hook_persists_fields_and_leaves_deletes_hard(audit_engine: 
     # Verify inherited audit columns, user foreign keys, and both relationships.
     table = SQLModel.metadata.tables[AuditLifecycleItem.__tablename__]
     assert {"created_at", "updated_at"} <= set(table.c.keys())
-    assert {foreign_key.target_fullname for foreign_key in table.c.created_id.foreign_keys} == {"audit.id"}
-    assert {foreign_key.target_fullname for foreign_key in table.c.updated_id.foreign_keys} == {"audit.id"}
+    assert {foreign_key.target_fullname for foreign_key in table.c.created_id.foreign_keys} == {"users.id"}
+    assert {foreign_key.target_fullname for foreign_key in table.c.updated_id.foreign_keys} == {"users.id"}
     assert hasattr(AuditLifecycleItem, "created_by")
     assert hasattr(AuditLifecycleItem, "updated_by")
 

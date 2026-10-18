@@ -2,7 +2,7 @@ from uuid import UUID
 from typing import Any, cast
 from sqlmodel import Field, SQLModel, Relationship
 from sqlmodel.main import SQLModelMetaclass, get_annotations
-from longlink.shared.models import User
+from longlink.database.users import User
 
 
 class _UserRelationship:
@@ -10,7 +10,7 @@ class _UserRelationship:
 
 
 def UserRelationship() -> User:  # noqa: N802
-    """Declare a shared user relationship; a User | None annotation makes it optional."""
+    """Declare a local user relationship; a User | None annotation makes it optional."""
 
     return cast(User, _UserRelationship())
 
@@ -29,11 +29,11 @@ class _ModelMetaclass(SQLModelMetaclass):
         namespace = dict(class_dict)
         annotations = dict(get_annotations(namespace))
 
-        # Each relationship owns a distinct foreign key to the shared user table.
+        # Each relationship owns a distinct foreign key to the Solution's users table.
         for relation in relations:
             annotation = annotations.get(relation)
-            optional = annotation in (User | None, "User | None", "longlink.shared.models.User | None")
-            if not optional and annotation not in (User, "User", "longlink.shared.models.User"):
+            optional = annotation in (User | None, "User | None", "longlink.database.users.User | None")
+            if not optional and annotation not in (User, "User", "longlink.database.users.User"):
                 raise TypeError(f"{relation} must be annotated as User")
 
             # Resolve supported postponed user annotations before SQLAlchemy maps relationships.
@@ -44,10 +44,10 @@ class _ModelMetaclass(SQLModelMetaclass):
 
             if optional:
                 annotations[column] = UUID | None
-                namespace[column] = Field(default=None, foreign_key="audit.id")
+                namespace[column] = Field(default=None, foreign_key="users.id")
             else:
                 annotations[column] = UUID
-                namespace[column] = Field(foreign_key="audit.id")
+                namespace[column] = Field(foreign_key="users.id")
             namespace[relation] = Relationship(sa_relationship_kwargs={"foreign_keys": f"[{name}.{column}]", "lazy": "selectin"})
 
         namespace["__annotations__"] = annotations
@@ -55,4 +55,4 @@ class _ModelMetaclass(SQLModelMetaclass):
 
 
 class Model(SQLModel, metaclass=_ModelMetaclass):
-    """Base for Solution tables with declarative shared user relationships."""
+    """Base for Solution tables with declarative local user relationships."""

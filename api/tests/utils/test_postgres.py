@@ -1,11 +1,13 @@
 import pytest
 from uuid import UUID, uuid4
+from datetime import UTC, datetime
+from longlink import User
 from src.utils import postgres
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
-from longlink.shared import audit as shared_audit
 from src.models.types import DatabaseSSLMode
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.dialects.postgresql import insert
 from testcontainers.community.postgres import PostgresContainer
 
 pytestmark = pytest.mark.no_db
@@ -29,18 +31,14 @@ def postgres_database(postgres_server: PostgresContainer) -> tuple[postgres.Post
 
 
 @pytest.mark.integration
-async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_access(
-    postgres_database: tuple[postgres.Postgres, UUID, UUID],
-) -> None:
-    """Keep runtime access isolated with stable credentials and read-only audit access."""
+async def test_postgres_creates_idempotent_runtime_schema_with_local_users(postgres_database: tuple[postgres.Postgres, UUID, UUID]) -> None:
+    """Keep runtime users writable locally and isolated from sibling Solutions."""
 
     # Arrange
     adapter, organization_id, solution_id = postgres_database
-    active_user = {"id": UUID("11111111-1111-1111-1111-111111111111"), "name": "Owner User", "email": "owner@example.com", "avatar": ""}
+    active_user = {"id": UUID(int=1), "name": "Owner User", "email": "owner@example.com", "avatar": "", "updated_at": datetime.now(UTC)}
     await adapter.prepare_organization_database(organization_id)
     await adapter.prepare_organization_database(organization_id)
-    async with adapter.connection(organization_id.hex, search_path="shared") as conn:
-        await shared_audit.sync(conn, [active_user])
     runtime_password = "stable-runtime-password"
     sibling_id = UUID("55555555-5555-5555-5555-555555555555")
     sibling_password = "sibling-runtime-password"
@@ -53,6 +51,8 @@ async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_ac
             async with sibling_engine.begin() as connection:
                 await connection.execute(text("CREATE TABLE sibling_items (id integer PRIMARY KEY, name text)"))
                 await connection.execute(text("INSERT INTO sibling_items (id, name) VALUES (1, 'Sibling')"))
+                await connection.run_sync(User.__table__.create)
+                await connection.execute(insert(User).values(**{**active_user, "name": "Sibling User"}))
 
             # Act
             runtime_username = await adapter.solution_schema(organization_id, solution_id, runtime_password)
@@ -64,22 +64,14 @@ async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_ac
                     await connection.execute(text("INSERT INTO runtime_items (id, name) VALUES (1, 'Widget')"))
                     await connection.execute(text("UPDATE runtime_items SET name = 'Updated Widget' WHERE id = 1"))
                     runtime_name = await connection.scalar(text("SELECT name FROM runtime_items WHERE id = 1"))
-                    result = await connection.execute(
-                        text("SELECT email FROM shared.audit WHERE id = :user_id"), {"user_id": active_user["id"]}
-                    )
-                    shared_email = result.scalar_one()
+                    await connection.run_sync(User.__table__.create)
+                    await connection.execute(insert(User).values(**active_user))
+                    await connection.execute(text("UPDATE users SET name = 'Updated User' WHERE id = :id"), {"id": active_user["id"]})
+                    local_name = await connection.scalar(text("SELECT name FROM users WHERE id = :id"), {"id": active_user["id"]})
 
                 with pytest.raises(DBAPIError) as error:
                     async with runtime_engine.begin() as connection:
-                        await connection.execute(
-                            text(
-                                """
-                                INSERT INTO shared.audit (id, name, email, avatar)
-                                VALUES (:id, 'Bad User', 'bad@example.com', '')
-                                """
-                            ),
-                            {"id": UUID("22222222-2222-2222-2222-222222222222")},
-                        )
+                        await connection.execute(text(f'SELECT name FROM "{sibling_id.hex}".users'))
 
                 with pytest.raises(DBAPIError) as select_error:
                     async with runtime_engine.begin() as connection:
@@ -94,15 +86,9 @@ async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_ac
             # Verify the rejected mutation through an independent sibling transaction.
             async with sibling_engine.begin() as connection:
                 sibling_name = await connection.scalar(text("SELECT name FROM sibling_items WHERE id = 1"))
+                sibling_user = await connection.scalar(text("SELECT name FROM users WHERE id = :id"), {"id": active_user["id"]})
         finally:
             await sibling_engine.dispose()
-
-    updated_user = {**active_user, "name": "Updated User"}
-    async with adapter.connection(organization_id.hex, search_path="shared") as conn:
-        await shared_audit.sync(conn, [updated_user])
-    async with adapter.connection(organization_id.hex) as connection:
-        result = await connection.execute(text("SELECT name FROM shared.audit WHERE id = :user_id"), {"user_id": active_user["id"]})
-        updated_name = result.scalar_one()
 
     # Assert
     assert getattr(error.value.orig, "sqlstate", None) == "42501"
@@ -113,8 +99,8 @@ async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_ac
     assert retried_runtime_username == runtime_username
     assert runtime_username.startswith("longlink_")
     assert len(runtime_username) <= 63
-    assert shared_email == "owner@example.com"
-    assert updated_name == "Updated User"
+    assert local_name == "Updated User"
+    assert sibling_user == "Sibling User"
 
 
 @pytest.mark.integration

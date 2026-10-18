@@ -5,7 +5,7 @@ from uuid import UUID
 from typing import Annotated
 from fastapi import Header, Depends, Response, APIRouter, HTTPException
 from pathlib import Path
-from longlink import Context, identity
+from longlink import User, Context, identity
 from longlink import app as longlink_app
 from pydantic import ValidationError
 from sqlalchemy import event
@@ -15,6 +15,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from longlink.database import audit
 from sqlalchemy.engine import Engine
 from fastapi.testclient import TestClient
+from longlink.database.base import Database
+from longlink.utils.settings import Envs
 
 
 @pytest.mark.usefixtures("solution_source")
@@ -402,6 +404,7 @@ def test_mcp_preserves_identity_and_endpoint_authorization(monkeypatch: pytest.M
     app = LongLink()
     allowed_user = UUID(int=1)
     denied_user = UUID(int=2)
+    app.state.longlink.database = Database(Envs(ENV="testing"))
 
     @app.get("/api/private", response_model=str, operation_id="private_data")
     async def private_data(credentials: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())]) -> str:
@@ -418,7 +421,9 @@ def test_mcp_preserves_identity_and_endpoint_authorization(monkeypatch: pytest.M
     with client:
         anonymous = client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
         forged = client.post("/mcp", json=request, headers={"x-longlink-identity": "forged"})
-        client.headers["x-longlink-identity"] = identity.create_identity_token(allowed_user, secret)
+        client.headers["x-longlink-identity"] = identity.create_identity_token(
+            User(id=allowed_user, name="Allowed", email="allowed@example.com"), secret
+        )
         client.headers["authorization"] = "Bearer allowed-bearer"
         if protocol_version == "2026-07-28":
             client.headers["accept"] = "application/json, text/event-stream"
@@ -436,7 +441,9 @@ def test_mcp_preserves_identity_and_endpoint_authorization(monkeypatch: pytest.M
         del client.headers["authorization"]
         missing_bearer = client.post("/mcp", json=request)
         client.headers["authorization"] = "Bearer allowed-bearer"
-        client.headers["x-longlink-identity"] = identity.create_identity_token(denied_user, secret)
+        client.headers["x-longlink-identity"] = identity.create_identity_token(
+            User(id=denied_user, name="Denied", email="denied@example.com"), secret
+        )
         denied = client.post("/mcp", json=request)
         direct_denied = client.get("/api/private")
         del client.headers["x-longlink-identity"]
@@ -585,8 +592,9 @@ def test_tool_arguments_cannot_override_request_credentials(monkeypatch: pytest.
         return {"user": str(audit.current_actor.get()), "authorization": authorization, "cookie": cookie}
 
     actual_user = UUID(int=2)
-    actual_identity = identity.create_identity_token(actual_user, secret)
-    other_identity = identity.create_identity_token(UUID(int=1), secret)
+    app.state.longlink.database = Database(Envs(ENV="testing"))
+    actual_identity = identity.create_identity_token(User(id=actual_user, name="Actual", email="actual@example.com"), secret)
+    other_identity = identity.create_identity_token(User(id=UUID(int=1), name="Other", email="other@example.com"), secret)
     client = TestClient(app, headers={"x-longlink-identity": actual_identity, "authorization": "Bearer actual", "cookie": "user=actual"})
 
     # Try to supply another user's valid signed token and bearer through declared tool parameters.

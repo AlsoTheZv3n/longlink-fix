@@ -1,5 +1,5 @@
 from pydantic import TypeAdapter
-from longlink.shared.models import Email
+from longlink.types import Email
 
 EMAIL = TypeAdapter(Email)
 

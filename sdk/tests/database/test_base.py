@@ -27,7 +27,7 @@ from longlink.utils.settings import Envs
                 "pool_pre_ping": True,
                 "pool_recycle": 20,
                 "pool_use_lifo": True,
-                "connect_args": {"server_settings": {"timezone": "UTC", "search_path": '"solution", shared'}},
+                "connect_args": {"server_settings": {"timezone": "UTC", "search_path": '"solution"'}},
             },
             id="production",
         ),

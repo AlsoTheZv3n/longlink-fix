@@ -5,6 +5,7 @@ import asyncio
 from src import mcp
 from uuid import UUID
 from fastapi import Depends, Request, Response, APIRouter, HTTPException
+from datetime import UTC
 from longlink import identity
 from src.utils import roles
 from contextlib import AsyncExitStack
@@ -13,6 +14,7 @@ from src.kubernetes import namespace
 from collections.abc import AsyncIterator, AsyncGenerator
 from src.models.roles import SOLUTION_PROXY_METHOD_ROLES
 from fastapi.responses import JSONResponse, StreamingResponse
+from longlink.database import users
 from src.models.statuses import Status
 from src.database.services import organizations
 
@@ -87,7 +89,9 @@ async def proxy_solution_request(
                 # Sign platform identity while keeping Knative's Host independent of the verified TLS hostname.
                 headers = {
                     "host": namespace.solution_hostname(solution.organization_id, solution.id),
-                    "x-longlink-identity": identity.create_identity_token(user.id, identity_secret),
+                    "x-longlink-identity": identity.create_identity_token(
+                        users.User.model_validate(user, update={"updated_at": user.updated_at.replace(tzinfo=UTC)}), identity_secret
+                    ),
                 }
                 content_type = request.headers.get("content-type")
                 if content_type is not None:

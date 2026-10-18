@@ -6,15 +6,14 @@ from typing import Annotated
 from fastapi import Body, Query, Cookie, Header, Response, APIRouter, HTTPException, BackgroundTasks
 from src.utils import mail, oauth, token, cookies
 from src.context import Context
+from longlink.types import Email
 from sqlalchemy.exc import IntegrityError
-from src.operations import databases
 from src.models.auth import EmailPayload, TokenPayload, PasswordLogin, OAuthAvailability, RegistrationComplete, PasswordResetComplete
 from src.environments import env
 from src.models.users import UserSummary
 from fastapi.responses import RedirectResponse
 from longlink.database import audit
 from src.database.services import users, invitations
-from longlink.shared.models import Email
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
 
@@ -31,9 +30,6 @@ async def set_auth_session(session: AsyncSession, response: Response, user: User
     with audit.actor(user.id):
         await invitations.accept(session, user)
         await session.commit()
-
-    # Synchronize committed memberships before issuing authentication, including retries after a failed sync.
-    await databases.sync_users(user.id)
 
     # Publish authentication as a private, browser-only session only after persistence succeeds.
     cookies.set_browser_cookie(response, cookies.AUTH_COOKIE, token.create_auth_token(user), "/", 2592000)

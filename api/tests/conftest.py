@@ -89,16 +89,16 @@ class DatabaseKubernetes(Kubernetes):
 
 
 class DatabasePostgres:
-    """Provide external SQL operations while activity and projection use real Platform state."""
+    """Provide external SQL operations while activity uses real Platform state."""
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Accept the private Organization connection settings."""
 
     @asynccontextmanager
     async def connection(self, database: str, *, search_path: str | None = None) -> AsyncGenerator["DatabasePostgres"]:
-        """Scope SQL projection and readiness probes to their Organization database."""
+        """Scope readiness probes to their Organization database."""
 
-        # Record the connection target forwarded by the projection service.
+        # Record the connection target forwarded by database coordination.
         self.database = database
         self.search_path = search_path
         yield self
@@ -109,7 +109,7 @@ class DatabasePostgres:
         assert str(statement) == "SELECT 1"
 
     async def prepare_organization_database(self, organization: UUID) -> None:
-        """Accept shared schema provisioning."""
+        """Accept Organization database provisioning."""
 
 
 @pytest.fixture(scope="session")
@@ -146,9 +146,6 @@ def database_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
 
     from src.operations import databases
 
-    async def sync(*args: object, **kwargs: object) -> None:
-        """Accept the real shared-user snapshot at its database transport boundary."""
-
     async def apply(
         client: object, organization: UUID, password: str, storage_class: str, *, size_mib: int = 100, instances: int = 1
     ) -> None:
@@ -167,7 +164,6 @@ def database_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(database_resources, "resume", resume)
     monkeypatch.setattr(database_resources, "certificate", certificate)
     monkeypatch.setattr(database_resources.postgres, "Postgres", DatabasePostgres)
-    monkeypatch.setattr(databases.shared_audit, "sync", sync)
 
 
 UNTRUSTED_ORIGINS: list[str | None] = [None, "", "https://attacker.example"]

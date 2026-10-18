@@ -65,15 +65,18 @@ async def create_project(ctx: Context) -> None:
                     Users management
                 </Heading>
                 <Text as="p">
-                    The shared <Code>User</Code> has an ID, name, email, and avatar. Use <Code>Audit</Code> for
-                    automatic attribution or <Code>UserRelationship()</Code> to add a named user relationship.
+                    Each Solution owns a <Code>users</Code> table with each known user&apos;s ID, name, email, avatar,
+                    and profile update timestamp. Authenticated requests refresh the requesting user&apos;s profile
+                    before your route runs. Profiles remain at their last-seen values until the user returns; this table
+                    is not an organization membership directory. Use <Code>Audit</Code> for automatic attribution or
+                    <Code>UserRelationship()</Code> to add a named user relationship.
                 </Text>
                 <Text as="p">
                     <Code>Audit</Code> adds creation, update, and deletion timestamps; matching Platform user IDs; and
-                    relationships to the shared users. Use it only for tables that need this history.
+                    relationships to local users. Use it only for tables that need this history.
                 </Text>
                 <Text as="p">
-                    <Code>UserRelationship()</Code> gives <Code>owner</Code> its own required foreign key to the shared
+                    <Code>UserRelationship()</Code> gives <Code>owner</Code> its own required foreign key to the local
                     user table. Use <Code>Model</Code> instead of <Code>Audit</Code> if you do not need audit history.
                     Annotate a relationship as <Code>User | None</Code> for an optional role, such as an invoice
                     approver; its generated foreign key defaults to null.
@@ -91,7 +94,7 @@ class Project(Audit, table=True):
 
 
 async def create_project(ctx: Context, owner: User) -> Project:
-    """Create a project owned by an existing shared user."""
+    """Create a project owned by an existing local user."""
 
     project = Project(name="Launch", owner=owner)
     ctx.database.add(project)

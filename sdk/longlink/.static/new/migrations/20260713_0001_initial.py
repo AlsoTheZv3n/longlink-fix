@@ -139,5 +139,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove the Solution-owned project schema."""
 
-    # Leave shared SDK tables intact.
+    # Leave SDK-owned users intact.
     op.drop_table("project")

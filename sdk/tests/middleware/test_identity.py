@@ -2,12 +2,15 @@ import httpx2
 import pytest
 import asyncio
 from uuid import UUID
+from types import SimpleNamespace
 from fastapi import FastAPI, WebSocket
-from longlink import identity
+from longlink import User, identity
 from collections.abc import Iterator
 from longlink.database import audit
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
+from longlink.database.base import Database
+from longlink.utils.settings import Envs
 from longlink.middleware.identity import IdentityMiddleware
 
 IDENTITY_SECRET = "test-identity-secret-01234567890"
@@ -16,7 +19,9 @@ IDENTITY_SECRET = "test-identity-secret-01234567890"
 def identity_headers(user_id: UUID) -> dict[str, str]:
     """Build a current Platform identity assertion for middleware admission."""
 
-    return {"x-longlink-identity": identity.create_identity_token(user_id, IDENTITY_SECRET)}
+    return {
+        "x-longlink-identity": identity.create_identity_token(User(id=user_id, name="Test User", email="test@example.com"), IDENTITY_SECRET)
+    }
 
 
 @pytest.mark.parametrize(("secret", "identity_header"), [(IDENTITY_SECRET, "invalid-token"), ("", None)])
@@ -53,6 +58,8 @@ def production_client() -> Iterator[TestClient]:
 
     # Install the same production identity boundary used by the Solution application.
     app = FastAPI()
+    database = Database(Envs(ENV="testing"))
+    app.state.longlink = SimpleNamespace(database=database)
     app.add_middleware(IdentityMiddleware, identity_secret=IDENTITY_SECRET, require_identity=True, local_user_id=None)
 
     @app.get("/views.json")
@@ -77,7 +84,11 @@ def production_client() -> Iterator[TestClient]:
     # Keep the application lifespan local to each test.
     client = TestClient(app)
     with client:
-        yield client
+        try:
+            yield client
+        finally:
+            assert client.portal is not None
+            client.portal.call(database.dispose)
 
 
 HTTP_IDENTITY_CASES = [
@@ -96,7 +107,7 @@ def test_production_context_requires_signed_http_identity(
 
     # Arrange
     if signing_secret is not None:
-        token = identity.create_identity_token(UUID("00000000-0000-0000-0000-000000000001"), signing_secret)
+        token = identity.create_identity_token(User(id=UUID(int=1), name="Test User", email="test@example.com"), signing_secret)
         headers = {"x-longlink-identity": token}
 
     # Act
@@ -144,6 +155,8 @@ async def test_context_middleware_isolates_concurrent_audit_identities() -> None
     second_outer_id = UUID("00000000-0000-0000-0000-000000000009")
     both_requests_arrived = asyncio.Barrier(2)
     app = FastAPI()
+    database = Database(Envs(ENV="testing"))
+    app.state.longlink = SimpleNamespace(database=database)
     app.add_middleware(IdentityMiddleware, identity_secret=IDENTITY_SECRET, require_identity=False, local_user_id=None)
 
     @app.get("/")
@@ -169,9 +182,14 @@ async def test_context_middleware_isolates_concurrent_audit_identities() -> None
             return response
 
     # Act
-    async with client:
-        async with asyncio.timeout(5):
-            first_response, second_response = await asyncio.gather(request(first_id, first_outer_id), request(second_id, second_outer_id))
+    try:
+        async with client:
+            async with asyncio.timeout(5):
+                first_response, second_response = await asyncio.gather(
+                    request(first_id, first_outer_id), request(second_id, second_outer_id)
+                )
+    finally:
+        await database.dispose()
 
     # Assert
     assert first_response.status_code == 200

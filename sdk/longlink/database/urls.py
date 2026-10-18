@@ -12,7 +12,7 @@ def connect_args(database_url: str | URL, schema: str | None = None, certificate
     # Configure UTC and the Solution schema for PostgreSQL connections.
     server_settings = {"timezone": "UTC"}
     if schema is not None:
-        server_settings["search_path"] = f'"{schema}", shared'
+        server_settings["search_path"] = f'"{schema}"'
 
     connect_args: dict[str, object] = {"server_settings": server_settings}
 

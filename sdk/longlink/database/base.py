@@ -1,7 +1,7 @@
 import asyncio
 import sqlalchemy
 from uuid import UUID
-from datetime import datetime
+from datetime import UTC, datetime
 from sqlmodel import Field, SQLModel
 from sqlmodel import Session as SyncSession
 from contextlib import asynccontextmanager
@@ -10,8 +10,9 @@ from collections.abc import AsyncGenerator
 from sqlmodel._compat import SQLModelConfig
 from longlink.database import urls
 from sqlalchemy.engine import URL, make_url
-from longlink.shared.models import User
+from sqlalchemy.dialects import sqlite, postgresql
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from longlink.database.users import User
 from longlink.utils.settings import Envs
 from longlink.database.relations import Model
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -30,8 +31,8 @@ class Audit(Model):
     updated_at: datetime = Field(default=None, nullable=False)
 
     # Audit user identifiers
-    created_id: UUID = Field(default=None, nullable=False, foreign_key="audit.id")
-    updated_id: UUID = Field(default=None, nullable=False, foreign_key="audit.id")
+    created_id: UUID = Field(default=None, nullable=False, foreign_key="users.id")
+    updated_id: UUID = Field(default=None, nullable=False, foreign_key="users.id")
 
     # Audit user relationships
     created_by = declared_attr(lambda cls: relationship(User, foreign_keys=[cls.created_id], lazy="selectin"))
@@ -101,25 +102,24 @@ class Database:
 
                     # Initialize the database without publishing partially initialized resources.
                     try:
-                        if self._env.ENV != "production":
-                            async with engine.begin() as conn:
-                                # Testing creates the full schema; development only bootstraps its audit table.
-                                if self._env.ENV == "testing":
-                                    await conn.run_sync(SQLModel.metadata.create_all)
-                                else:
-                                    await conn.run_sync(SQLModel.metadata.tables["audit"].create, checkfirst=True)
+                        async with engine.begin() as conn:
+                            # Testing creates all tables; other environments bootstrap SDK-owned users.
+                            if self._env.ENV == "testing":
+                                await conn.run_sync(SQLModel.metadata.create_all)
+                            else:
+                                await conn.run_sync(SQLModel.metadata.tables["users"].create, checkfirst=True)
 
+                            if self._env.ENV != "production":
                                 # Seed the local user within the schema bootstrap's connection and transaction.
-                                users = SQLModel.metadata.tables["audit"]
+                                users = SQLModel.metadata.tables["users"]
                                 user_id = await conn.scalar(sqlalchemy.select(users.c.id).where(users.c.id == LOCAL_USER_ID))
                                 if user_id is None:
                                     name = "Development user" if self._env.ENV == "development" else "Testing user"
                                     await conn.execute(
-                                        sqlalchemy.insert(users).values(id=LOCAL_USER_ID, name=name, email="local@example.com", avatar="")
+                                        sqlalchemy.insert(users).values(
+                                            id=LOCAL_USER_ID, name=name, email="local@example.com", avatar="", updated_at=datetime.now(UTC)
+                                        )
                                     )
-                        else:
-                            async with engine.connect():
-                                pass
                     except BaseException:
                         await engine.dispose()
                         raise
@@ -150,8 +150,25 @@ class Database:
         if engine is not None:
             await engine.dispose()
 
+    async def sync_user(self, user: User) -> None:
+        """Persist a verified profile independently of the request's business transaction."""
 
-# Register shared audit listeners after Audit is fully defined.
+        # Upserts serialize concurrent first requests and ignore equal or older profile snapshots.
+        engine = await self._get_engine()
+        users = SQLModel.metadata.tables["users"]
+        statement = postgresql.insert(users) if engine.dialect.name == "postgresql" else sqlite.insert(users)
+        statement = statement.values(user.model_dump())
+        async with engine.begin() as connection:
+            await connection.execute(
+                statement.on_conflict_do_update(
+                    index_elements=[users.c.id],
+                    set_={name: statement.excluded[name] for name in ("name", "email", "avatar", "updated_at")},
+                    where=users.c.updated_at < statement.excluded.updated_at,
+                )
+            )
+
+
+# Register audit listeners after Audit is fully defined.
 from longlink.database import audit
 
 audit.install_listener(SyncSession, Audit)

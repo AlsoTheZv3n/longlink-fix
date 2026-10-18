@@ -2,7 +2,6 @@ import contextlib
 from uuid import UUID
 from sqlalchemy import String, text
 from collections.abc import Generator, AsyncGenerator
-from longlink.shared import migrations as shared_migrations
 from longlink.storage import tls
 from src.models.types import DatabaseSSLMode
 from sqlalchemy.engine import URL
@@ -14,7 +13,7 @@ from sqlalchemy.sql.elements import quoted_name
 class Postgres:
     """Provision organization databases and Solution schemas using cluster-owned PostgreSQL credentials.
 
-    Runtime roles can write their solution schema and read the organization's shared schema.
+    Runtime roles can access only their own Solution schema.
     """
 
     def __init__(
@@ -99,7 +98,7 @@ class Postgres:
             return result.scalar_one()
 
     async def prepare_organization_database(self, organization: UUID) -> None:
-        """Converge one organization database, run SDK-owned shared-schema migrations, and restore shared-schema restrictions.
+        """Converge one Organization database and restrict its public schema.
 
         Repeated calls resume the same topology after partial provisioning.
         """
@@ -112,22 +111,15 @@ class Postgres:
                 quoted_database_name = conn.engine.sync_engine.dialect.identifier_preparer.quote(organization.hex)
                 await conn.exec_driver_sql(f"CREATE DATABASE {quoted_database_name}")
 
-        # SDK migrations create the organization schema before users or solution schemas rely on it.
-        with self.url(organization.hex) as url:
-            await shared_migrations.migrate_database(url)
-
-        # Re-apply shared schema restrictions because migrations can recreate schema-owned objects.
+        # Keep runtime roles from creating or modifying public tables.
         async with self.connection(organization.hex) as conn:
-            shared_schema = conn.engine.sync_engine.dialect.identifier_preparer.quote("shared")
             await conn.execute(text("REVOKE CREATE ON SCHEMA public FROM PUBLIC"))
-            await conn.exec_driver_sql(f"REVOKE CREATE ON SCHEMA {shared_schema} FROM PUBLIC")
             await conn.execute(text("REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA public FROM PUBLIC"))
-            await conn.exec_driver_sql(f"REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA {shared_schema} FROM PUBLIC")
 
     async def solution_schema(self, organization: UUID, solution: UUID, password: str) -> str:
         """Converge one solution schema and runtime role, rotating to the supplied password on every retry.
 
-        Grant writes only to the solution schema and reads to shared tables, then return the runtime username.
+        Grant access only to the Solution schema, then return the runtime username.
         """
 
         # Derive the solution-scoped role while the cluster-owned password remains stable across retries.
@@ -153,21 +145,15 @@ class Postgres:
             # Quote all identifiers before composing role and privilege statements.
             database = quote(organization.hex)
             schema = quote(solution.hex)
-            shared_schema = quote("shared")
 
-            # Solution roles write to their own schema and read organization shared tables.
+            # Solution roles can create and modify tables only in their own schema.
             await conn.exec_driver_sql(
                 f"""
                 GRANT CONNECT ON DATABASE {database} TO {role};
                 GRANT USAGE, CREATE ON SCHEMA {schema} TO {role};
                 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA {schema} TO {role};
                 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA {schema} TO {role};
-                GRANT USAGE ON SCHEMA {shared_schema} TO {role};
-                REVOKE CREATE ON SCHEMA {shared_schema} FROM {role};
-                REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA {shared_schema} FROM {role};
-                GRANT SELECT, REFERENCES ON ALL TABLES IN SCHEMA {shared_schema} TO {role};
-                ALTER DEFAULT PRIVILEGES IN SCHEMA {shared_schema} GRANT SELECT, REFERENCES ON TABLES TO {role};
-                ALTER ROLE {role} IN DATABASE {database} SET search_path = {schema}, {shared_schema};
+                ALTER ROLE {role} IN DATABASE {database} SET search_path = {schema};
                 """
             )
 
@@ -190,16 +176,12 @@ class Postgres:
             schema = quote(solution.hex)
             role = quote(runtime_username)
             database = quote(organization.hex)
-            shared_schema = quote("shared")
 
             # Remove every grant and setting assigned during Solution provisioning when its role exists.
             if await conn.scalar(text("SELECT 1 FROM pg_roles WHERE rolname = :role"), {"role": runtime_username}) is not None:
                 await conn.exec_driver_sql(
                     f"""
                     REVOKE ALL PRIVILEGES ON DATABASE {database} FROM {role};
-                    REVOKE ALL PRIVILEGES ON SCHEMA {shared_schema} FROM {role};
-                    REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA {shared_schema} FROM {role};
-                    ALTER DEFAULT PRIVILEGES IN SCHEMA {shared_schema} REVOKE ALL ON TABLES FROM {role};
                     ALTER ROLE {role} IN DATABASE {database} RESET search_path;
                     """
                 )

@@ -221,8 +221,9 @@ function PrivacyContent() {
                 <Text as="p">
                     We process data to create accounts, manage organizations and access, operate Solutions and connected
                     infrastructure, deliver account and service messages, protect the Service, diagnose problems, and
-                    improve reliability. This includes synchronizing organization users to Solution databases where
-                    needed for access. We also respond to enquiries, handle disputes, and meet legal obligations.
+                    improve reliability. Authenticated Solution requests include the requesting user&apos;s profile,
+                    which is stored in that Solution&apos;s database for user relationships and audit attribution. We
+                    also respond to enquiries, handle disputes, and meet legal obligations.
                 </Text>
                 <Text as="p">
                     The Service automatically checks access and provisions or removes resources. These operational
