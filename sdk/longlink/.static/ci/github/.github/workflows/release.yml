@@ -56,7 +56,7 @@ jobs:
               run: |
                   set -euo pipefail
                   registry="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
-                  uv run --locked longlink build --registry "$registry" --push --tag "$RELEASE_TAG" --latest
+                  uv run --locked longlink build --registry "$registry" --push --tag "$RELEASE_TAG" --latest --version "${RELEASE_TAG#v}"
 
     publish-github-release:
         needs: release
