@@ -2,12 +2,13 @@ import ssl
 import json
 import httpx2
 import asyncio
-from src import mcp, auth
+from src import mcp
 from uuid import UUID
 from fastapi import Depends, Request, Response, APIRouter, HTTPException
 from longlink import identity
 from src.utils import roles
 from contextlib import AsyncExitStack
+from src.context import Context
 from src.kubernetes import namespace
 from collections.abc import AsyncIterator, AsyncGenerator
 from src.models.roles import SOLUTION_PROXY_METHOD_ROLES
@@ -33,10 +34,10 @@ async def runtime_scope() -> AsyncGenerator[AsyncExitStack]:
 @router.api_route("/solutions/{solution_id}/proxy", methods=list(SOLUTION_PROXY_METHOD_ROLES), include_in_schema=False)
 @router.api_route("/solutions/{solution_id}/proxy/{path:path}", methods=list(SOLUTION_PROXY_METHOD_ROLES), include_in_schema=False)
 async def proxy_solution_request(
+    ctx: Context,
     request: Request,
     solution_id: UUID,
     user: mcp.ProxyUser,
-    session: auth.Session,
     path: str = "",
     runtime: AsyncExitStack = Depends(runtime_scope, scope="request"),
 ) -> Response:
@@ -51,10 +52,10 @@ async def proxy_solution_request(
     is_mcp = path.rstrip("/") == "mcp"
 
     # Release the request snapshot before independent runtime transactions begin.
-    await session.commit()
+    await ctx.database.commit()
 
     # Resolve fresh Solution access immediately before runtime admission; never reuse a stale snapshot.
-    access = await organizations.solution_runtime_access(session, user.id, solution_id)
+    access = await organizations.solution_runtime_access(ctx.database, user.id, solution_id)
     if access is None:
         raise HTTPException(status_code=403, detail="Access required")
     solution, role, registry = access
@@ -73,7 +74,7 @@ async def proxy_solution_request(
             detail="Solution is not ready yet. Please try again shortly.",
             headers={"cache-control": "no-store"},
         )
-    await session.commit()
+    await ctx.database.commit()
 
     identity_secret = solution.secrets.get("LONGLINK_IDENTITY_SECRET")
     if not identity_secret:

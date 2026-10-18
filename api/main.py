@@ -101,7 +101,7 @@ async def apply_response_policies(
     response = await call_next(request)
 
     # Authentication dependencies set this only after validating the browser credential.
-    if getattr(request.state, "authenticated", False):
+    if getattr(request.state, "user", None) is not None:
         response.headers.setdefault("Cache-Control", "no-store")
 
     # Publish crawler instructions before JavaScript runs on missing frontend pages.

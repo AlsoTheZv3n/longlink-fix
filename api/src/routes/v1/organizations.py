@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import Query, Depends, APIRouter, HTTPException
 from src.utils import s3, mail, roles
 from src.logger import logger
+from src.context import Context
 from sqlalchemy.exc import SQLAlchemyError
 from src.kubernetes import databases
 from src.environments import env
@@ -38,28 +39,27 @@ DATABASE_USAGE_TIMEOUT_SECONDS = 15
 
 @router.get("/organizations", response_model=Page[OrganizationIdentity])
 async def list_organizations(
+    ctx: Context,
     _user: auth.PlatformAdmin,
-    session: auth.Session,
     pagination: Pagination = Depends(),
     search: str = Query(default="", max_length=200),
 ):
     """Return all organizations for administrator views."""
 
     # Search the full administrator listing before pagination.
-    items, total = await organizations.fetch(session, pagination, search.strip())
+    items, total = await organizations.fetch(ctx.database, pagination, search.strip())
     return {"items": items, "total": total}
 
 
-@router.get("/organizations/slug/{organization_slug}", response_model=UserOrganizationMembership)
+@router.get("/organizations/slug/{organization_slug}", response_model=UserOrganizationMembership, dependencies=[Depends(auth.authuser)])
 async def get_organization_by_slug(
+    ctx: Context,
     organization_slug: str,
-    user: auth.CurrentUser,
-    session: auth.Session,
 ):
     """Return the current user's membership for one Organization slug."""
 
     # Resolve the route slug within the authenticated user's active memberships.
-    membership = await organizations.membership_by_slug(session, user.id, organization_slug)
+    membership = await organizations.membership_by_slug(ctx.database, ctx.user.id, organization_slug)
     if membership is None:
         raise HTTPException(status_code=404, detail="Organization not found")
     return membership
@@ -67,8 +67,8 @@ async def get_organization_by_slug(
 
 @router.get("/organizations/{organization_id}", response_model=OrganizationDetails)  # noqa: FAST003 - Consumed by auth.OrganizationMember.
 async def get_organization(
+    ctx: Context,
     membership: auth.OrganizationMember,
-    session: auth.Session,
 ):
     """Return one organization and its metadata."""
 
@@ -78,8 +78,8 @@ async def get_organization(
     # Show invitations only to organization managers.
     return {
         "organization": organization,
-        "members": await organizations.members(session, organization.id),
-        "invitations": await organizations.invitations(session, organization.id)
+        "members": await organizations.members(ctx.database, organization.id),
+        "invitations": await organizations.invitations(ctx.database, organization.id)
         if roles.atleast(membership.role, OrganizationRoles.maintain)
         else [],
     }
@@ -87,34 +87,34 @@ async def get_organization(
 
 @router.get("/organizations/{organization_id}/solutions", response_model=list[OrganizationSolutionSummary])  # noqa: FAST003 - Consumed by auth.OrganizationMember.
 async def get_organization_solutions(
+    ctx: Context,
     membership: auth.OrganizationMember,
-    session: auth.Session,
 ):
     """Return solutions visible to the current organization member."""
 
-    return await organizations.solutions(session, membership.organization_id)
+    return await organizations.solutions(ctx.database, membership.organization_id)
 
 
-@router.get("/organizations/{organization_id}/usage", response_model=OrganizationUsage)
-async def get_organization_usage(organization_id: UUID, user: auth.CurrentUser, session: auth.Session):
+@router.get("/organizations/{organization_id}/usage", response_model=OrganizationUsage, dependencies=[Depends(auth.authuser)])
+async def get_organization_usage(ctx: Context, organization_id: UUID):
     """Show current accepted users and the same monthly rates used for invoicing."""
 
     # Membership is required even though the rates themselves are public.
-    await organizations.require_membership(session, user.id, organization_id)
-    users = await organizations.member_count(session, organization_id)
+    await organizations.require_membership(ctx.database, ctx.user.id, organization_id)
+    users = await organizations.member_count(ctx.database, organization_id)
     return {"users": users, "stripe_enabled": env.stripe_enabled}
 
 
 @router.get("/organizations/{organization_id}/quotas", response_model=OrganizationQuotasResponse)
 async def get_organization_quotas(
+    ctx: Context,
     organization_id: UUID,
     _user: auth.PlatformAdmin,
-    session: auth.Session,
 ):
     """Return stored Organization quotas for administrator views."""
 
     # Read stored quotas without touching provider boundaries.
-    organization = await session.get(Organization, organization_id)
+    organization = await ctx.database.get(Organization, organization_id)
     if organization is None or organization.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Organization not found")
     return organization
@@ -125,16 +125,16 @@ async def get_organization_quotas(
     response_model=OrganizationStorageUsageResponse,
 )
 async def get_organization_storage_usage(
+    ctx: Context,
     membership: auth.OrganizationMember,
-    session: auth.Session,
 ):
     """Return live usage for the Organization bucket."""
 
     # Load the Organization's immutable storage assignment.
-    compute = await organizations.storage_infrastructure(session, membership.organization_id)
+    compute = await organizations.storage_infrastructure(ctx.database, membership.organization_id)
     if compute is None:
         raise HTTPException(status_code=404, detail="Organization not found")
-    await session.commit()
+    await ctx.database.commit()
 
     # Inspect the complete Organization bucket and report storage failures as unavailable.
     try:
@@ -159,17 +159,17 @@ async def get_organization_storage_usage(
     response_model=OrganizationDatabaseUsageResponse,
 )
 async def get_organization_database_usage(
+    ctx: Context,
     membership: auth.OrganizationMember,
-    session: auth.Session,
 ):
     """Return live PostgreSQL usage against provisioned capacity for an authorized Organization."""
 
     # Read only the authorized Organization's database assignment before external I/O.
-    target = await organizations.database_infrastructure(session, membership.organization_id)
+    target = await organizations.database_infrastructure(ctx.database, membership.organization_id)
     if target is None:
         raise HTTPException(status_code=404, detail="Organization not found")
     organization, compute = target
-    await session.commit()
+    await ctx.database.commit()
 
     # Usage reads never provision or repair an unavailable database.
     if organization.database_state != DatabaseState.available:
@@ -203,9 +203,9 @@ async def get_organization_database_usage(
 
 @router.post("/organizations/{organization_id}/invitations", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
 async def create_organization_invitation(
+    ctx: Context,
     payload: OrganizationInvitationCreate,
     membership: auth.OrganizationMaintainer,
-    session: auth.Session,
 ):
     """Create one invitation for an organization member."""
 
@@ -213,12 +213,12 @@ async def create_organization_invitation(
     organization_name = membership.organization.name
 
     await organizations.create_invitation(
-        session,
+        ctx.database,
         membership.organization_id,
         payload,
         membership.user_id,
     )
-    await session.commit()
+    await ctx.database.commit()
 
     # Deliver only after the invitation transaction commits, and tell the inviter when delivery fails.
     try:
@@ -233,75 +233,75 @@ async def create_organization_invitation(
 
 @router.delete("/organizations/{organization_id}/invitations/{invitation_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
 async def revoke_organization_invitation(
+    ctx: Context,
     invitation_id: UUID,
     membership: auth.OrganizationMaintainer,
-    session: auth.Session,
 ):
     """Revoke one pending Organization invitation."""
 
-    await organizations.revoke_invitation(session, membership.organization_id, invitation_id, membership.user_id)
-    await session.commit()
+    await organizations.revoke_invitation(ctx.database, membership.organization_id, invitation_id, membership.user_id)
+    await ctx.database.commit()
 
 
 @router.patch("/organizations/{organization_id}/members/{member_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationAdmin.
 async def update_organization_member(
+    ctx: Context,
     member_id: UUID,
     payload: OrganizationMemberUpdate,
     membership: auth.OrganizationAdmin,
-    session: auth.Session,
 ):
     """Update one organization member role."""
 
     # Persist the requested role only for an active Organization member.
     await organizations.update_member_role(
-        session,
+        ctx.database,
         membership.organization_id,
         member_id,
         payload.role,
         membership.user_id,
     )
-    await session.commit()
+    await ctx.database.commit()
 
 
 @router.delete("/organizations/{organization_id}/members/{member_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationAdmin.
-async def remove_organization_member(member_id: UUID, membership: auth.OrganizationAdmin, session: auth.Session):
+async def remove_organization_member(ctx: Context, member_id: UUID, membership: auth.OrganizationAdmin):
     """Revoke access so the member no longer counts toward month-end usage."""
 
     # The service revalidates permissions and protects the last owner under the organization lock.
-    await organizations.remove_member(session, membership.organization_id, member_id, membership.user_id)
-    await session.commit()
+    await organizations.remove_member(ctx.database, membership.organization_id, member_id, membership.user_id)
+    await ctx.database.commit()
 
 
-@router.delete("/organizations/{organization_id}", status_code=202, response_model=OrganizationIdentity)
+@router.delete(
+    "/organizations/{organization_id}", status_code=202, response_model=OrganizationIdentity, dependencies=[Depends(auth.authuser)]
+)
 async def delete_organization(
+    ctx: Context,
     organization_id: UUID,
-    user: auth.CurrentUser,
-    session: auth.Session,
 ):
     """Mark one Organization absent and queue lifecycle cleanup."""
 
     # Tombstone the Organization only after the service revalidates current ownership under its resource lock.
-    result = await organizations.soft_delete(session, organization_id, user)
+    result = await organizations.soft_delete(ctx.database, organization_id, ctx.user)
     if result is None:
         raise HTTPException(status_code=404, detail="Organization not found")
 
-    await session.commit()
+    await ctx.database.commit()
     return result
 
 
-@router.post("/organizations", response_model=OrganizationIdentity, status_code=202)
+@router.post("/organizations", response_model=OrganizationIdentity, status_code=202, dependencies=[Depends(auth.authuser)])
 async def create_organization(
+    ctx: Context,
     payload: OrganizationCreate,
-    user: auth.CurrentUser,
-    session: auth.Session,
 ):
     """Create Organization desired state and queue infrastructure creation."""
 
     # Persist the Organization with transactionally selected infrastructure registries.
     organization = await organizations.create(
-        session,
+        ctx.database,
         payload.name,
-        user,
+        ctx.user,
     )
-    await session.commit()
+    await ctx.database.commit()
     return organization

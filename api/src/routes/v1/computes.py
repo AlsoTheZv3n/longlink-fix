@@ -4,6 +4,7 @@ from kr8s import ServerError, NotFoundError
 from uuid import UUID
 from fastapi import Query, Depends, APIRouter, HTTPException
 from src.logger import logger
+from src.context import Context
 from sqlalchemy.exc import IntegrityError
 from src.kubernetes import tls, gateway, storageclasses
 from collections.abc import Sequence
@@ -18,7 +19,7 @@ router = APIRouter(dependencies=[Depends(auth.authadmin)])
 
 
 @router.post("/computes", response_model=ComputeRegistryResponse, status_code=201)
-async def create_compute_registry(payload: ComputeRegistryCreate, session: auth.Session) -> ComputeRegistry:
+async def create_compute_registry(ctx: Context, payload: ComputeRegistryCreate) -> ComputeRegistry:
     """Register a compute target after verifying its infrastructure inline."""
 
     # Bound cluster discovery, verification, and connection cleanup so failures return before the browser times out.
@@ -71,34 +72,34 @@ async def create_compute_registry(payload: ComputeRegistryCreate, session: auth.
         ) from exc
 
     # Persist the verified connection as immediately assignable.
-    session.add(candidate)
+    ctx.database.add(candidate)
 
     # Translate duplicate names or physical clusters to one stable API conflict.
     try:
-        await session.flush()
+        await ctx.database.flush()
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="Compute registry already exists") from exc
-    await session.commit()
+    await ctx.database.commit()
     return candidate
 
 
 @router.get("/computes", response_model=Page[ComputeRegistryResponse])
 async def list_compute_registries(
-    session: auth.Session,
+    ctx: Context,
     pagination: Pagination = Depends(),
     search: str = Query(default="", max_length=200),
 ) -> dict[str, Sequence[ComputeRegistry] | int]:
     """Return all registered compute backends."""
 
     # Search the full administrator listing before pagination.
-    items, total = await compute.fetch(session, pagination, search.strip())
+    items, total = await compute.fetch(ctx.database, pagination, search.strip())
     return {"items": items, "total": total}
 
 
 @router.delete("/computes/{registry_id}", status_code=204)
-async def delete_compute_registry(registry_id: UUID, session: auth.Session) -> None:
+async def delete_compute_registry(ctx: Context, registry_id: UUID) -> None:
     """Remove one unused compute registration without changing its cluster."""
 
     # Remove only a registered Compute with no Organization dependency.
-    await compute.delete(session, registry_id)
-    await session.commit()
+    await compute.delete(ctx.database, registry_id)
+    await ctx.database.commit()

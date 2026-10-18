@@ -1,11 +1,12 @@
 from src import auth
 from uuid import UUID
 from stripe import Webhook, SignatureVerificationError
-from fastapi import Request, APIRouter, HTTPException
+from fastapi import Depends, Request, APIRouter, HTTPException
 from datetime import UTC, datetime
 from sqlmodel import col
 from src.utils import stripe
 from sqlalchemy import select
+from src.context import Context
 from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.models.payments import PaymentCard, PaymentInvoice, PaymentRedirect
@@ -15,13 +16,13 @@ from src.database.models.organizations import Organization
 router = APIRouter()
 
 
-@router.get("/organizations/{organization_id}/cards", response_model=list[PaymentCard])
-async def get_cards(organization_id: UUID, user: auth.CurrentUser, session: auth.Session):
+@router.get("/organizations/{organization_id}/cards", response_model=list[PaymentCard], dependencies=[Depends(auth.authuser)])
+async def get_cards(ctx: Context, organization_id: UUID):
     """List masked saved cards for the current Organization owner."""
 
     # Resolve ownership before accessing the Organization's Stripe customer.
-    await organizations.require_membership(session, user.id, organization_id, OrganizationRoles.owner)
-    organization = await session.get(Organization, organization_id)
+    await organizations.require_membership(ctx.database, ctx.user.id, organization_id, OrganizationRoles.owner)
+    organization = await ctx.database.get(Organization, organization_id)
     if not env.stripe_enabled or organization is None or organization.stripe_customer_id is None:
         return []
 
@@ -48,13 +49,13 @@ async def get_cards(organization_id: UUID, user: auth.CurrentUser, session: auth
         ]
 
 
-@router.get("/organizations/{organization_id}/invoices", response_model=list[PaymentInvoice])
-async def get_invoices(organization_id: UUID, user: auth.CurrentUser, session: auth.Session):
+@router.get("/organizations/{organization_id}/invoices", response_model=list[PaymentInvoice], dependencies=[Depends(auth.authuser)])
+async def get_invoices(ctx: Context, organization_id: UUID):
     """List issued invoices and hosted documents for the current Organization owner."""
 
     # Keep accounting documents private to owners of the mapped Organization.
-    await organizations.require_membership(session, user.id, organization_id, OrganizationRoles.owner)
-    organization = await session.get(Organization, organization_id)
+    await organizations.require_membership(ctx.database, ctx.user.id, organization_id, OrganizationRoles.owner)
+    organization = await ctx.database.get(Organization, organization_id)
     if not env.stripe_enabled or organization is None or organization.stripe_customer_id is None:
         return []
 
@@ -77,21 +78,21 @@ async def get_invoices(organization_id: UUID, user: auth.CurrentUser, session: a
         ]
 
 
-@router.post("/organizations/{organization_id}/cards/checkout", response_model=PaymentRedirect)
-async def create_checkout(organization_id: UUID, user: auth.CurrentUser, session: auth.Session):
+@router.post("/organizations/{organization_id}/cards/checkout", response_model=PaymentRedirect, dependencies=[Depends(auth.authuser)])
+async def create_checkout(ctx: Context, organization_id: UUID):
     """Save an invoice payment method without taking an immediate payment."""
 
     # Serialize card registration with membership changes and deletion.
-    organization = await organizations.lock(session, organization_id)
-    await organizations.locked_membership(session, user.id, organization_id, OrganizationRoles.owner)
+    organization = await organizations.lock(ctx.database, organization_id)
+    await organizations.locked_membership(ctx.database, ctx.user.id, organization_id, OrganizationRoles.owner)
     async with stripe.client() as connection:
-        url = await payments.checkout(session, organization, user.id, connection)
-    await session.commit()
+        url = await payments.checkout(ctx.database, organization, ctx.user.id, connection)
+    await ctx.database.commit()
     return {"url": url}
 
 
 @router.post("/stripe/webhook", status_code=204)
-async def receive_webhook(request: Request, session: auth.Session):
+async def receive_webhook(ctx: Context, request: Request):
     """Verify card-registration events and apply them directly to the Organization."""
 
     # Signed webhooks do not use browser credentials, and unconfigured deployments reject them.
@@ -116,12 +117,12 @@ async def receive_webhook(request: Request, session: auth.Session):
     customer_id = event.data.object.get("customer")
     if not isinstance(customer_id, str) or not customer_id.startswith("cus_") or len(customer_id) > 255:
         return
-    organization_id = await session.scalar(select(col(Organization.id)).where(col(Organization.stripe_customer_id) == customer_id))
+    organization_id = await ctx.database.scalar(select(col(Organization.id)).where(col(Organization.stripe_customer_id) == customer_id))
     if organization_id is None:
         return
-    organization = await organizations.lock(session, organization_id)
+    organization = await organizations.lock(ctx.database, organization_id)
     if organization.deleted_at is None and event.data.object.get("id") == organization.stripe_checkout_id:
         async with stripe.client() as connection:
             hosted = await connection.v1.checkout.sessions.retrieve_async(organization.stripe_checkout_id)
-            await payments.save_card(session, organization, hosted, connection)
-    await session.commit()
+            await payments.save_card(ctx.database, organization, hosted, connection)
+    await ctx.database.commit()

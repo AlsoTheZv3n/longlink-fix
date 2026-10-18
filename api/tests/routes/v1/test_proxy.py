@@ -1113,7 +1113,7 @@ def request_scope(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
             "solution_id": solution.id,
             "path": "health%2Fstatus",
             "user": user,
-            "session": SimpleNamespace(commit=commit),
+            "ctx": SimpleNamespace(request=request, database=SimpleNamespace(commit=commit)),
         },
     )
 
