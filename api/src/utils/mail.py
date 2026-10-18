@@ -14,7 +14,7 @@ def render_mjml_template(template_name: str, **context: object) -> str:
 
     # Render the MJML source with escaped string context values.
     escaped_context = {name: escape(str(value), quote=True) for name, value in context.items()}
-    template = files("src.utils").joinpath("templates", template_name)
+    template = files("src").joinpath(".static", "email", template_name)
     source = Template(template.read_text(encoding="utf-8")).substitute(**escaped_context)
 
     # Compile the rendered MJML markup to email-safe HTML.
