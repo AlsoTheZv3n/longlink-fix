@@ -61,8 +61,8 @@ async def password_reset_user(session: AsyncSession, credential: str) -> User:
     # Convert invalid and expired credentials into one safe browser-facing response.
     try:
         return await token.password_reset_user(session, credential)
-    except jwt.PyJWTError as exc:
-        raise HTTPException(status_code=400, detail=INVALID_PASSWORD_RESET_LINK) from exc
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=400, detail=INVALID_PASSWORD_RESET_LINK)
 
 
 def registration_email(credential: str) -> Email:
@@ -71,8 +71,8 @@ def registration_email(credential: str) -> Email:
     # Convert invalid and expired credentials into one safe browser-facing response.
     try:
         return token.registration_claims(credential)
-    except jwt.PyJWTError as exc:
-        raise HTTPException(status_code=400, detail=INVALID_REGISTRATION_LINK) from exc
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=400, detail=INVALID_REGISTRATION_LINK)
 
 
 @router.get("/auth/oauth", response_model=OAuthAvailability)
@@ -185,10 +185,7 @@ async def password_login(payload: PasswordLogin, response: Response, session: au
 
 
 @router.post("/auth/logout", status_code=204, include_in_schema=False)
-async def logout(
-    response: Response,
-    origin: str | None = Header(default=None),
-):
+async def logout(response: Response, origin: str | None = Header(default=None)):
     """Remove the active browser credential."""
 
     # Block cross-origin requests from clearing an authenticated browser session.
@@ -201,11 +198,7 @@ async def logout(
 
 # Deployment rate limiting bounds unauthenticated email delivery requests before they reach the API.
 @router.post("/auth/forgot-password", status_code=202)
-async def request_password_reset(
-    email: Annotated[Email, Body(embed=True)],
-    background_tasks: BackgroundTasks,
-    session: auth.Session,
-):
+async def request_password_reset(email: Annotated[Email, Body(embed=True)], background_tasks: BackgroundTasks, session: auth.Session):
     """Queue password reset delivery without disclosing account existence."""
 
     # Missing and inactive accounts receive the same response as eligible accounts.
@@ -320,11 +313,11 @@ async def complete_registration(
     try:
         user = await users.register(session, payload.name, email, payload.password)
         await set_auth_session(session, response, user)
-    except IntegrityError as exc:
+    except IntegrityError:
         raise HTTPException(
             status_code=409,
             detail="An account with this email already exists. Sign in or reset your password to continue.",
-        ) from exc
+        )
 
     # Remove email verification proof only after account creation commits.
     cookies.delete_browser_cookie(response, cookies.REGISTRATION_COOKIE, "/api/v1/auth/register")

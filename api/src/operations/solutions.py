@@ -1,5 +1,6 @@
 import secrets
 from uuid import UUID
+from typing import cast
 from datetime import UTC, datetime
 from sqlmodel import col
 from sqlalchemy import delete as sql_delete
@@ -9,6 +10,7 @@ from src.kubernetes import databases as database_resources
 from src.kubernetes import namespace
 from src.kubernetes import solutions as solution_resources
 from src.operations import registries
+from sqlalchemy.engine import CursorResult
 from src.models.statuses import Status
 from src.database.session import session_scope
 from src.database.services import organizations
@@ -110,13 +112,16 @@ async def deploy(revision_id: UUID) -> None:
         if runtime_secrets != solution.secrets:
             async with session_scope() as session:
                 # Persist credentials only while the Solution remains active.
-                result = await session.execute(
-                    update(Solution)
-                    .where(
-                        col(Solution.id) == solution.id,
-                        col(Solution.deleted_at).is_(None),
-                    )
-                    .values(secrets=runtime_secrets)
+                result = cast(
+                    CursorResult[tuple[object, ...]],
+                    await session.execute(
+                        update(Solution)
+                        .where(
+                            col(Solution.id) == solution.id,
+                            col(Solution.deleted_at).is_(None),
+                        )
+                        .values(secrets=runtime_secrets)
+                    ),
                 )
                 if result.rowcount != 1:
                     return

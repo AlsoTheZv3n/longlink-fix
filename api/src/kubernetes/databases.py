@@ -125,12 +125,7 @@ async def resume(client: "Kubernetes", organization_id: UUID) -> None:
             await asyncio.sleep(1)
 
 
-async def connection(
-    organization: Organization,
-    cluster: "Kubernetes",
-    *,
-    certificate: str | None = None,
-) -> postgres.Postgres:
+async def connection(organization: Organization, cluster: "Kubernetes", *, certificate: str | None = None) -> postgres.Postgres:
     """Build a private PostgreSQL connection using the caller's CA snapshot or a fresh cluster lookup."""
 
     # Platform workers can run outside the compute cluster and its private DNS/network.

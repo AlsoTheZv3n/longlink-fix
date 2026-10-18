@@ -111,7 +111,11 @@ class RustFS:
 
         # A deploy retry can follow a failure before Platform secrets were persisted.
         credentials = s3.Credentials(f"solution-{solution.hex}", secrets.token_hex(20))
-        payload = {"accessKey": credentials.access_key, "secretKey": credentials.secret_key, "policy": self.policy(bucket, solution)}
+        payload: dict[str, object] = {
+            "accessKey": credentials.access_key,
+            "secretKey": credentials.secret_key,
+            "policy": self.policy(bucket, solution),
+        }
         try:
             await self._request("PUT", "/rustfs/admin/v3/add-service-account", payload)
         except Error as error:

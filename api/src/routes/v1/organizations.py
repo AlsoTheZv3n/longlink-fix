@@ -51,11 +51,7 @@ async def list_organizations(
 
 
 @router.get("/organizations/slug/{organization_slug}", response_model=UserOrganizationMembership)
-async def get_organization_by_slug(
-    organization_slug: str,
-    user: auth.CurrentUser,
-    session: auth.Session,
-):
+async def get_organization_by_slug(organization_slug: str, user: auth.CurrentUser, session: auth.Session):
     """Return the current user's membership for one Organization slug."""
 
     # Resolve the route slug within the authenticated user's active memberships.
@@ -66,10 +62,7 @@ async def get_organization_by_slug(
 
 
 @router.get("/organizations/{organization_id}", response_model=OrganizationDetails)  # noqa: FAST003 - Consumed by auth.OrganizationMember.
-async def get_organization(
-    membership: auth.OrganizationMember,
-    session: auth.Session,
-):
+async def get_organization(membership: auth.OrganizationMember, session: auth.Session):
     """Return one organization and its metadata."""
 
     # Reuse the active Organization loaded with the authorized membership.
@@ -86,10 +79,7 @@ async def get_organization(
 
 
 @router.get("/organizations/{organization_id}/solutions", response_model=list[OrganizationSolutionSummary])  # noqa: FAST003 - Consumed by auth.OrganizationMember.
-async def get_organization_solutions(
-    membership: auth.OrganizationMember,
-    session: auth.Session,
-):
+async def get_organization_solutions(membership: auth.OrganizationMember, session: auth.Session):
     """Return solutions visible to the current organization member."""
 
     return await organizations.solutions(session, membership.organization_id)
@@ -106,11 +96,7 @@ async def get_organization_usage(organization_id: UUID, user: auth.CurrentUser, 
 
 
 @router.get("/organizations/{organization_id}/quotas", response_model=OrganizationQuotasResponse)
-async def get_organization_quotas(
-    organization_id: UUID,
-    _user: auth.PlatformAdmin,
-    session: auth.Session,
-):
+async def get_organization_quotas(organization_id: UUID, _user: auth.PlatformAdmin, session: auth.Session):
     """Return stored Organization quotas for administrator views."""
 
     # Read stored quotas without touching provider boundaries.
@@ -124,10 +110,7 @@ async def get_organization_quotas(
     "/organizations/{organization_id}/storage",  # noqa: FAST003 - Consumed by auth.OrganizationMember.
     response_model=OrganizationStorageUsageResponse,
 )
-async def get_organization_storage_usage(
-    membership: auth.OrganizationMember,
-    session: auth.Session,
-):
+async def get_organization_storage_usage(membership: auth.OrganizationMember, session: auth.Session):
     """Return live usage for the Organization bucket."""
 
     # Load the Organization's immutable storage assignment.
@@ -150,7 +133,7 @@ async def get_organization_storage_usage(
             compute.id,
             exc,
         )
-        raise HTTPException(status_code=503, detail="Storage resources unavailable") from exc
+        raise HTTPException(status_code=503, detail="Storage resources unavailable")
     return {"space_used": usage, "quota_bytes": membership.organization.storage_quota_bytes}
 
 
@@ -158,10 +141,7 @@ async def get_organization_storage_usage(
     "/organizations/{organization_id}/database",  # noqa: FAST003 - Consumed by auth.OrganizationMember.
     response_model=OrganizationDatabaseUsageResponse,
 )
-async def get_organization_database_usage(
-    membership: auth.OrganizationMember,
-    session: auth.Session,
-):
+async def get_organization_database_usage(membership: auth.OrganizationMember, session: auth.Session):
     """Return live PostgreSQL usage against provisioned capacity for an authorized Organization."""
 
     # Read only the authorized Organization's database assignment before external I/O.
@@ -196,7 +176,7 @@ async def get_organization_database_usage(
         httpx.HTTPError,
     ) as exc:
         logger.warning("Database usage unavailable for organization '%s': %s", organization.id, exc)
-        raise HTTPException(status_code=503, detail="Database usage unavailable") from exc
+        raise HTTPException(status_code=503, detail="Database usage unavailable")
 
     return {"space_used": usage, "quota_bytes": organization.database_size_mib * 1024 * 1024}
 
@@ -228,15 +208,11 @@ async def create_organization_invitation(
         raise HTTPException(
             status_code=503,
             detail="The invitation was saved, but its email could not be sent. Invite the same address again to resend it.",
-        ) from exc
+        )
 
 
 @router.delete("/organizations/{organization_id}/invitations/{invitation_id}", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
-async def revoke_organization_invitation(
-    invitation_id: UUID,
-    membership: auth.OrganizationMaintainer,
-    session: auth.Session,
-):
+async def revoke_organization_invitation(invitation_id: UUID, membership: auth.OrganizationMaintainer, session: auth.Session):
     """Revoke one pending Organization invitation."""
 
     await organizations.revoke_invitation(session, membership.organization_id, invitation_id, membership.user_id)
@@ -273,11 +249,7 @@ async def remove_organization_member(member_id: UUID, membership: auth.Organizat
 
 
 @router.delete("/organizations/{organization_id}", status_code=202, response_model=OrganizationIdentity)
-async def delete_organization(
-    organization_id: UUID,
-    user: auth.CurrentUser,
-    session: auth.Session,
-):
+async def delete_organization(organization_id: UUID, user: auth.CurrentUser, session: auth.Session):
     """Mark one Organization absent and queue lifecycle cleanup."""
 
     # Tombstone the Organization only after the service revalidates current ownership under its resource lock.
@@ -290,11 +262,7 @@ async def delete_organization(
 
 
 @router.post("/organizations", response_model=OrganizationIdentity, status_code=202)
-async def create_organization(
-    payload: OrganizationCreate,
-    user: auth.CurrentUser,
-    session: auth.Session,
-):
+async def create_organization(payload: OrganizationCreate, user: auth.CurrentUser, session: auth.Session):
     """Create Organization desired state and queue infrastructure creation."""
 
     # Persist the Organization with transactionally selected infrastructure registries.

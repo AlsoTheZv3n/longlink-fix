@@ -9,12 +9,7 @@ router = APIRouter()
 
 
 @router.get("/image", response_model=LongLinkMetadata)
-async def inspect_image(
-    image: Image,
-    user: auth.CurrentUser,
-    session: auth.Session,
-    organization_id: UUID | None = None,
-):
+async def inspect_image(image: Image, user: auth.CurrentUser, session: auth.Session, organization_id: UUID | None = None):
     """Inspect a container image and return its LongLink metadata."""
 
     # Authorize the organization before allowing any of its credentials to be tried.

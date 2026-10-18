@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Cookie, Depends, Request, HTTPException
 from src.utils import token
 from src.database import session as database
-from collections.abc import Callable, Awaitable, AsyncIterator
+from collections.abc import Callable, Awaitable, AsyncIterator, AsyncGenerator
 from src.models.roles import OrganizationRoles
 from longlink.database import audit
 from src.utils.cookies import AUTH_COOKIE
@@ -29,7 +29,7 @@ async def authuser(
     request: Request,
     session: Session,
     credential: str | None = Cookie(default=None, alias=AUTH_COOKIE),
-) -> AsyncIterator[User]:
+) -> AsyncGenerator[User, None]:
     """Authenticate a browser session and bind its user to the request audit scope."""
 
     # Convert missing, expired, and invalidated sessions into one stable authentication error.

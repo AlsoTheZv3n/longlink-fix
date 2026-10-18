@@ -1,9 +1,11 @@
 from uuid import UUID
+from typing import cast
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
 from sqlalchemy import Update, or_, case, func, select, update
 from sqlalchemy.orm import defer, load_only, selectinload
 from collections.abc import Sequence
+from sqlalchemy.engine import CursorResult
 from src.database.types import attr
 from src.models.statuses import Status
 from src.models.operations import OperationKind
@@ -82,13 +84,7 @@ async def fetch(session: AsyncSession, pagination: Pagination, search: str = "")
     return items, count_result.scalar_one()
 
 
-async def enqueue(
-    session: AsyncSession,
-    *,
-    kind: OperationKind,
-    target_id: UUID,
-    coalesce: bool = True,
-) -> Operation:
+async def enqueue(session: AsyncSession, *, kind: OperationKind, target_id: UUID, coalesce: bool = True) -> Operation:
     """Queue reconciliation, optionally reusing visible unfinished work."""
 
     # Reuse unfinished work, including an active or interrupted attempt at this exact target.
@@ -137,14 +133,17 @@ async def claim(session: AsyncSession) -> Operation | None:
         return None
 
     # Reclaim expired work or acquire unleased work without racing another scheduler.
-    result = await session.execute(
-        update(Operation)
-        .where(
-            col(Operation.id) == operation.id,
-            col(Operation.finished_at).is_(None),
-            or_(col(Operation.lease_expires_at).is_(None), col(Operation.lease_expires_at) <= now),
-        )
-        .values(lease_expires_at=now + timedelta(minutes=30))
+    result = cast(
+        CursorResult[tuple[object, ...]],
+        await session.execute(
+            update(Operation)
+            .where(
+                col(Operation.id) == operation.id,
+                col(Operation.finished_at).is_(None),
+                or_(col(Operation.lease_expires_at).is_(None), col(Operation.lease_expires_at) <= now),
+            )
+            .values(lease_expires_at=now + timedelta(minutes=30))
+        ),
     )
     if result.rowcount != 1:
         return None
@@ -171,7 +170,10 @@ async def complete(session: AsyncSession, operation_id: UUID) -> bool:
 
     # Complete only the currently leased operation.
     now = datetime.now(UTC)
-    result = await session.execute(_leased_operation_update(operation_id, now).values(finished_at=now, lease_expires_at=None))
+    result = cast(
+        CursorResult[tuple[object, ...]],
+        await session.execute(_leased_operation_update(operation_id, now).values(finished_at=now, lease_expires_at=None)),
+    )
     if result.rowcount != 1:
         return False
     operation = await session.get_one(Operation, operation_id, populate_existing=True)
@@ -212,7 +214,10 @@ async def release(session: AsyncSession, operation_id: UUID) -> bool:
 
     # Release only work still owned by this worker.
     now = datetime.now(UTC)
-    result = await session.execute(_leased_operation_update(operation_id, now).values(lease_expires_at=None))
+    result = cast(
+        CursorResult[tuple[object, ...]],
+        await session.execute(_leased_operation_update(operation_id, now).values(lease_expires_at=None)),
+    )
     return result.rowcount == 1
 
 
@@ -221,12 +226,15 @@ async def fail(session: AsyncSession, operation_id: UUID, reason: str) -> bool:
 
     # Mark only an unfinished Operation that remains leased terminal.
     now = datetime.now(UTC)
-    result = await session.execute(
-        _leased_operation_update(operation_id, now).values(
-            failed=(reason.strip() or "Operation failed")[:500],
-            finished_at=now,
-            lease_expires_at=None,
-        )
+    result = cast(
+        CursorResult[tuple[object, ...]],
+        await session.execute(
+            _leased_operation_update(operation_id, now).values(
+                failed=(reason.strip() or "Operation failed")[:500],
+                finished_at=now,
+                lease_expires_at=None,
+            )
+        ),
     )
     if result.rowcount != 1:
         return False

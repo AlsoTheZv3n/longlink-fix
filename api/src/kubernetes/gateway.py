@@ -28,11 +28,7 @@ def _deployment_is_ready(deployment: Deployment) -> bool:
     )
 
 
-async def verify(
-    client: "Kubernetes",
-    gateway_url: str,
-    gateway_certificate: str | None = None,
-) -> None:
+async def verify(client: "Kubernetes", gateway_url: str, gateway_certificate: str | None = None) -> None:
     """Inspect package compatibility and readiness without changing infrastructure."""
 
     # Validate trust before opening the operator-configured endpoint.

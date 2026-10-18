@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from sqlmodel import col
 from sqlalchemy import select
 from sqlalchemy.orm import defer
+from src.database.types import attr
 from src.database.services import registries
 from src.models.registries import RegistryCreate, RegistryResponse
 from src.database.models.registries import RegistryConnection
@@ -18,7 +19,7 @@ async def list_registries(membership: auth.OrganizationMember, session: auth.Ses
     # Load only connection metadata belonging to the authorized Organization.
     result = await session.scalars(
         select(RegistryConnection)
-        .options(defer(RegistryConnection.credential))
+        .options(defer(attr(RegistryConnection.credential)))
         .where(col(RegistryConnection.organization_id) == membership.organization_id)
         .order_by(col(RegistryConnection.username), col(RegistryConnection.id))
     )

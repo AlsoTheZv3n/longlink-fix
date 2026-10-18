@@ -95,6 +95,8 @@ async def checkout(session: AsyncSession, organization: Organization, user_id: U
         if existing.status == "open" and existing.url is not None:
             return existing.url
         raise HTTPException(status_code=409, detail="Card registration already started. Refresh usage.")
+    if organization.stripe_customer_id is None:
+        raise HTTPException(status_code=409, detail="Stripe customer unavailable. Refresh usage.")
 
     # Hosted consent covers the published month-end usage charges, not a subscription or immediate payment.
     return_url = f"{env.PUBLIC_URL}/orgs/{organization.slug}/settings#payment-methods"

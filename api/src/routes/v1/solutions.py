@@ -66,11 +66,7 @@ async def list_solutions(
 
 
 @router.post("/organizations/{organization_id}/solutions", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
-async def create_solution(
-    payload: SolutionCreate,
-    membership: auth.OrganizationMaintainer,
-    session: auth.Session,
-):
+async def create_solution(payload: SolutionCreate, membership: auth.OrganizationMaintainer, session: auth.Session):
     """Create Solution state and queue its explicit deployment lifecycle."""
 
     # Resolve immutable image metadata before creating durable Solution state.
@@ -199,11 +195,7 @@ async def download_plugin(solution_id: UUID, user: auth.CurrentUser, session: au
 
 
 @router.get("/solutions/{solution_id}/logs", response_model=list[str])
-async def get_solution_logs(
-    solution_id: UUID,
-    user: auth.CurrentUser,
-    session: auth.Session,
-):
+async def get_solution_logs(solution_id: UUID, user: auth.CurrentUser, session: auth.Session):
     """Return recent pod logs for one managed solution."""
 
     # Resolve active Solution access before enforcing runtime permissions.
@@ -223,15 +215,11 @@ async def get_solution_logs(
             return await solution_resources.logs(cluster, organization_id, solution_id)
     except RuntimeError as exc:
         logger.warning("Solution logs unavailable for '%s': %s", solution_id, exc)
-        raise HTTPException(status_code=503, detail="Solution logs unavailable") from exc
+        raise HTTPException(status_code=503, detail="Solution logs unavailable")
 
 
 @router.delete("/solutions/{solution_id}", status_code=204)
-async def delete_solution(
-    solution_id: UUID,
-    user: auth.CurrentUser,
-    session: auth.Session,
-):
+async def delete_solution(solution_id: UUID, user: auth.CurrentUser, session: auth.Session):
     """Mark one Solution absent and queue explicit lifecycle cleanup."""
 
     await solutions.delete(session, solution_id, user.id)
