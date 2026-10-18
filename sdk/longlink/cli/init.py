@@ -1,6 +1,7 @@
 import re
 import shutil
 import cyclopts
+import importlib.metadata
 from enum import StrEnum
 from typing import Annotated
 from pathlib import Path
@@ -73,3 +74,7 @@ def init_command(
     # Set the generated project metadata before resolving its dependencies.
     pyproject = target / "pyproject.toml"
     pyproject.write_text(pyproject.read_text(encoding="utf-8").replace("__PROJECT_NAME__", project_name), encoding="utf-8")
+
+    # Stamp the generated instructions with the installed SDK version.
+    agents = target / "AGENTS.md"
+    agents.write_text(agents.read_text(encoding="utf-8").replace("<version>", importlib.metadata.version("longlink")), encoding="utf-8")
