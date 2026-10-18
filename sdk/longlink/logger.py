@@ -62,14 +62,8 @@ def configure_logger(name: str) -> logging.Logger:
 
 
 # Configure uvicorn's default and access-log formatting.
-log_config["formatters"]["default"] = {
-    "()": ColorFormatter,
-    "fmt": "%(levelname)s:     %(message)s",
-}
-log_config["formatters"]["access"] = {
-    "()": ColorFormatter,
-    "fmt": "%(levelname)s:     %(message)s",
-}
+log_config["formatters"]["default"] = {"()": ColorFormatter, "fmt": "%(levelname)s:     %(message)s"}
+log_config["formatters"]["access"] = {"()": ColorFormatter, "fmt": "%(levelname)s:     %(message)s"}
 
 # Keep uvicorn access logs focused on Solution API traffic.
 log_config.setdefault("filters", {})["api_access"] = {"()": ApiAccessFilter}

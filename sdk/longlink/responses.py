@@ -43,12 +43,7 @@ class FileResponse(StreamingResponse):
         )
 
         # Expose the standard status default to FastAPI and preserve it when streaming.
-        super().__init__(
-            (),
-            status_code=status_code,
-            media_type=media_type,
-            headers={"content-disposition": disposition},
-        )
+        super().__init__((), status_code=status_code, media_type=media_type, headers={"content-disposition": disposition})
 
     async def stream_response(self, send: Send) -> None:
         """Own the file outside the iterator so interrupted sends also release it."""

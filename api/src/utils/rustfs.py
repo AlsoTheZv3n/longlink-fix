@@ -38,13 +38,7 @@ class RustFS:
         arn = f"arn:aws:s3:::{bucket}"
         prefix = f"solutions/{solution.hex}/"
         reads = ["s3:GetObject", "s3:GetObjectVersion"]
-        writes = [
-            "s3:PutObject",
-            "s3:DeleteObject",
-            "s3:DeleteObjectVersion",
-            "s3:AbortMultipartUpload",
-            "s3:ListMultipartUploadParts",
-        ]
+        writes = ["s3:PutObject", "s3:DeleteObject", "s3:DeleteObjectVersion", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"]
         statements: list[dict[str, object]] = [
             {
                 "Effect": "Allow",
@@ -88,12 +82,7 @@ class RustFS:
         SigV4Auth(credentials, "s3", "us-east-1").add_auth(request)
 
         # Send the signed request without merging cookies retained by the workflow's shared client.
-        signed_request = httpx2.Request(
-            method,
-            str(request.url),
-            content=body,
-            headers=dict(request.headers),
-        )
+        signed_request = httpx2.Request(method, str(request.url), content=body, headers=dict(request.headers))
         response = await self._client.send(signed_request)
 
         # Preserve administrative errors and require an object whenever a response body is present.

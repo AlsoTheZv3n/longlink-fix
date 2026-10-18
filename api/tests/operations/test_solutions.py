@@ -2,13 +2,7 @@ import pytest
 import asyncio
 from uuid import UUID, uuid4
 from conftest import DatabasePostgres, StorageKubernetes, DatabaseKubernetes, reject_provider_construction
-from factories import (
-    claim_operation,
-    create_solution,
-    fetch_operations,
-    complete_operation,
-    create_organization,
-)
+from factories import claim_operation, create_solution, fetch_operations, complete_operation, create_organization
 from contextlib import asynccontextmanager
 from src.utils.s3 import Credentials
 from sqlalchemy.orm import selectinload
@@ -45,8 +39,7 @@ async def create_deleted_solution(owner: User) -> tuple[Organization, Solution]:
 
 
 async def test_solution_delete_failure_stops_before_provider_credential_cleanup(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Retain a tombstone when Kubernetes deletion fails before provider cleanup."""
 
@@ -100,8 +93,7 @@ async def test_solution_delete_failure_stops_before_provider_credential_cleanup(
 
 
 async def test_solution_delete_removes_provider_state_and_tombstone(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Remove the workload, provider state, and tombstone after successful cleanup."""
 
@@ -168,8 +160,7 @@ async def test_solution_delete_removes_provider_state_and_tombstone(
 
 
 async def test_solution_creation_applies_user_and_managed_environment_values(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Apply credentials and current infrastructure settings on initial deployment."""
 
@@ -300,8 +291,7 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
 
 
 async def test_solution_creation_preserves_schema_failure_before_storage_authorization(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Keep initial storage credentials unauthorized when SQL provisioning fails."""
 
@@ -353,18 +343,13 @@ async def test_solution_creation_preserves_schema_failure_before_storage_authori
 
 @pytest.mark.parametrize("identity", [None, "persisted-secret"], ids=["missing-identity", "running-existing-identity"])
 async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
-    identity: str | None,
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch, identity: str | None
 ) -> None:
     """Apply a retry without rotating persisted provider credentials."""
 
     # Arrange
     organization = await create_organization(users[0])
-    solution = await create_solution(
-        organization,
-        envs={"API_KEY": "runtime-secret"},
-    )
+    solution = await create_solution(organization, envs={"API_KEY": "runtime-secret"})
     credentials = {
         "LONGLINK_ENV": "production",
         "LONGLINK_DATABASE_PASSWORD": "persisted-database-password",
@@ -435,10 +420,7 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
         assert identity_secret
         if identity is not None:
             assert identity_secret == identity
-        assert persisted.secrets == {
-            **credentials,
-            "LONGLINK_IDENTITY_SECRET": identity_secret,
-        }
+        assert persisted.secrets == {**credentials, "LONGLINK_IDENTITY_SECRET": identity_secret}
         assert persisted.status == Status.running
         assert persisted.deployed_revision_id == solution.desired_revision_id
     assert captured == [
@@ -459,17 +441,14 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
 
 
 async def test_solution_creation_skips_removed_solution_provider_construction(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Treat a removed solution as an already completed lifecycle target."""
 
     # Arrange
     _, solution = await create_deleted_solution(users[0])
     reject_provider_construction(
-        monkeypatch,
-        (solution_operations.database_resources.postgres, "Postgres"),
-        (solution_operations, "Kubernetes"),
+        monkeypatch, (solution_operations.database_resources.postgres, "Postgres"), (solution_operations, "Kubernetes")
     )
 
     # Act
@@ -488,9 +467,7 @@ async def test_initial_deployment_failure_does_not_schedule_recovery(
     owner = users[0]
     organization = await create_organization(owner)
     solution = await create_solution(
-        organization,
-        envs={"KEY": "old"},
-        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+        organization, envs={"KEY": "old"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
     setup = await claim_operation()
     assert setup is not None
@@ -543,9 +520,7 @@ async def test_shutdown_keeps_deployment_resumable(users: tuple[User, User, User
     owner = users[0]
     organization = await create_organization(owner)
     solution = await create_solution(
-        organization,
-        envs={"KEY": "old"},
-        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+        organization, envs={"KEY": "old"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
     setup = await claim_operation()
     assert setup is not None
@@ -612,9 +587,7 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
     owner = users[0]
     organization = await create_organization(owner)
     solution = await create_solution(
-        organization,
-        envs={"KEY": "old"},
-        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+        organization, envs={"KEY": "old"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
     setup = await claim_operation()
     assert setup is not None
@@ -782,9 +755,7 @@ async def test_queued_deployments_keep_exact_targets(users: tuple[User, User, Us
 
     organization = await create_organization(users[0])
     solution = await create_solution(
-        organization,
-        envs={"KEY": "first"},
-        runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"},
+        organization, envs={"KEY": "first"}, runtime_secrets={"LONGLINK_ENV": "production", "LONGLINK_IDENTITY_SECRET": "stable"}
     )
     setup = await claim_operation()
     assert setup is not None
@@ -876,16 +847,13 @@ async def test_queued_deployments_keep_exact_targets(users: tuple[User, User, Us
     "operation", [pytest.param(solution_operations.deploy, id="deployment"), pytest.param(solution_operations.delete, id="deletion")]
 )
 async def test_solution_lifecycle_skips_missing_target_without_constructing_providers(
-    monkeypatch: pytest.MonkeyPatch,
-    operation: Callable[[UUID], Awaitable[None]],
+    monkeypatch: pytest.MonkeyPatch, operation: Callable[[UUID], Awaitable[None]]
 ) -> None:
     """Treat a missing lifecycle target as an already completed operation."""
 
     # Arrange
     reject_provider_construction(
-        monkeypatch,
-        (solution_operations.database_resources.postgres, "Postgres"),
-        (solution_operations, "Kubernetes"),
+        monkeypatch, (solution_operations.database_resources.postgres, "Postgres"), (solution_operations, "Kubernetes")
     )
 
     # Act and assert
@@ -893,8 +861,7 @@ async def test_solution_lifecycle_skips_missing_target_without_constructing_prov
 
 
 async def test_solution_creation_skips_deployment_when_deleted_before_credential_persistence(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Do not deploy credentials after the solution is deleted concurrently."""
 

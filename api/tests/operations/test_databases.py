@@ -19,10 +19,7 @@ LEASE_OWNERSHIP_CASES = [
 ]
 
 
-async def test_sync_users_projects_active_organization_members(
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_sync_users_projects_active_organization_members(users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch) -> None:
     """Publish the Platform-authoritative member snapshot for an Organization."""
 
     # Arrange
@@ -60,19 +57,13 @@ async def test_owned_requires_matching_unexpired_row(
     # Arrange
     organization = await create_organization(users[0], name="owned")
     persisted_expires_at = datetime.now(UTC).replace(microsecond=0) + timedelta(seconds=expiry_seconds)
-    activity = OrganizationActivity(
-        organization_id=organization.id,
-        expires_at=persisted_expires_at,
-    )
+    activity = OrganizationActivity(organization_id=organization.id, expires_at=persisted_expires_at)
 
     # Commit the activity before checking ownership in a separate session.
     async with session_scope() as session:
         session.add(activity)
         await session.commit()
-    lease = databases.Lease(
-        organization_id=organization.id,
-        expires_at=activity.expires_at + timedelta(seconds=lease_offset_seconds),
-    )
+    lease = databases.Lease(organization_id=organization.id, expires_at=activity.expires_at + timedelta(seconds=lease_offset_seconds))
 
     # Act
     async with session_scope() as session:
@@ -86,10 +77,7 @@ async def test_owned_rejects_missing_row() -> None:
     """Deny ownership after crash recovery deletes the activity."""
 
     # Arrange
-    lease = databases.Lease(
-        organization_id=uuid4(),
-        expires_at=datetime.now(UTC) + timedelta(seconds=180),
-    )
+    lease = databases.Lease(organization_id=uuid4(), expires_at=datetime.now(UTC) + timedelta(seconds=180))
 
     # Act
     async with session_scope() as session:

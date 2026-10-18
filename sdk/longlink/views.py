@@ -100,10 +100,7 @@ def discover(views_directory: Path) -> list[tuple[ViewDefinition, bytes]]:
             raise ValueError(f"Browser route '{view_route}' is already registered")
 
         # Keep each validated definition paired with its startup source snapshot.
-        definition = ViewDefinition(
-            path=view_path,
-            route=view_route,
-        )
+        definition = ViewDefinition(path=view_path, route=view_route)
         discovered_views.append((definition, encoded_content))
         registered_route_keys.add(route_key)
 

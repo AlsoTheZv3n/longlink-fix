@@ -23,11 +23,7 @@ def test_storage_requires_safe_bucket_scope(monkeypatch: pytest.MonkeyPatch, buc
     """Reject unsafe storage scopes before filesystem selection."""
 
     # Arrange
-    settings = Envs(
-        ENV="testing",
-        STORAGE_BUCKET=bucket,
-        STORAGE_PREFIX=prefix,
-    )
+    settings = Envs(ENV="testing", STORAGE_BUCKET=bucket, STORAGE_PREFIX=prefix)
 
     def unexpected_filesystem(*_args: object, **_kwargs: object) -> None:
         """Fail if an unsafe scope reaches filesystem construction."""
@@ -45,11 +41,7 @@ def test_testing_storage_isolates_files_across_simultaneous_instances() -> None:
     """Keep writes and deletions inside the testing filesystem that owns them."""
 
     # Arrange
-    settings = Envs(
-        ENV="testing",
-        STORAGE_BUCKET=None,
-        STORAGE_PREFIX=None,
-    )
+    settings = Envs(ENV="testing", STORAGE_BUCKET=None, STORAGE_PREFIX=None)
     first_storage = storage_base.create_fs(settings)
     second_storage = storage_base.create_fs(settings)
 

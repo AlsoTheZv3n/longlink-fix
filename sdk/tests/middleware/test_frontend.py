@@ -44,10 +44,7 @@ def test_accepts_gzip_interprets_encoding_quality_values(header: str, expected: 
 
 @pytest.mark.parametrize(
     ("accept_encoding", "expected_content_encoding"),
-    [
-        pytest.param("gzip", "gzip", id="gzip"),
-        pytest.param("identity", None, id="identity"),
-    ],
+    [pytest.param("gzip", "gzip", id="gzip"), pytest.param("identity", None, id="identity")],
 )
 def test_frontend_middleware_varies_eligible_text_representations(accept_encoding: str, expected_content_encoding: str | None) -> None:
     """Keep gzip and identity text representations separately cacheable."""
@@ -113,11 +110,7 @@ def test_frontend_middleware_preserves_precompressed_text_representation() -> No
     def get_text() -> Response:
         """Return a pre-compressed text representation."""
 
-        return Response(
-            gzip.compress(b"x" * 1000),
-            media_type="text/plain",
-            headers={"content-encoding": "gzip", "etag": '"text-v1"'},
-        )
+        return Response(gzip.compress(b"x" * 1000), media_type="text/plain", headers={"content-encoding": "gzip", "etag": '"text-v1"'})
 
     app.add_middleware(FrontendMiddleware)
     client = TestClient(app)
@@ -177,10 +170,7 @@ async def test_frontend_middleware_passes_websocket_scopes_through_unchanged() -
     ],
 )
 def test_frontend_middleware_applies_default_cache_policy(
-    path: str,
-    media_type: str,
-    status_code: int,
-    expected_cache_control: str,
+    path: str, media_type: str, status_code: int, expected_cache_control: str
 ) -> None:
     """Apply cache defaults according to the frontend resource type."""
 

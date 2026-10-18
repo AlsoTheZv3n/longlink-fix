@@ -23,8 +23,7 @@ from src.database.models.organizations import Organization
 
 
 async def test_create_organization_persists_desired_state_and_queues_creation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Persist Organization desired state, owner membership, and infrastructure work."""
 
@@ -32,10 +31,7 @@ async def test_create_organization_persists_desired_state_and_queues_creation(
     compute = await create_compute()
 
     # Act
-    response = await clients[0].post(
-        "/api/v1/organizations",
-        json={"name": "acme"},
-    )
+    response = await clients[0].post("/api/v1/organizations", json={"name": "acme"})
 
     # Assert
     assert response.status_code == 202
@@ -59,8 +55,7 @@ async def test_create_organization_persists_desired_state_and_queues_creation(
 
 
 async def test_create_organization_enforces_the_per_user_beta_limit(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject a user above the beta Organization limit without blocking another user."""
 
@@ -90,10 +85,7 @@ async def test_create_organization_enforces_the_per_user_beta_limit(
         other_user_organization_count = await session.scalar(
             select(func.count())
             .select_from(Organization)
-            .where(
-                col(Organization.created_id) == other_user.id,
-                col(Organization.deleted_at).is_(None),
-            )
+            .where(col(Organization.created_id) == other_user.id, col(Organization.deleted_at).is_(None))
         )
     assert owner_organization_count == 3
     assert other_user_organization_count == 1
@@ -116,8 +108,7 @@ async def test_create_organization_rejects_when_compute_registry_is_unavailable(
 
 
 async def test_get_organization_by_slug_returns_owner_membership(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return the authenticated owner's membership for an Organization slug."""
 
@@ -131,19 +122,13 @@ async def test_get_organization_by_slug_returns_owner_membership(
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
     assert response.json() == {
-        "organization": {
-            "id": str(organization.id),
-            "name": "acme",
-            "slug": "acme",
-            "status": "creating",
-        },
+        "organization": {"id": str(organization.id), "name": "acme", "slug": "acme", "status": "creating"},
         "role": "owner",
     }
 
 
 async def test_get_organization_by_slug_hides_cross_tenant_organization(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Hide an Organization slug from authenticated users without membership."""
 
@@ -159,8 +144,7 @@ async def test_get_organization_by_slug_hides_cross_tenant_organization(
 
 
 async def test_get_organization_by_slug_hides_deleted_organization(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Hide deleted organization slugs even from their former owner."""
 
@@ -178,8 +162,7 @@ async def test_get_organization_by_slug_hides_deleted_organization(
 
 
 async def test_get_organization_returns_member_payload(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return one organization with its members and access roles."""
 
@@ -204,8 +187,7 @@ async def test_get_organization_returns_member_payload(
 
 
 async def test_get_organization_solutions_omits_deleted_solutions(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """List active solutions without exposing an organization's deleted solutions."""
 
@@ -229,8 +211,7 @@ async def test_get_organization_solutions_omits_deleted_solutions(
 
 
 async def test_get_organization_solutions_rejects_another_organization_owner(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Keep solution metadata isolated between organization owners."""
 
@@ -247,8 +228,7 @@ async def test_get_organization_solutions_rejects_another_organization_owner(
 
 
 async def test_get_organization_quotas_requires_platform_administrator(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return stored quotas only to platform administrators without membership."""
 
@@ -279,8 +259,7 @@ async def test_get_organization_quotas_requires_platform_administrator(
 
 
 async def test_get_organization_quotas_hides_soft_deleted_organization(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return the public missing-organization response for a deleted quota target."""
 
@@ -299,8 +278,7 @@ async def test_get_organization_quotas_hides_soft_deleted_organization(
 
 @pytest.mark.parametrize("name", [pytest.param("", id="empty"), pytest.param("a" * 129, id="too-long")])
 async def test_create_organization_rejects_invalid_name_without_persisting_state(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    name: str,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], name: str
 ) -> None:
     """Reject organization names outside the 1-128 character contract without side effects."""
 
@@ -315,8 +293,7 @@ async def test_create_organization_rejects_invalid_name_without_persisting_state
 
 
 async def test_delete_organization_soft_deletes_and_returns_reconciliation_operation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Allow active owners to retry Organization cleanup and return its transitional state."""
 
@@ -343,8 +320,7 @@ async def test_delete_organization_soft_deletes_and_returns_reconciliation_opera
 
 
 async def test_delete_organization_rejects_tombstone_retry_from_another_user(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Only the user who created an Organization tombstone may retry its cleanup."""
 
@@ -363,8 +339,7 @@ async def test_delete_organization_rejects_tombstone_retry_from_another_user(
 
 
 async def test_delete_organization_requires_owner_or_platform_admin(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject non-owner deletes while allowing a platform administrator without membership."""
 
@@ -398,8 +373,7 @@ async def test_delete_organization_requires_owner_or_platform_admin(
 
 
 async def test_other_organization_user_cannot_delete_solution(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject Solution deletion across Organization boundaries."""
 
@@ -477,9 +451,7 @@ async def test_organization_storage_usage_returns_usage_or_unavailable(
 
 
 async def test_organization_storage_endpoint_allows_members(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Allow storage usage for organization members."""
 
@@ -488,13 +460,7 @@ async def test_organization_storage_endpoint_allows_members(
     organization = await create_organization(owner)
 
     async with session_scope() as session:
-        session.add(
-            UserOrganization(
-                user_id=regular_member.id,
-                organization_id=organization.id,
-                role=OrganizationRoles.write,
-            )
-        )
+        session.add(UserOrganization(user_id=regular_member.id, organization_id=organization.id, role=OrganizationRoles.write))
         await session.commit()
 
     async def storage_usage(_self: s3.S3, bucket: str) -> int:
@@ -516,9 +482,7 @@ async def test_organization_storage_endpoint_allows_members(
 
 
 async def test_organization_storage_endpoint_rejects_non_members(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject storage inspection before constructing a tenant provider."""
 
@@ -541,8 +505,7 @@ async def test_organization_storage_endpoint_rejects_non_members(
 
 
 async def test_get_organization_returns_invitations(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return pending invitations with the organization payload."""
 
@@ -559,18 +522,11 @@ async def test_get_organization_returns_invitations(
                 created_at=datetime(2020, 1, 1, tzinfo=UTC),
             )
         )
-        session.add(
-            UserOrganization(
-                user_id=regular_member.id,
-                organization_id=organization.id,
-                role=OrganizationRoles.write,
-            )
-        )
+        session.add(UserOrganization(user_id=regular_member.id, organization_id=organization.id, role=OrganizationRoles.write))
         await session.commit()
         invitation = await session.scalar(
             select(OrganizationInvitation).where(
-                col(OrganizationInvitation.organization_id) == organization.id,
-                col(OrganizationInvitation.email) == invitee.email,
+                col(OrganizationInvitation.organization_id) == organization.id, col(OrganizationInvitation.email) == invitee.email
             )
         )
         assert invitation is not None
@@ -591,8 +547,7 @@ async def test_get_organization_returns_invitations(
 
 
 async def test_list_organizations_returns_stable_page_and_active_total(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return a stable page while counting all active organizations."""
 
@@ -607,22 +562,10 @@ async def test_list_organizations_returns_stable_page_and_active_total(
 
     # Assert
     assert response.status_code == 200
-    assert response.json() == {
-        "items": [
-            {
-                "id": str(organization.id),
-                "name": "acme",
-                "slug": "acme",
-                "status": "creating",
-            }
-        ],
-        "total": 2,
-    }
+    assert response.json() == {"items": [{"id": str(organization.id), "name": "acme", "slug": "acme", "status": "creating"}], "total": 2}
 
 
-async def test_delete_organization_returns_not_found_for_unknown_identifier(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-) -> None:
+async def test_delete_organization_returns_not_found_for_unknown_identifier(clients: tuple[AsyncClient, AsyncClient, AsyncClient]) -> None:
     """Return the organization-specific error for a missing deletion target."""
 
     # Act
@@ -634,8 +577,7 @@ async def test_delete_organization_returns_not_found_for_unknown_identifier(
 
 
 async def test_get_organization_returns_403_for_non_member(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject access when the authenticated user is not a member of the org."""
 
@@ -653,11 +595,7 @@ async def test_get_organization_returns_403_for_non_member(
 
 
 @pytest.mark.parametrize(
-    ("client_index", "caller_role"),
-    [
-        pytest.param(0, None, id="owner"),
-        pytest.param(1, OrganizationRoles.maintain, id="maintainer"),
-    ],
+    ("client_index", "caller_role"), [pytest.param(0, None, id="owner"), pytest.param(1, OrganizationRoles.maintain, id="maintainer")]
 )
 async def test_organization_member_creates_organization_invitation(
     clients: tuple[AsyncClient, AsyncClient, AsyncClient],
@@ -674,19 +612,12 @@ async def test_organization_member_creates_organization_invitation(
     if caller_role is not None:
         caller = users[client_index]
         async with session_scope() as session:
-            session.add(
-                UserOrganization(
-                    user_id=caller.id,
-                    organization_id=organization.id,
-                    role=caller_role,
-                )
-            )
+            session.add(UserOrganization(user_id=caller.id, organization_id=organization.id, role=caller_role))
             await session.commit()
 
     # Act
     response = await clients[client_index].post(
-        f"/api/v1/organizations/{organization.id}/invitations",
-        json={"email": invitee.email, "role": "write"},
+        f"/api/v1/organizations/{organization.id}/invitations", json={"email": invitee.email, "role": "write"}
     )
 
     # Assert
@@ -701,9 +632,7 @@ async def test_organization_member_creates_organization_invitation(
 
 
 async def test_organization_invitation_reports_email_delivery_failure_and_keeps_invitation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Tell the inviter when SMTP rejects delivery while keeping the saved invitation resendable."""
 
@@ -719,10 +648,7 @@ async def test_organization_invitation_reports_email_delivery_failure_and_keeps_
     monkeypatch.setattr(mail, "send_mail", refuse)
 
     # Act
-    response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/invitations",
-        json={"email": invitee.email, "role": "write"},
-    )
+    response = await clients[0].post(f"/api/v1/organizations/{organization.id}/invitations", json={"email": invitee.email, "role": "write"})
 
     # Assert
     assert response.status_code == 503
@@ -770,12 +696,10 @@ async def test_reinviting_email_replaces_pending_organization_role(
 
     # Act
     first_response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/invitations",
-        json={"email": invitee.email, "role": "read"},
+        f"/api/v1/organizations/{organization.id}/invitations", json={"email": invitee.email, "role": "read"}
     )
     second_response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/invitations",
-        json={"email": invitee.email, "role": "write"},
+        f"/api/v1/organizations/{organization.id}/invitations", json={"email": invitee.email, "role": "write"}
     )
     async with session_scope() as session:
         invitations_list = await organizations.invitations(session, organization.id)
@@ -788,8 +712,7 @@ async def test_reinviting_email_replaces_pending_organization_role(
 
 
 async def test_organization_owner_revokes_pending_invitation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Allow an Organization owner to revoke one pending invitation."""
 
@@ -814,8 +737,7 @@ async def test_organization_owner_revokes_pending_invitation(
 
 
 async def test_organization_maintainer_cannot_revoke_invitation_above_their_role(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject revocation of a pending grant above the caller's current role."""
 
@@ -842,8 +764,7 @@ async def test_organization_maintainer_cannot_revoke_invitation_above_their_role
 
 
 async def test_organization_member_cannot_revoke_another_organizations_invitation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject an invitation identifier that belongs to another Organization."""
 
@@ -888,10 +809,7 @@ async def test_create_organization_invitation_rejects_active_member(
         await session.commit()
 
     # Act
-    response = await clients[0].post(
-        f"/api/v1/organizations/{organization.id}/invitations",
-        json={"email": member.email, "role": "read"},
-    )
+    response = await clients[0].post(f"/api/v1/organizations/{organization.id}/invitations", json={"email": member.email, "role": "read"})
 
     # Assert
     assert response.status_code == 409
@@ -917,10 +835,7 @@ async def test_create_organization_invitation_rejects_role_above_caller(
     client = clients[1]
 
     # Act
-    response = await client.post(
-        f"/api/v1/organizations/{organization.id}/invitations",
-        json={"email": invitee.email, "role": "admin"},
-    )
+    response = await client.post(f"/api/v1/organizations/{organization.id}/invitations", json={"email": invitee.email, "role": "admin"})
 
     # Assert
     assert response.status_code == 403
@@ -931,8 +846,7 @@ async def test_create_organization_invitation_rejects_role_above_caller(
 
 
 async def test_update_organization_member_changes_role(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Allow organization owners to change member roles."""
 
@@ -943,22 +857,13 @@ async def test_update_organization_member_changes_role(
         persisted = await session.get(Organization, organization.id)
         assert persisted is not None
         persisted.database_state = DatabaseState.available
-        session.add(
-            UserOrganization(
-                user_id=member.id,
-                organization_id=organization.id,
-                role=OrganizationRoles.write,
-            )
-        )
+        session.add(UserOrganization(user_id=member.id, organization_id=organization.id, role=OrganizationRoles.write))
         await session.commit()
 
     client = clients[0]
 
     # Act
-    response = await client.patch(
-        f"/api/v1/organizations/{organization.id}/members/{member.id}",
-        json={"role": "admin"},
-    )
+    response = await client.patch(f"/api/v1/organizations/{organization.id}/members/{member.id}", json={"role": "admin"})
 
     # Assert
     assert response.status_code == 204
@@ -972,8 +877,7 @@ async def test_update_organization_member_changes_role(
 
 
 async def test_update_organization_member_keeps_unchanged_role_without_persistence(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Keep an unchanged member role without rewriting audit fields or requesting projection."""
 
@@ -984,23 +888,14 @@ async def test_update_organization_member_keeps_unchanged_role_without_persisten
         persisted = await session.get(Organization, organization.id)
         assert persisted is not None
         persisted.database_state = DatabaseState.available
-        session.add(
-            UserOrganization(
-                user_id=member.id,
-                organization_id=organization.id,
-                role=OrganizationRoles.write,
-            )
-        )
+        session.add(UserOrganization(user_id=member.id, organization_id=organization.id, role=OrganizationRoles.write))
         await session.commit()
     async with session_scope() as session:
         original = next(item for item in await organizations.members(session, organization.id) if item.user_id == member.id)
         original_updated_at = original.updated_at
 
     # Act
-    response = await clients[0].patch(
-        f"/api/v1/organizations/{organization.id}/members/{member.id}",
-        json={"role": "write"},
-    )
+    response = await clients[0].patch(f"/api/v1/organizations/{organization.id}/members/{member.id}", json={"role": "write"})
 
     # Assert
     assert response.status_code == 204
@@ -1014,8 +909,7 @@ async def test_update_organization_member_keeps_unchanged_role_without_persisten
 
 
 async def test_update_organization_member_returns_not_found_for_non_member(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return the public missing-member error without synchronizing users."""
 
@@ -1023,10 +917,7 @@ async def test_update_organization_member_returns_not_found_for_non_member(
     organization = await create_organization(users[0])
 
     # Act
-    response = await clients[0].patch(
-        f"/api/v1/organizations/{organization.id}/members/{users[2].id}",
-        json={"role": "admin"},
-    )
+    response = await clients[0].patch(f"/api/v1/organizations/{organization.id}/members/{users[2].id}", json={"role": "admin"})
 
     # Assert
     assert response.status_code == 404
@@ -1036,8 +927,7 @@ async def test_update_organization_member_returns_not_found_for_non_member(
 
 
 async def test_update_organization_member_cannot_change_another_organizations_member(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Scope member updates to the organization named in the request."""
 
@@ -1049,10 +939,7 @@ async def test_update_organization_member_cannot_change_another_organizations_me
         await session.commit()
 
     # Act
-    response = await clients[0].patch(
-        f"/api/v1/organizations/{requested_organization.id}/members/{users[2].id}",
-        json={"role": "admin"},
-    )
+    response = await clients[0].patch(f"/api/v1/organizations/{requested_organization.id}/members/{users[2].id}", json={"role": "admin"})
 
     # Assert
     assert response.status_code == 404
@@ -1063,8 +950,7 @@ async def test_update_organization_member_cannot_change_another_organizations_me
 
 
 async def test_update_organization_member_rejects_demoting_last_owner(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Keep an organization owner when it has no other owners."""
 
@@ -1073,10 +959,7 @@ async def test_update_organization_member_rejects_demoting_last_owner(
     organization = await create_organization(owner)
 
     # Act
-    response = await clients[0].patch(
-        f"/api/v1/organizations/{organization.id}/members/{owner.id}",
-        json={"role": "admin"},
-    )
+    response = await clients[0].patch(f"/api/v1/organizations/{organization.id}/members/{owner.id}", json={"role": "admin"})
 
     # Assert
     assert response.status_code == 409
@@ -1087,8 +970,7 @@ async def test_update_organization_member_rejects_demoting_last_owner(
 
 
 async def test_update_organization_member_allows_demoting_owner_when_another_remains(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Permit owner demotion when another owner keeps the organization accessible."""
 
@@ -1099,10 +981,7 @@ async def test_update_organization_member_allows_demoting_owner_when_another_rem
         await session.commit()
 
     # Act
-    response = await clients[0].patch(
-        f"/api/v1/organizations/{organization.id}/members/{users[0].id}",
-        json={"role": "admin"},
-    )
+    response = await clients[0].patch(f"/api/v1/organizations/{organization.id}/members/{users[0].id}", json={"role": "admin"})
 
     # Assert
     assert response.status_code == 204
@@ -1115,8 +994,7 @@ async def test_update_organization_member_allows_demoting_owner_when_another_rem
 
 
 async def test_update_organization_member_rejects_owner_escalation_from_admin(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject owner grants from organization admins."""
 
@@ -1142,9 +1020,7 @@ async def test_update_organization_member_rejects_owner_escalation_from_admin(
 
 @pytest.mark.parametrize("caller_role", [OrganizationRoles.read, OrganizationRoles.write, OrganizationRoles.maintain])
 async def test_update_organization_member_returns_403_for_regular_member(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    caller_role: OrganizationRoles,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], caller_role: OrganizationRoles
 ) -> None:
     """Reject member role changes without changing membership audit fields or queueing sync."""
 
@@ -1156,20 +1032,8 @@ async def test_update_organization_member_returns_403_for_regular_member(
         persisted = await session.get(Organization, organization.id)
         assert persisted is not None
         persisted.database_state = DatabaseState.available
-        session.add(
-            UserOrganization(
-                user_id=regular_member.id,
-                organization_id=organization.id,
-                role=caller_role,
-            )
-        )
-        session.add(
-            UserOrganization(
-                user_id=target_member.id,
-                organization_id=organization.id,
-                role=OrganizationRoles.read,
-            )
-        )
+        session.add(UserOrganization(user_id=regular_member.id, organization_id=organization.id, role=caller_role))
+        session.add(UserOrganization(user_id=target_member.id, organization_id=organization.id, role=OrganizationRoles.read))
         await session.commit()
 
     async with session_scope() as session:
@@ -1179,10 +1043,7 @@ async def test_update_organization_member_returns_403_for_regular_member(
     client = clients[1]
 
     # Act
-    response = await client.patch(
-        f"/api/v1/organizations/{organization.id}/members/{target_member.id}",
-        json={"role": "admin"},
-    )
+    response = await client.patch(f"/api/v1/organizations/{organization.id}/members/{target_member.id}", json={"role": "admin"})
 
     # Assert
     assert response.status_code == 403
@@ -1218,20 +1079,11 @@ async def test_create_organization_invitation_returns_403_without_maintainer_acc
     organization = await create_organization(owner)
     if caller_role is not None:
         async with session_scope() as session:
-            session.add(
-                UserOrganization(
-                    user_id=caller.id,
-                    organization_id=organization.id,
-                    role=caller_role,
-                )
-            )
+            session.add(UserOrganization(user_id=caller.id, organization_id=organization.id, role=caller_role))
             await session.commit()
 
     # Act
-    response = await clients[1].post(
-        f"/api/v1/organizations/{organization.id}/invitations",
-        json={"email": invitee.email, "role": "write"},
-    )
+    response = await clients[1].post(f"/api/v1/organizations/{organization.id}/invitations", json={"email": invitee.email, "role": "write"})
 
     # Assert
     assert response.status_code == 403
@@ -1242,9 +1094,7 @@ async def test_create_organization_invitation_returns_403_without_maintainer_acc
 
 
 @pytest.mark.no_db
-async def test_get_organization_rejects_anonymous_without_membership_lookup(
-    client: AsyncClient,
-) -> None:
+async def test_get_organization_rejects_anonymous_without_membership_lookup(client: AsyncClient) -> None:
     """Reject unauthenticated organization reads before membership checks."""
 
     # Act
@@ -1256,8 +1106,7 @@ async def test_get_organization_rejects_anonymous_without_membership_lookup(
 
 
 async def test_deleted_organization_returns_forbidden_to_former_owner(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Hide tombstoned organizations behind access checks instead of not-found."""
 

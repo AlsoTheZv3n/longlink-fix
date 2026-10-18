@@ -19,11 +19,7 @@ class EnvironmentSettings(Environments):
     ],
 )
 def test_environments_prioritizes_configured_sources(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    dotenv_value: str | None,
-    process_value: str | None,
-    expected: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, dotenv_value: str | None, process_value: str | None, expected: str
 ) -> None:
     """Load the declared setting from the highest-priority configured source."""
 

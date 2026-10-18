@@ -33,11 +33,7 @@ async def synchronize(cluster: Kubernetes, organization_id: UUID) -> None:
             authentication = base64.b64encode(f"{connection.username}:{connection.credential}".encode()).decode()
             secret = Secret(
                 {
-                    "metadata": {
-                        "name": secret_name,
-                        "namespace": compute_namespace,
-                        "labels": {REGISTRY_LABEL: str(connection.id)},
-                    },
+                    "metadata": {"name": secret_name, "namespace": compute_namespace, "labels": {REGISTRY_LABEL: str(connection.id)}},
                     "type": "kubernetes.io/dockerconfigjson",
                     "stringData": {".dockerconfigjson": json.dumps({"auths": {connection.host: {"auth": authentication}}})},
                 },

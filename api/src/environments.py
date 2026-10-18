@@ -17,7 +17,6 @@ class Env(BaseSettings):
     # Authentication
     PUBLIC_URL: str = Field(default="http://localhost:5173", pattern=r"^https?://")
     SESSION_KEY: str = Field(min_length=32)
-    AUTH_SESSION_LIFETIME_SECONDS: int = Field(default=2592000, ge=300, le=31536000)
     GITHUB_OAUTH_CLIENT_ID: str | None = Field(default=None, min_length=1)
     GOOGLE_OAUTH_CLIENT_ID: str | None = Field(default=None, min_length=1)
     GITHUB_OAUTH_CLIENT_SECRET: str | None = Field(default=None, min_length=1)
@@ -41,12 +40,7 @@ class Env(BaseSettings):
     # Control plane database URL
     DATABASE_URL: str
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_parse_none_str="null",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", env_parse_none_str="null", extra="ignore")
 
     @property
     def stripe_enabled(self) -> bool:

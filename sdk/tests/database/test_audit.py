@@ -38,9 +38,7 @@ def audit_model_cleanup() -> Iterator[None]:
         metadata.remove(metadata.tables[table_name])
 
 
-async def test_audit_hook_persists_fields_and_leaves_deletes_hard(
-    audit_engine: database_base.Database,
-) -> None:
+async def test_audit_hook_persists_fields_and_leaves_deletes_hard(audit_engine: database_base.Database) -> None:
     """Persist creation and update audit fields while retaining ordinary hard deletes."""
 
     # Define one isolated mapped table for the real SQLite lifecycle.
@@ -81,11 +79,7 @@ async def test_audit_hook_persists_fields_and_leaves_deletes_hard(
         assert item.updated_at.tzinfo is UTC
         created_at = item.created_at
         updated_at = item.updated_at
-        assert (item.updated_at, item.created_id, item.updated_id) == (
-            created_at,
-            creator_id,
-            creator_id,
-        )
+        assert (item.updated_at, item.created_id, item.updated_id) == (created_at, creator_id, creator_id)
 
         # Update the persisted row with a second audit identity.
         with audit.actor(updater_id):
@@ -111,9 +105,7 @@ async def test_audit_hook_persists_fields_and_leaves_deletes_hard(
         assert await session.get(AuditLifecycleItem, item_id) is None
 
 
-async def test_audit_hook_preserves_explicit_insert_fields_for_unchanged_rows(
-    audit_engine: database_base.Database,
-) -> None:
+async def test_audit_hook_preserves_explicit_insert_fields_for_unchanged_rows(audit_engine: database_base.Database) -> None:
     """Keep caller-provided audit fields when an unchanged row is committed."""
 
     # Arrange
@@ -133,13 +125,7 @@ async def test_audit_hook_preserves_explicit_insert_fields_for_unchanged_rows(
     updater_id = UUID("00000000-0000-0000-0000-000000000003")
 
     async with audit_engine.session() as session:
-        item = ExplicitAuditItem(
-            name="draft",
-            created_at=created_at,
-            updated_at=updated_at,
-            created_id=creator_id,
-            updated_id=updater_id,
-        )
+        item = ExplicitAuditItem(name="draft", created_at=created_at, updated_at=updated_at, created_id=creator_id, updated_id=updater_id)
         session.add(item)
         await session.commit()
         assert item.id is not None
@@ -156,17 +142,10 @@ async def test_audit_hook_preserves_explicit_insert_fields_for_unchanged_rows(
     async with audit_engine.session() as session:
         item = await session.get(ExplicitAuditItem, item_id)
         assert item is not None
-        assert (item.created_at, item.updated_at, item.created_id, item.updated_id) == (
-            created_at,
-            updated_at,
-            creator_id,
-            updater_id,
-        )
+        assert (item.created_at, item.updated_at, item.created_id, item.updated_id) == (created_at, updated_at, creator_id, updater_id)
 
 
-async def test_audit_hook_preserves_ordinary_model_inserts_and_updates(
-    audit_engine: database_base.Database,
-) -> None:
+async def test_audit_hook_preserves_ordinary_model_inserts_and_updates(audit_engine: database_base.Database) -> None:
     """Leave ordinary SQLModel inserts and updates unchanged."""
 
     # Arrange

@@ -81,11 +81,7 @@ async def add_member(*, user: User, organization: Organization, role: Organizati
     """Persist one Organization membership in a committed test transaction."""
 
     # Keep membership construction in one owner.
-    membership = UserOrganization(
-        user_id=user.id,
-        organization_id=organization.id,
-        role=role,
-    )
+    membership = UserOrganization(user_id=user.id, organization_id=organization.id, role=role)
 
     async with session_scope() as session:
         session.add(membership)
@@ -114,11 +110,7 @@ async def create_compute() -> ComputeRegistry:
         return compute
 
 
-async def create_organization(
-    owner: User,
-    name: str = "acme",
-    compute: ComputeRegistry | None = None,
-) -> Organization:
+async def create_organization(owner: User, name: str = "acme", compute: ComputeRegistry | None = None) -> Organization:
     """Persist deterministic Organization fixture state without production admission."""
 
     # Use the specified registry or give the fixture independent infrastructure.
@@ -126,17 +118,8 @@ async def create_organization(
         compute = await create_compute()
 
     # Construct fixture rows directly rather than reproducing production quota or selection rules.
-    organization = Organization(
-        name=name,
-        slug=names.slugify(name),
-        compute_id=compute.id,
-        created_id=owner.id,
-    )
-    membership = UserOrganization(
-        user_id=owner.id,
-        organization_id=organization.id,
-        role=OrganizationRoles.owner,
-    )
+    organization = Organization(name=name, slug=names.slugify(name), compute_id=compute.id, created_id=owner.id)
+    membership = UserOrganization(user_id=owner.id, organization_id=organization.id, role=OrganizationRoles.owner)
 
     # Retain queued creation work expected by lifecycle fixtures in the same transaction.
     async with session_scope() as session:
@@ -166,11 +149,7 @@ async def create_solution(
         solution = await solutions.create(
             session,
             organization.id,
-            SolutionCreate(
-                name=name,
-                image=resolved_image,
-                envs=envs or {},
-            ),
+            SolutionCreate(name=name, image=resolved_image, envs=envs or {}),
             user_id=organization.created_id,
             metadata=LongLinkMetadata(image=resolved_image),
         )

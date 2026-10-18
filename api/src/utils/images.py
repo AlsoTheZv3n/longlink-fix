@@ -135,11 +135,7 @@ async def inspect(
     # At most one index and one child manifest may be traversed.
     reference = image.tag_or_digest
     for depth in range(2):
-        manifest_result = await registry_json(
-            client,
-            f"{base}/v2/{image.repository}/manifests/{reference}",
-            headers=headers,
-        )
+        manifest_result = await registry_json(client, f"{base}/v2/{image.repository}/manifests/{reference}", headers=headers)
         if manifest_result is None:
             return None
         manifest, manifest_headers = manifest_result
@@ -179,10 +175,7 @@ async def inspect(
             return None
 
         config_result = await registry_json(
-            client,
-            f"{base}/v2/{image.repository}/blobs/{config_digest}",
-            headers=headers,
-            ghcr_blob=is_ghcr,
+            client, f"{base}/v2/{image.repository}/blobs/{config_digest}", headers=headers, ghcr_blob=is_ghcr
         )
         if config_result is None:
             return None

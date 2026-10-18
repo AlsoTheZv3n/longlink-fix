@@ -50,9 +50,7 @@ async def test_resolve_selects_unique_storage_class(expected: str) -> None:
         pytest.param([], "no storage classes", id="none"),
         pytest.param([StorageClass("retain"), StorageClass("delete")], "without a default", id="ambiguous"),
         pytest.param(
-            [StorageClass("retain", default=True), StorageClass("delete", default=True)],
-            "multiple default",
-            id="multiple-defaults",
+            [StorageClass("retain", default=True), StorageClass("delete", default=True)], "multiple default", id="multiple-defaults"
         ),
     ],
 )

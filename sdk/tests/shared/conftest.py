@@ -35,11 +35,7 @@ async def postgresql_url() -> AsyncIterator[URL]:
 
     # Let Testcontainers own PostgreSQL configuration and readiness.
     container = PostgresContainer(
-        "postgres:16-alpine",
-        username=POSTGRES_USERNAME,
-        password=POSTGRES_PASSWORD,
-        dbname=POSTGRES_DATABASE,
-        driver="asyncpg",
+        "postgres:16-alpine", username=POSTGRES_USERNAME, password=POSTGRES_PASSWORD, dbname=POSTGRES_DATABASE, driver="asyncpg"
     )
 
     # Keep synchronous Testcontainers work off the test event loop and always stop after startup begins.

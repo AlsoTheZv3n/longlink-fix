@@ -10,8 +10,7 @@ from src.database.models.organizations import Organization
 
 
 async def test_get_me_returns_authenticated_user_profile_and_separate_org_memberships(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return profile and organization memberships from separate endpoints."""
 
@@ -38,21 +37,12 @@ async def test_get_me_returns_authenticated_user_profile_and_separate_org_member
     assert organizations_response.status_code == 200
     assert organizations_response.headers["cache-control"] == "no-store"
     assert organizations_response.json() == [
-        {
-            "organization": {
-                "id": str(organization.id),
-                "name": "acme",
-                "slug": "acme",
-                "status": "creating",
-            },
-            "role": "owner",
-        }
+        {"organization": {"id": str(organization.id), "name": "acme", "slug": "acme", "status": "creating"}, "role": "owner"}
     ]
 
 
 async def test_get_my_organizations_excludes_soft_deleted_organizations(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Hide soft-deleted Organizations from the authenticated user's organization switcher."""
 
@@ -74,8 +64,7 @@ async def test_get_my_organizations_excludes_soft_deleted_organizations(
 
 
 async def test_list_users_returns_administrator_page_and_total(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Return a bounded administrator page with the full visible-user total."""
 

@@ -54,9 +54,7 @@ async def snapshot(session: AsyncSession, organization_id: UUID, period_end: dat
     users = await organizations.member_count(session, organization_id)
 
     # A failed measurement never becomes zero usage or a partially calculated invoice.
-    cluster = Kubernetes(
-        compute.kubeconfig,
-    )
+    cluster = Kubernetes(compute.kubeconfig)
     credentials = s3.Credentials(compute.storage_access_key, compute.storage_secret_key)
     storage = s3.S3(compute.storage_endpoint, credentials, compute.storage_certificate)
     async with asyncio.timeout(60), cluster:

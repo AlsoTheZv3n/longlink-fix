@@ -79,10 +79,7 @@ async def send_organization_invitation_email(recipient: str, organization_name: 
         "Contact: info@longlink.dev\n"
     )
     html = render_mjml_template(
-        "organization_invitation.mjml",
-        invitation_url=invitation_url,
-        organization_name=organization_name,
-        role_label=role_label,
+        "organization_invitation.mjml", invitation_url=invitation_url, organization_name=organization_name, role_label=role_label
     )
 
     await send_mail(recipient, subject, text, html)
@@ -103,9 +100,6 @@ async def send_signup_verification_email(recipient: str, token: str) -> None:
         "LinkedIn: https://www.linkedin.com/company/longlink\n"
         "Contact: info@longlink.dev\n"
     )
-    html = render_mjml_template(
-        "signup_verification.mjml",
-        verification_url=verification_url,
-    )
+    html = render_mjml_template("signup_verification.mjml", verification_url=verification_url)
 
     await send_mail(recipient, subject, text, html)

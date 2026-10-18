@@ -192,10 +192,7 @@ def test_dynamic_view_is_registered_from_jsx_without_sidecar_metadata(solution_s
     assert "text/plain" in response.headers["content-type"]
     assert response.text == content
     assert views_response.status_code == 200
-    assert views_response.json() == {
-        "views": [{"path": "views/issues/[issue]", "route": "/issues/:issue"}],
-        "runtime": runtime,
-    }
+    assert views_response.json() == {"views": [{"path": "views/issues/[issue]", "route": "/issues/:issue"}], "runtime": runtime}
 
 
 def test_view_catalog_orders_paths_and_redirects_to_first_static_view(solution_source: Path) -> None:
@@ -243,21 +240,11 @@ def test_invalid_view_fails_during_registration(solution_source: Path) -> None:
 @pytest.mark.parametrize(
     ("first_view", "second_view", "message"),
     [
-        pytest.param(
-            "issues/[id].jsx",
-            "issues/[issue_id].jsx",
-            "Browser route '/issues/:issue_id' is already registered",
-            id="dynamic",
-        ),
+        pytest.param("issues/[id].jsx", "issues/[issue_id].jsx", "Browser route '/issues/:issue_id' is already registered", id="dynamic"),
         pytest.param("index.jsx", "index/index.jsx", "Browser route '/' is already registered", id="static"),
     ],
 )
-def test_duplicate_browser_routes_are_rejected(
-    solution_source: Path,
-    first_view: str,
-    second_view: str,
-    message: str,
-) -> None:
+def test_duplicate_browser_routes_are_rejected(solution_source: Path, first_view: str, second_view: str, message: str) -> None:
     """Reject distinct view files that resolve to one browser route."""
 
     # Arrange
@@ -332,7 +319,9 @@ def initialize_mcp(client: TestClient) -> None:
     response = client.post(
         "/mcp",
         json={
-            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
             "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "sdk-tests", "version": "1"}},
         },
     )
@@ -380,7 +369,8 @@ def test_mcp_discovers_late_routes_and_invokes_with_context(solution_source: Pat
             "/mcp", json={"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "current_user", "arguments": {}}}
         )
         invalid = client.post(
-            "/mcp", json={"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "get_item", "arguments": {"item_id": "bad"}}},
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "get_item", "arguments": {"item_id": "bad"}}},
         )
         direct = client.get("/api/items/7")
         frontend = client.get("/settings", headers={"accept": "text/html"})
@@ -476,7 +466,8 @@ def test_empty_mcp_catalog_does_not_allow_internal_tools() -> None:
         initialize_mcp(client)
         discovery = client.post("/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         invocation = client.post(
-            "/mcp", json={"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_views_views_json_get", "arguments": {}}},
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_views_views_json_get", "arguments": {}}},
         )
 
     # Excluding a tool applies to execution, not only discovery.
@@ -554,11 +545,13 @@ def test_mcp_supports_current_protocol_without_a_legacy_handshake() -> None:
     # Current MCP requests do not require initialize or an MCP session ID.
     with client:
         discovery = client.post(
-            "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {"_meta": metadata}},
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {"_meta": metadata}},
             headers={"mcp-method": "tools/list"},
         )
         invocation = client.post(
-            "/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "value", "arguments": {}, "_meta": metadata}},
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "value", "arguments": {}, "_meta": metadata}},
             headers={"mcp-method": "tools/call", "mcp-name": "value"},
         )
 
@@ -603,7 +596,9 @@ def test_tool_arguments_cannot_override_request_credentials(monkeypatch: pytest.
         tool = discovery.json()["result"]["tools"][0]
         assert {"authorization", "x-longlink-identity", "cookie"} <= tool["inputSchema"]["properties"].keys()
         request = {
-            "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
             "params": {
                 "name": "credentials",
                 "arguments": {"authorization": "Bearer other", "x-longlink-identity": other_identity, "cookie": "user=other"},
@@ -615,10 +610,14 @@ def test_tool_arguments_cannot_override_request_credentials(monkeypatch: pytest.
 
     # The request's verified credentials win over model-controlled tool inputs.
     assert invocation.json()["result"]["structuredContent"] == {
-        "user": str(actual_user), "authorization": "Bearer actual", "cookie": "user=actual",
+        "user": str(actual_user),
+        "authorization": "Bearer actual",
+        "cookie": "user=actual",
     }
     assert without_cookie.json()["result"]["structuredContent"] == {
-        "user": str(actual_user), "authorization": "Bearer actual", "cookie": None,
+        "user": str(actual_user),
+        "authorization": "Bearer actual",
+        "cookie": None,
     }
 
 

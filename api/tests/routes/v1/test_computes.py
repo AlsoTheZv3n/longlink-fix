@@ -2,11 +2,7 @@ import pytest
 from uuid import UUID, uuid4
 from httpx2 import AsyncClient
 from conftest import RegistryKubernetes
-from factories import (
-    create_compute,
-    fetch_operations,
-    create_organization,
-)
+from factories import create_compute, fetch_operations, create_organization
 from src.database.session import session_scope
 from src.database.models.users import User
 from src.database.models.computes import ComputeRegistry
@@ -43,9 +39,7 @@ async def test_platform_user_cannot_delete_compute_registry(clients: tuple[Async
     assert str(compute.id) in {item["id"] for item in list_response.json()["items"]}
 
 
-async def test_compute_list_returns_ordered_page_and_total(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-) -> None:
+async def test_compute_list_returns_ordered_page_and_total(clients: tuple[AsyncClient, AsyncClient, AsyncClient]) -> None:
     """Return an ordered registry page without credentials."""
 
     # Arrange
@@ -84,8 +78,7 @@ async def test_compute_list_returns_ordered_page_and_total(
 
 
 async def test_compute_registry_creation_redacts_credentials_and_rejects_duplicate_name(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    compute_runtime: None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], compute_runtime: None
 ) -> None:
     """Persist an inline-verified Compute without credentials in responses or queued work."""
 
@@ -129,9 +122,7 @@ async def test_compute_registry_creation_redacts_credentials_and_rejects_duplica
 
 
 async def test_create_rejects_duplicate_compute_clusters(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    monkeypatch: pytest.MonkeyPatch,
-    compute_runtime: None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], monkeypatch: pytest.MonkeyPatch, compute_runtime: None
 ) -> None:
     """Translate duplicate physical clusters into the stable HTTP conflict."""
 
@@ -144,7 +135,7 @@ async def test_create_rejects_duplicate_compute_clusters(
 
             return "cluster-uid"
 
-    monkeypatch.setattr("src.routes.v1.computes.Kubernetes", FixedClusterKubernetes)
+    monkeypatch.setattr("src.routes.v1.admin.computes.Kubernetes", FixedClusterKubernetes)
     payload = {
         "name": "Duplicate Compute",
         "kubeconfig": {
@@ -167,8 +158,7 @@ async def test_create_rejects_duplicate_compute_clusters(
 
 
 async def test_compute_registry_delete_rejects_assigned_registry(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Keep a Compute registry while an Organization references it."""
 
@@ -199,7 +189,7 @@ async def test_compute_registry_rejects_exec_authentication_before_constructing_
 
         raise AssertionError("Kubernetes must not be constructed")
 
-    monkeypatch.setattr("src.routes.v1.computes.Kubernetes", unexpected_kubernetes)
+    monkeypatch.setattr("src.routes.v1.admin.computes.Kubernetes", unexpected_kubernetes)
     payload = {
         "name": "Unsafe Compute",
         "gateway_url": "https://gateway.example",
@@ -208,12 +198,7 @@ async def test_compute_registry_rejects_exec_authentication_before_constructing_
             "clusters": [{"name": "cluster", "cluster": {}}],
             "contexts": [{"name": "context", "context": {"cluster": "cluster", "user": "user"}}],
             "current-context": "context",
-            "users": [
-                {
-                    "name": "user",
-                    "user": {"exec": {"apiVersion": "client.authentication.k8s.io/v1", "command": "untrusted"}},
-                }
-            ],
+            "users": [{"name": "user", "user": {"exec": {"apiVersion": "client.authentication.k8s.io/v1", "command": "untrusted"}}}],
         },
     }
 
@@ -237,7 +222,7 @@ async def test_compute_registry_creation_rejects_failed_inline_verification(
 
         raise RuntimeError("gateway unavailable")
 
-    monkeypatch.setattr("src.routes.v1.computes.gateway.verify", failed_gateway)
+    monkeypatch.setattr("src.routes.v1.admin.computes.gateway.verify", failed_gateway)
     name = "Unready Compute"
     payload = {
         "name": name,
@@ -262,9 +247,7 @@ async def test_compute_registry_creation_rejects_failed_inline_verification(
     assert name not in {item["name"] for item in list_response.json()["items"]}
 
 
-async def test_compute_registry_deletes_unused_registration(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-) -> None:
+async def test_compute_registry_deletes_unused_registration(clients: tuple[AsyncClient, AsyncClient, AsyncClient]) -> None:
     """Remove a Compute registration without changing its cluster."""
 
     # Arrange
@@ -280,9 +263,7 @@ async def test_compute_registry_deletes_unused_registration(
     assert str(compute.id) not in {item["id"] for item in list_response.json()["items"]}
 
 
-async def test_compute_registry_deletion_rejects_unknown_registry(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-) -> None:
+async def test_compute_registry_deletion_rejects_unknown_registry(clients: tuple[AsyncClient, AsyncClient, AsyncClient]) -> None:
     """Return the Compute-specific error when deleting an unknown registration."""
 
     # Arrange

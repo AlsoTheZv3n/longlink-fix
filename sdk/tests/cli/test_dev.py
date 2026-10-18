@@ -18,11 +18,7 @@ from longlink.cli.main import main
     ],
 )
 def test_dev_command_warns_only_for_public_hosts(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    host: str,
-    expected_warnings: list[str],
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture, host: str, expected_warnings: list[str]
 ) -> None:
     """Warn only when the development server is exposed beyond loopback interfaces."""
 

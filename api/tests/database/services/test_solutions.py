@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from conftest import create_client
 from sqlmodel import col
 from factories import create_solution, create_organization
+from src.utils import images
 from sqlalchemy import delete, update
 from src.database import session as database_session
 from alembic.config import Config
@@ -166,7 +167,7 @@ async def test_revision_ownership_constraints_and_cleanup(monkeypatch: pytest.Mo
             await asyncio.wait_for(barrier.wait(), timeout=5)
             return LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:updated"))
 
-        monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", metadata)
+        monkeypatch.setattr(images, "required_metadata", metadata)
         async with create_client(owner) as client:
             url = f"/api/v1/solutions/{first.id}/update"
             responses = await asyncio.gather(client.post(url, json={}), client.post(url, json={}))

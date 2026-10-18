@@ -1,7 +1,7 @@
 from src import auth
 from uuid import UUID
 from typing import Annotated
-from fastapi import Form, Query, Depends, Request, Response, APIRouter
+from fastapi import Form, Query, Request, Response, APIRouter
 from src.logger import logger
 from src.models import mcp as models
 from src.context import Context
@@ -47,11 +47,7 @@ class OAuthRoute(APIRoute):
                 description = exc.description
 
             # Return the selected public fields without constructing another exception.
-            return JSONResponse(
-                status_code=400,
-                content={"error": code, "error_description": description},
-                headers={"Pragma": "no-cache"},
-            )
+            return JSONResponse(status_code=400, content={"error": code, "error_description": description}, headers={"Pragma": "no-cache"})
 
         return handle
 
@@ -79,32 +75,32 @@ async def authorize(ctx: Context, request: Annotated[models.AuthorizationRequest
     return RedirectResponse(f"{env.PUBLIC_URL}/mcp/authorize?{query}", status_code=302)
 
 
-@router.get("/consent", response_model=models.Consent, dependencies=[Depends(auth.authuser)])
-async def consent(ctx: Context, request: Annotated[models.AuthorizationRequest, Query()]) -> dict[str, str]:
+@router.get("/consent", response_model=models.Consent)
+async def consent(ctx: Context, user: auth.CurrentUser, request: Annotated[models.AuthorizationRequest, Query()]) -> dict[str, str]:
     """Describe the registered callback and Solution only after current permission checks."""
 
-    return await mcp.consent(ctx.database, ctx.user, request)
+    return await mcp.consent(ctx.database, user, request)
 
 
-@router.post("/consent", response_model=models.AuthorizationRedirect, dependencies=[Depends(auth.authuser)])
-async def approve(ctx: Context, payload: models.Approval) -> dict[str, str]:
+@router.post("/consent", response_model=models.AuthorizationRedirect)
+async def approve(ctx: Context, user: auth.CurrentUser, payload: models.Approval) -> dict[str, str]:
     """Issue one short-lived PKCE code only after an explicit same-origin browser decision."""
 
     # Persist approved proof before exposing the code; declined consent remains read-only.
-    url = await mcp.approve(ctx.database, ctx.user, payload)
+    url = await mcp.approve(ctx.database, user, payload)
     if payload.approve:
         await ctx.database.commit()
     return {"url": url}
 
 
 @router.post("/token", response_model=models.AccessToken)
-async def exchange(ctx: Context, response: Response, payload: Annotated[models.TokenExchange, Form()]) -> dict[str, str | int]:
+async def exchange(ctx: Context, payload: Annotated[models.TokenExchange, Form()]) -> dict[str, str | int]:
     """Exchange a single-use code with exact client, resource, redirect, and PKCE binding."""
 
     # Commit code consumption and token issuance together before returning credentials.
     result = await mcp.exchange(ctx.database, payload)
     await ctx.database.commit()
-    response.headers["Pragma"] = "no-cache"
+    ctx.response.headers["Pragma"] = "no-cache"
     return result
 
 
@@ -118,17 +114,17 @@ async def revoke(ctx: Context, token: Annotated[str, Form(max_length=128)], clie
     return Response()
 
 
-@router.get("/tokens", response_model=list[models.TokenSummary], dependencies=[Depends(auth.authuser)])
-async def tokens(ctx: Context):
+@router.get("/tokens", response_model=list[models.TokenSummary])
+async def tokens(ctx: Context, user: auth.CurrentUser):
     """List the current user's revocation handles without exposing credentials."""
 
-    return await mcp.tokens(ctx.database, ctx.user.id)
+    return await mcp.tokens(ctx.database, user.id)
 
 
-@router.delete("/tokens/{token_id}", status_code=204, response_model=None, dependencies=[Depends(auth.authuser)])
-async def delete_token(ctx: Context, token_id: UUID) -> None:
+@router.delete("/tokens/{token_id}", status_code=204, response_model=None)
+async def delete_token(ctx: Context, user: auth.CurrentUser, token_id: UUID) -> None:
     """Revoke only grants owned by the authenticated browser user."""
 
     # Persist owner-bound revocation before acknowledging the request.
-    await mcp.delete_token(ctx.database, ctx.user.id, token_id)
+    await mcp.delete_token(ctx.database, user.id, token_id)
     await ctx.database.commit()

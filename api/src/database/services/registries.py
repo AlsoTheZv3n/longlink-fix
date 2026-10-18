@@ -46,11 +46,7 @@ async def create(session: AsyncSession, organization_id: UUID, payload: Registry
     await organizations.require_membership(session, user_id, organization_id, OrganizationRoles.maintain)
 
     # Store new credentials within the authorized Organization.
-    connection = RegistryConnection(
-        organization_id=organization_id,
-        username=username,
-        credential=payload.credential.get_secret_value(),
-    )
+    connection = RegistryConnection(organization_id=organization_id, username=username, credential=payload.credential.get_secret_value())
     session.add(connection)
 
     # Always queue fresh work: active reconciliation may have synchronized older credentials.

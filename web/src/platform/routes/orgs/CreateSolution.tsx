@@ -33,8 +33,8 @@ export default function CreateSolution({
 
         // Advance only when the image metadata is valid; reinspection resets image-specific drafts.
         const inspected = schemas.zLongLinkMetadata.parse(
-            await api('/api/v1/image', {
-                searchParams: { image: image.trim(), organization_id: organizationId },
+            await api(`/api/v1/organizations/${organizationId}/image`, {
+                searchParams: { image: image.trim() },
             }).json()
         );
 

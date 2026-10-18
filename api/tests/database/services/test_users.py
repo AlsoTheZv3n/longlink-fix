@@ -51,12 +51,7 @@ async def test_ensure_administrator_restores_soft_deleted_configured_user(passwo
 
     # Arrange
     async with session_scope() as session:
-        deleted_user = User(
-            name="Deleted Administrator",
-            email=env.ADMIN_EMAIL,
-            password=password_hash,
-            deleted_at=datetime.now(UTC),
-        )
+        deleted_user = User(name="Deleted Administrator", email=env.ADMIN_EMAIL, password=password_hash, deleted_at=datetime.now(UTC))
         session.add(deleted_user)
         await session.commit()
         deleted_user_id = deleted_user.id
@@ -83,12 +78,7 @@ async def test_ensure_administrator_replaces_stale_configured_password() -> None
     password_hash = PasswordHash.recommended()
     stale_password = password_hash.hash("stale-password")
     async with session_scope() as session:
-        administrator = User(
-            name="Administrator",
-            email=env.ADMIN_EMAIL,
-            password=stale_password,
-            administrator=True,
-        )
+        administrator = User(name="Administrator", email=env.ADMIN_EMAIL, password=stale_password, administrator=True)
         session.add(administrator)
         await session.commit()
         administrator_id = administrator.id
@@ -106,9 +96,7 @@ async def test_ensure_administrator_replaces_stale_configured_password() -> None
     assert password_hash.verify(env.ADMIN_PASSWORD, persisted_administrator.password)
 
 
-async def test_user_service_returns_active_accounts_and_all_administrator_records(
-    users: tuple[User, User, User],
-) -> None:
+async def test_user_service_returns_active_accounts_and_all_administrator_records(users: tuple[User, User, User]) -> None:
     """Return active identities while retaining deleted accounts in administrator lists."""
 
     # Arrange

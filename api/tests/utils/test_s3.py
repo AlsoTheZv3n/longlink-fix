@@ -117,10 +117,7 @@ async def test_create_bucket_propagates_unexpected_creation_errors(s3: tuple[S3,
     stubber.assert_no_pending_responses()
 
 
-DELETE_PREFIX_ERRORS = [
-    pytest.param("NoSuchBucket", False, id="missing-bucket"),
-    pytest.param("AccessDenied", True, id="unexpected-error"),
-]
+DELETE_PREFIX_ERRORS = [pytest.param("NoSuchBucket", False, id="missing-bucket"), pytest.param("AccessDenied", True, id="unexpected-error")]
 
 
 @pytest.mark.parametrize(("error_code", "should_raise"), DELETE_PREFIX_ERRORS)
@@ -159,9 +156,7 @@ async def test_delete_prefix_batches_thousand_identifiers(s3: tuple[S3, AioStubb
     )
     stubber.add_response("abort_multipart_upload", {}, {"Bucket": "org-bucket", "Key": "solutions/abc/upload", "UploadId": "upload-1"})
     stubber.add_response(
-        "list_object_versions",
-        {"Versions": versions, "DeleteMarkers": [marker]},
-        {"Bucket": "org-bucket", "Prefix": "solutions/abc/"},
+        "list_object_versions", {"Versions": versions, "DeleteMarkers": [marker]}, {"Bucket": "org-bucket", "Prefix": "solutions/abc/"}
     )
     stubber.add_response("delete_objects", {}, {"Bucket": "org-bucket", "Delete": {"Objects": versions[:1000], "Quiet": True}})
     stubber.add_response("delete_objects", {}, {"Bucket": "org-bucket", "Delete": {"Objects": [versions[1000], marker], "Quiet": True}})
@@ -207,9 +202,7 @@ async def test_usage_sums_all_listing_pages(s3: tuple[S3, AioStubber]) -> None:
         {"Bucket": "org-bucket"},
     )
     stubber.add_response(
-        "list_objects_v2",
-        {"Contents": [{"Size": 5}], "IsTruncated": False},
-        {"Bucket": "org-bucket", "ContinuationToken": "next-page"},
+        "list_objects_v2", {"Contents": [{"Size": 5}], "IsTruncated": False}, {"Bucket": "org-bucket", "ContinuationToken": "next-page"}
     )
 
     # Act

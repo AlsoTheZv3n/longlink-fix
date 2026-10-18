@@ -57,9 +57,7 @@ async def deploy(revision_id: UUID) -> None:
         runtime_secrets.pop(name, None)
 
     # Organization reconciliation owns bucket provisioning and quota admission.
-    cluster = Kubernetes(
-        compute.kubeconfig,
-    )
+    cluster = Kubernetes(compute.kubeconfig)
     async with cluster:
         storage = Storage(compute, cluster)
 
@@ -116,10 +114,7 @@ async def deploy(revision_id: UUID) -> None:
                     CursorResult[tuple[object, ...]],
                     await session.execute(
                         update(Solution)
-                        .where(
-                            col(Solution.id) == solution.id,
-                            col(Solution.deleted_at).is_(None),
-                        )
+                        .where(col(Solution.id) == solution.id, col(Solution.deleted_at).is_(None))
                         .values(secrets=runtime_secrets)
                     ),
                 )
@@ -172,9 +167,7 @@ async def delete(solution_id: UUID) -> None:
 
     # Remove Solution Kubernetes resources before revoking provider credentials.
     logger.info("Deleting Kubernetes workload for Solution %s", solution_id)
-    cluster = Kubernetes(
-        compute.kubeconfig,
-    )
+    cluster = Kubernetes(compute.kubeconfig)
     async with cluster:
         await solution_resources.delete(cluster, organization.id, solution_id)
         db = await database_resources.connection(organization, cluster)

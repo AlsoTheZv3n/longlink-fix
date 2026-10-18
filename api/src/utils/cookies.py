@@ -21,12 +21,7 @@ def _policy(path: str) -> CookiePolicy:
     """Return the security parameters shared by cookie creation and deletion."""
 
     # Deletion must mirror creation or browsers retain the credential.
-    return {
-        "path": path,
-        "secure": env.PUBLIC_URL.startswith("https://"),
-        "httponly": True,
-        "samesite": "lax",
-    }
+    return {"path": path, "secure": env.PUBLIC_URL.startswith("https://"), "httponly": True, "samesite": "lax"}
 
 
 def set_browser_cookie(response: Response, name: str, value: str, path: str, max_age: int) -> None:

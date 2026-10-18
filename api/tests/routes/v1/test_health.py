@@ -49,10 +49,7 @@ async def test_readyz_returns_internal_error_when_database_query_fails(monkeypat
     engine = create_async_engine(URL.create("sqlite+aiosqlite", database=str(database_path)))
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(session, "Session", session_factory)
-    client = AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
-        base_url="http://testserver",
-    )
+    client = AsyncClient(transport=ASGITransport(app=app, raise_app_exceptions=False), base_url="http://testserver")
 
     try:
         # Act

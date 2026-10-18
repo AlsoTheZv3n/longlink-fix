@@ -42,15 +42,7 @@ def test_compute_registry_create_parses_yaml_kubeconfig() -> None:
                 "contexts": [{"name": "context", "context": {"cluster": "cluster", "user": "worker"}}],
                 "current-context": "context",
                 "users": [
-                    {
-                        "name": "worker",
-                        "user": {
-                            "exec": {
-                                "apiVersion": "client.authentication.k8s.io/v1",
-                                "command": "untrusted-command",
-                            }
-                        },
-                    }
+                    {"name": "worker", "user": {"exec": {"apiVersion": "client.authentication.k8s.io/v1", "command": "untrusted-command"}}}
                 ],
             },
             "exec authentication is not allowed",
@@ -73,6 +65,33 @@ def test_compute_registry_create_rejects_invalid_kubeconfigs(kubeconfig: object,
 
     # Act and assert
     with pytest.raises(ValidationError, match=message):
+        ComputeRegistryCreate.model_validate(
+            {
+                "name": "Compute",
+                "kubeconfig": kubeconfig,
+                "gateway_url": "https://gateway.example",
+                "storage_endpoint": "https://storage.example",
+            }
+        )
+
+
+@pytest.mark.parametrize("field", ["cluster", "user"])
+@pytest.mark.parametrize("reference", [pytest.param([], id="list"), pytest.param({}, id="mapping")])
+def test_compute_registry_create_rejects_non_string_context_references(field: str, reference: object) -> None:
+    """Report malformed context references as validation errors rather than type errors."""
+
+    # Arrange
+    context: dict[str, object] = {"cluster": "cluster", "user": "user"}
+    context[field] = reference
+    kubeconfig = {
+        "clusters": [{"name": "cluster", "cluster": {}}],
+        "contexts": [{"name": "context", "context": context}],
+        "current-context": "context",
+        "users": [{"name": "user", "user": {}}],
+    }
+
+    # Act and assert
+    with pytest.raises(ValidationError, match="current-context must reference a configured cluster and user"):
         ComputeRegistryCreate.model_validate(
             {
                 "name": "Compute",

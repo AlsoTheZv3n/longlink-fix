@@ -87,8 +87,4 @@ class Image(str):
     def __get_pydantic_core_schema__(cls, _source_type: object, _handler: GetCoreSchemaHandler) -> CoreSchema:
         """Expose the image as a validated string in Pydantic and OpenAPI schemas."""
 
-        return core_schema.no_info_after_validator_function(
-            cls,
-            core_schema.str_schema(),
-            serialization=core_schema.to_string_ser_schema(),
-        )
+        return core_schema.no_info_after_validator_function(cls, core_schema.str_schema(), serialization=core_schema.to_string_ser_schema())

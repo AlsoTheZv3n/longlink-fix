@@ -36,12 +36,7 @@ async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_ac
 
     # Arrange
     adapter, organization_id, solution_id = postgres_database
-    active_user = {
-        "id": UUID("11111111-1111-1111-1111-111111111111"),
-        "name": "Owner User",
-        "email": "owner@example.com",
-        "avatar": "",
-    }
+    active_user = {"id": UUID("11111111-1111-1111-1111-111111111111"), "name": "Owner User", "email": "owner@example.com", "avatar": ""}
     await adapter.prepare_organization_database(organization_id)
     await adapter.prepare_organization_database(organization_id)
     async with adapter.connection(organization_id.hex, search_path="shared") as conn:
@@ -70,8 +65,7 @@ async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_ac
                     await connection.execute(text("UPDATE runtime_items SET name = 'Updated Widget' WHERE id = 1"))
                     runtime_name = await connection.scalar(text("SELECT name FROM runtime_items WHERE id = 1"))
                     result = await connection.execute(
-                        text("SELECT email FROM shared.audit WHERE id = :user_id"),
-                        {"user_id": active_user["id"]},
+                        text("SELECT email FROM shared.audit WHERE id = :user_id"), {"user_id": active_user["id"]}
                     )
                     shared_email = result.scalar_one()
 
@@ -107,10 +101,7 @@ async def test_postgres_creates_idempotent_runtime_schema_with_readonly_audit_ac
     async with adapter.connection(organization_id.hex, search_path="shared") as conn:
         await shared_audit.sync(conn, [updated_user])
     async with adapter.connection(organization_id.hex) as connection:
-        result = await connection.execute(
-            text("SELECT name FROM shared.audit WHERE id = :user_id"),
-            {"user_id": active_user["id"]},
-        )
+        result = await connection.execute(text("SELECT name FROM shared.audit WHERE id = :user_id"), {"user_id": active_user["id"]})
         updated_name = result.scalar_one()
 
     # Assert

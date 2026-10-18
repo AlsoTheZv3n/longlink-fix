@@ -10,13 +10,7 @@ from src.kubernetes.gateway import _deployment_is_ready
 pytestmark = pytest.mark.no_db
 
 
-READY_STATUS = {
-    "observedGeneration": 3,
-    "replicas": 2,
-    "updatedReplicas": 2,
-    "readyReplicas": 2,
-    "availableReplicas": 2,
-}
+READY_STATUS = {"observedGeneration": 3, "replicas": 2, "updatedReplicas": 2, "readyReplicas": 2, "availableReplicas": 2}
 
 
 @pytest.mark.parametrize(
@@ -33,19 +27,12 @@ READY_STATUS = {
     ],
 )
 def test_deployment_is_ready_requires_current_replicas(
-    generation: int | None,
-    replicas: int | None,
-    status: dict[str, int],
-    expected: bool,
+    generation: int | None, replicas: int | None, status: dict[str, int], expected: bool
 ) -> None:
     """Require every requested replica to belong to the current Deployment generation."""
 
     # Arrange
-    deployment = SimpleNamespace(
-        metadata={"generation": generation},
-        spec={"replicas": replicas},
-        raw={"status": status},
-    )
+    deployment = SimpleNamespace(metadata={"generation": generation}, spec={"replicas": replicas}, raw={"status": status})
 
     # Assert
     assert _deployment_is_ready(deployment) is expected
@@ -190,9 +177,7 @@ def test_compute_package_keeps_gateway_tls_and_infrastructure_boundaries(rendere
     documents = rendered_chart
     policies = {document["metadata"]["name"]: document for document in documents if document and document["kind"] == "NetworkPolicy"}
     assert "longlink-runtime-gateway" not in policies
-    assert policies["longlink-gateway-boundary"]["spec"]["ingress"][1] == {
-        "ports": [{"protocol": "TCP", "port": 8444}],
-    }
+    assert policies["longlink-gateway-boundary"]["spec"]["ingress"][1] == {"ports": [{"protocol": "TCP", "port": 8444}]}
     service = next(document for document in documents if document["kind"] == "Service" and document["metadata"]["name"] == "kourier")
     assert service["spec"]["ports"] == [{"name": "https", "port": 443, "targetPort": 8444}]
     assert service["spec"]["loadBalancerIP"] == "203.0.113.10"

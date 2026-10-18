@@ -62,17 +62,12 @@ async def proxy_solution_request(
 
     # Enforce method-level runtime access in the API before any request can reach Kubernetes.
     if not roles.atleast(role, required_role):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Organization {required_role.value} access required",
-        )
+        raise HTTPException(status_code=403, detail=f"Organization {required_role.value} access required")
 
     # Report readiness explicitly; the frontend owns its loading presentation.
     if solution.status != Status.running:
         raise HTTPException(
-            status_code=503,
-            detail="Solution is not ready yet. Please try again shortly.",
-            headers={"cache-control": "no-store"},
+            status_code=503, detail="Solution is not ready yet. Please try again shortly.", headers={"cache-control": "no-store"}
         )
     await ctx.database.commit()
 

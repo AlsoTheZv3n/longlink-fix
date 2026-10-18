@@ -42,10 +42,7 @@ async def fetch(session: AsyncSession, pagination: Pagination, search: str = "")
     statement = (
         query.options(
             contains_eager(attr(Solution.organization)).load_only(
-                attr(Organization.id),
-                attr(Organization.name),
-                attr(Organization.slug),
-                attr(Organization.status),
+                attr(Organization.id), attr(Organization.name), attr(Organization.slug), attr(Organization.status)
             ),
             defer(attr(Solution.secrets)),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.image), attr(Revision.failed), raiseload=True),
@@ -90,10 +87,7 @@ async def create(
     # Serialize solution creation through the locked Organization to enforce the beta limit.
     solution_limit_result = await session.execute(
         select(col(Solution.id))
-        .where(
-            col(Solution.organization_id) == organization_id,
-            col(Solution.deleted_at).is_(None),
-        )
+        .where(col(Solution.organization_id) == organization_id, col(Solution.deleted_at).is_(None))
         .offset(2)
         .limit(1)
         .with_for_update()
@@ -105,11 +99,7 @@ async def create(
 
     # Build the Solution row before checking its Organization-scoped uniqueness.
     solution = Solution(
-        organization_id=organization_id,
-        name=payload.name,
-        slug=names.slugify(payload.name),
-        description=payload.description,
-        secrets={},
+        organization_id=organization_id, name=payload.name, slug=names.slugify(payload.name), description=payload.description, secrets={}
     )
 
     # Let the Organization-scoped database constraint arbitrate slug uniqueness.
@@ -250,8 +240,4 @@ async def delete(session: AsyncSession, solution_id: UUID, user_id: UUID) -> Non
     solution.updated_at = now
     solution.updated_id = user_id
 
-    await operations.enqueue(
-        session,
-        kind=OperationKind.solution_delete,
-        target_id=solution.id,
-    )
+    await operations.enqueue(session, kind=OperationKind.solution_delete, target_id=solution.id)

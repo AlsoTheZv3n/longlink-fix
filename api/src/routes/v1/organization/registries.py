@@ -1,6 +1,6 @@
 from src import auth
 from uuid import UUID
-from fastapi import Depends, APIRouter
+from fastapi import APIRouter
 from sqlmodel import col
 from sqlalchemy import select
 from src.context import Context
@@ -27,14 +27,12 @@ async def list_registries(ctx: Context, membership: auth.OrganizationMember):
     return result.all()
 
 
-@router.post(
-    "/organizations/{organization_id}/registries", response_model=RegistryResponse, status_code=201, dependencies=[Depends(auth.authuser)]
-)
-async def create_registry(ctx: Context, organization_id: UUID, payload: RegistryCreate) -> RegistryConnection:
+@router.post("/organizations/{organization_id}/registries", response_model=RegistryResponse, status_code=201)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
+async def create_registry(ctx: Context, payload: RegistryCreate, membership: auth.OrganizationMaintainer) -> RegistryConnection:
     """Create an organization-owned connection and queue secret synchronization."""
 
     # The service owns authorization and synchronization; the route commits the final command.
-    connection = await registries.create(ctx.database, organization_id, payload, ctx.user.id)
+    connection = await registries.create(ctx.database, membership.organization_id, payload, membership.user_id)
     await ctx.database.commit()
     return connection
 

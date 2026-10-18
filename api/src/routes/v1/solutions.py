@@ -3,7 +3,7 @@ import json
 import zipfile
 from src import auth
 from uuid import UUID
-from fastapi import Query, Depends, Response, APIRouter, HTTPException
+from fastapi import Depends, Response, APIRouter, HTTPException
 from src.utils import roles, images
 from src.logger import logger
 from src.context import Context
@@ -12,14 +12,13 @@ from src.environments import env
 from src.models.roles import OrganizationRoles
 from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
-from src.models.solutions import SolutionPatch, SolutionCreate, SolutionResponse, SolutionUpdateCheck
+from src.models.solutions import SolutionPatch, SolutionUpdateCheck
 from src.database.services import solutions, registries, organizations
 from src.kubernetes.client import Kubernetes
-from src.models.pagination import Page, Pagination
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.solutions import Revision, Solution
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(auth.authuser)])
 
 
 async def update_candidate(
@@ -52,43 +51,11 @@ async def update_candidate(
     return solution, revision, metadata
 
 
-@router.get("/solutions", response_model=Page[SolutionResponse])
-async def list_solutions(
-    ctx: Context,
-    _user: auth.PlatformAdmin,
-    pagination: Pagination = Depends(),
-    search: str = Query(default="", max_length=200),
-):
-    """Return all solutions for administrator views."""
-
-    # Search the full administrator listing before pagination.
-    items, total = await solutions.fetch(ctx.database, pagination, search.strip())
-    return {"items": items, "total": total}
-
-
-@router.post("/organizations/{organization_id}/solutions", status_code=204)  # noqa: FAST003 - Consumed by auth.OrganizationMaintainer.
-async def create_solution(ctx: Context, payload: SolutionCreate, membership: auth.OrganizationMaintainer):
-    """Create Solution state and queue its explicit deployment lifecycle."""
-
-    # Resolve immutable image metadata before creating durable Solution state.
-    metadata, connection_id = await registries.inspect(ctx.database, membership.organization_id, payload.image)
-
-    await solutions.create(
-        ctx.database,
-        membership.organization_id,
-        payload,
-        metadata=metadata,
-        user_id=membership.user_id,
-        registry_connection_id=connection_id,
-    )
-    await ctx.database.commit()
-
-
-@router.get("/solutions/{solution_id}/update", response_model=SolutionUpdateCheck, dependencies=[Depends(auth.authuser)])
-async def check_update(ctx: Context, solution_id: UUID):
+@router.get("/solutions/{solution_id}/update", response_model=SolutionUpdateCheck)
+async def check_update(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
     """Inspect the repository's latest image without changing deployment state."""
 
-    solution, revision, metadata = await update_candidate(ctx.database, solution_id, ctx.user.id)
+    solution, revision, metadata = await update_candidate(ctx.database, solution_id, user.id)
 
     # Reuse the inspected version when the candidate is the current immutable image.
     current_version = metadata.version if metadata.image == revision.image else None
@@ -108,7 +75,7 @@ async def check_update(ctx: Context, solution_id: UUID):
             current_version = None
 
         # Reject stale reviews or revoked access after the additional registry lookup.
-        solution = await solutions.access(ctx.database, solution_id, ctx.user.id, lock=False)
+        solution = await solutions.access(ctx.database, solution_id, user.id, lock=False)
         if solution.desired_revision_id != revision.id:
             raise HTTPException(status_code=409, detail="Desired revision changed during inspection. Check again.")
 
@@ -123,15 +90,15 @@ async def check_update(ctx: Context, solution_id: UUID):
     }
 
 
-@router.post("/solutions/{solution_id}/update", status_code=204, dependencies=[Depends(auth.authuser)])
-async def apply_update(ctx: Context, solution_id: UUID, payload: SolutionPatch):
+@router.post("/solutions/{solution_id}/update", status_code=204)
+async def apply_update(ctx: Context, user: auth.CurrentUser, solution_id: UUID, payload: SolutionPatch):
     """Re-resolve latest and deploy a changed immutable image or configuration."""
 
-    solution, _revision, metadata = await update_candidate(ctx.database, solution_id, ctx.user.id, payload.expected_revision_id)
+    solution, _revision, metadata = await update_candidate(ctx.database, solution_id, user.id, payload.expected_revision_id)
 
     # Compare and merge only against the current serialized desired state.
     await solutions.deploy(
-        ctx.database, solution, ctx.user.id, metadata, payload.envs, min_scale=payload.min_scale, idle_seconds=payload.idle_seconds
+        ctx.database, solution, user.id, metadata, payload.envs, min_scale=payload.min_scale, idle_seconds=payload.idle_seconds
     )
     await ctx.database.commit()
 
@@ -140,14 +107,13 @@ async def apply_update(ctx: Context, solution_id: UUID, payload: SolutionPatch):
     "/solutions/{solution_id}/plugin",
     response_model=None,
     response_class=Response,
-    dependencies=[Depends(auth.authuser)],
     responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
 )
-async def download_plugin(ctx: Context, solution_id: UUID) -> Response:
+async def download_plugin(ctx: Context, user: auth.CurrentUser, solution_id: UUID) -> Response:
     """Download a credential-free Agent Plugins package for one maintained Solution."""
 
     # Reuse maintenance access without locking or loading Solution secrets.
-    solution = await solutions.access(ctx.database, solution_id, ctx.user.id, lock=False)
+    solution = await solutions.access(ctx.database, solution_id, user.id, lock=False)
     name = f"longlink-{solution.id}"
 
     # Keep plugin identity stable and expose the selected Solution's display metadata.
@@ -170,12 +136,7 @@ async def download_plugin(ctx: Context, solution_id: UUID) -> Response:
     }
     mcp = {
         "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-        "mcpServers": {
-            name: {
-                "type": "streamable-http",
-                "url": f"{env.PUBLIC_URL}/api/v1/solutions/{solution.id}/proxy/mcp",
-            }
-        },
+        "mcpServers": {name: {"type": "streamable-http", "url": f"{env.PUBLIC_URL}/api/v1/solutions/{solution.id}/proxy/mcp"}},
     }
 
     # Put the portable manifests at the ZIP root; never bundle runtime credentials.
@@ -196,12 +157,12 @@ async def download_plugin(ctx: Context, solution_id: UUID) -> Response:
     )
 
 
-@router.get("/solutions/{solution_id}/logs", response_model=list[str], dependencies=[Depends(auth.authuser)])
-async def get_solution_logs(ctx: Context, solution_id: UUID):
+@router.get("/solutions/{solution_id}/logs", response_model=list[str])
+async def get_solution_logs(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
     """Return recent pod logs for one managed solution."""
 
     # Resolve active Solution access before enforcing runtime permissions.
-    access = await organizations.solution_logs_access(ctx.database, ctx.user.id, solution_id)
+    access = await organizations.solution_logs_access(ctx.database, user.id, solution_id)
     if access is None:
         raise HTTPException(status_code=403, detail="Access required")
     organization_id, role, kubeconfig = access
@@ -210,9 +171,7 @@ async def get_solution_logs(ctx: Context, solution_id: UUID):
 
     # Map expected cluster log failures to a service-unavailable response.
     try:
-        cluster = Kubernetes(
-            kubeconfig,
-        )
+        cluster = Kubernetes(kubeconfig)
         async with cluster:
             return await solution_resources.logs(cluster, organization_id, solution_id)
     except RuntimeError as exc:
@@ -220,10 +179,10 @@ async def get_solution_logs(ctx: Context, solution_id: UUID):
         raise HTTPException(status_code=503, detail="Solution logs unavailable")
 
 
-@router.delete("/solutions/{solution_id}", status_code=204, dependencies=[Depends(auth.authuser)])
-async def delete_solution(ctx: Context, solution_id: UUID):
+@router.delete("/solutions/{solution_id}", status_code=204)
+async def delete_solution(ctx: Context, user: auth.CurrentUser, solution_id: UUID):
     """Mark one Solution absent and queue explicit lifecycle cleanup."""
 
-    await solutions.delete(ctx.database, solution_id, ctx.user.id)
+    await solutions.delete(ctx.database, solution_id, user.id)
 
     await ctx.database.commit()

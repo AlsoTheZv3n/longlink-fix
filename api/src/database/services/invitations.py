@@ -17,10 +17,7 @@ async def accept(session: AsyncSession, user: User) -> None:
     result = await session.scalars(
         select(OrganizationInvitation)
         .join(Organization, col(Organization.id) == col(OrganizationInvitation.organization_id))
-        .where(
-            col(Organization.deleted_at).is_(None),
-            col(OrganizationInvitation.email) == user.email,
-        )
+        .where(col(Organization.deleted_at).is_(None), col(OrganizationInvitation.email) == user.email)
     )
     pending_invitations = result.all()
     if not pending_invitations:
@@ -44,11 +41,7 @@ async def accept(session: AsyncSession, user: User) -> None:
             if organization.stripe_payment_method_id is None and await organizations.member_count(session, organization.id) >= FREE_USERS:
                 # Retain blocked invitations until an owner registers a card or removes a member.
                 continue
-            membership = UserOrganization(
-                user_id=user.id,
-                organization_id=organization.id,
-                role=invitation.role,
-            )
+            membership = UserOrganization(user_id=user.id, organization_id=organization.id, role=invitation.role)
             session.add(membership)
         consumed_ids.append(invitation.id)
 

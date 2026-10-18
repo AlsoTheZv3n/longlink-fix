@@ -217,20 +217,14 @@ async def test_execute_releases_operation_when_handler_is_cancelled(monkeypatch:
 
 @pytest.mark.no_db
 @pytest.mark.parametrize(
-    "lease_expires_at",
-    [
-        pytest.param(None, id="missing"),
-        pytest.param(datetime(2020, 1, 1, tzinfo=UTC), id="expired"),
-    ],
+    "lease_expires_at", [pytest.param(None, id="missing"), pytest.param(datetime(2020, 1, 1, tzinfo=UTC), id="expired")]
 )
 async def test_execute_rejects_operation_without_a_live_worker_lease(lease_expires_at: datetime | None) -> None:
     """Reject Operations with missing or expired leases before reaching a handler."""
 
     # Arrange
     operation = Operation(
-        kind=OperationKind.organization_create,
-        target_id=UUID("22222222-2222-2222-2222-222222222222"),
-        lease_expires_at=lease_expires_at,
+        kind=OperationKind.organization_create, target_id=UUID("22222222-2222-2222-2222-222222222222"), lease_expires_at=lease_expires_at
     )
 
     # Act and assert
@@ -277,9 +271,7 @@ SCHEDULER_FAILURES = [
 @pytest.mark.no_db
 @pytest.mark.parametrize(("polling_failure", "execution_failure"), SCHEDULER_FAILURES)
 async def test_scheduler_recovers_from_worker_failures(
-    monkeypatch: pytest.MonkeyPatch,
-    polling_failure: RuntimeError | None,
-    execution_failure: RuntimeError | None,
+    monkeypatch: pytest.MonkeyPatch, polling_failure: RuntimeError | None, execution_failure: RuntimeError | None
 ) -> None:
     """Continue polling after claim and execution failures."""
 

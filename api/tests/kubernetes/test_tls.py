@@ -18,12 +18,7 @@ uCtTVjiqFnYv8w==
 -----END CERTIFICATE-----
 """
 
-INVALID_CERTIFICATES = [
-    {},
-    {"tls.crt": 12},
-    {"tls.crt": "not base64"},
-    {"tls.crt": base64.b64encode(b"not a certificate").decode()},
-]
+INVALID_CERTIFICATES = [{}, {"tls.crt": 12}, {"tls.crt": "not base64"}, {"tls.crt": base64.b64encode(b"not a certificate").decode()}]
 
 
 @pytest.mark.parametrize("data", INVALID_CERTIFICATES)

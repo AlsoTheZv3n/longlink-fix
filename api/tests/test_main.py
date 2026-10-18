@@ -6,6 +6,7 @@ from pathlib import Path
 from conftest import UNTRUSTED_ORIGINS, assert_origin_rejected, untrusted_origin_headers
 from sqlmodel import col, select
 from factories import add_member, create_compute, create_solution, fetch_operations, create_organization, assert_no_new_operations
+from src.utils import images
 from sqlalchemy import func
 from collections.abc import Callable, Awaitable
 from src.models.roles import OrganizationRoles
@@ -20,9 +21,7 @@ from src.database.models.organizations import Organization
 
 
 async def test_authenticated_solution_update_rejects_untrusted_origin_before_inspection(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    monkeypatch: pytest.MonkeyPatch,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Reject cross-origin updates before registry inspection or revision persistence."""
 
@@ -36,14 +35,10 @@ async def test_authenticated_solution_update_rejects_untrusted_origin_before_ins
 
         raise AssertionError("untrusted solution update must not inspect image metadata")
 
-    monkeypatch.setattr("src.routes.v1.solutions.images.required_metadata", unexpected_metadata)
+    monkeypatch.setattr(images, "required_metadata", unexpected_metadata)
 
     # Act
-    response = await clients[0].post(
-        f"/api/v1/solutions/{solution.id}/update",
-        json={},
-        headers={"origin": "https://attacker.example"},
-    )
+    response = await clients[0].post(f"/api/v1/solutions/{solution.id}/update", json={}, headers={"origin": "https://attacker.example"})
 
     # Assert
     assert response.status_code == 403
@@ -57,9 +52,7 @@ async def test_authenticated_solution_update_rejects_untrusted_origin_before_ins
 
 @pytest.mark.parametrize("resource_kind", ["solution", "organization"])
 async def test_authenticated_deletion_rejects_untrusted_origin_without_mutation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    resource_kind: str,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], resource_kind: str
 ) -> None:
     """Reject cross-origin deletion before tombstoning either resource or queueing cleanup."""
 
@@ -69,10 +62,7 @@ async def test_authenticated_deletion_rejects_untrusted_origin_without_mutation(
     previous_operations = await fetch_operations()
 
     # Act
-    response = await clients[0].delete(
-        f"/api/v1/{resource_kind}s/{resource.id}",
-        headers={"origin": "https://attacker.example"},
-    )
+    response = await clients[0].delete(f"/api/v1/{resource_kind}s/{resource.id}", headers={"origin": "https://attacker.example"})
 
     # Assert
     assert response.status_code == 403
@@ -110,8 +100,7 @@ async def test_authenticated_invitation_creation_rejects_untrusted_origin_before
 
 
 async def test_authenticated_member_role_update_rejects_untrusted_origin_without_mutation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject cross-origin role changes before modifying organization membership."""
 
@@ -142,8 +131,7 @@ async def test_authenticated_member_role_update_rejects_untrusted_origin_without
 
 @pytest.mark.parametrize("origin", UNTRUSTED_ORIGINS)
 async def test_authenticated_organization_creation_rejects_untrusted_origin_before_persistence(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    origin: str | None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], origin: str | None
 ) -> None:
     """Reject unsafe cookie-authenticated writes before the route can persist data."""
 
@@ -151,11 +139,7 @@ async def test_authenticated_organization_creation_rejects_untrusted_origin_befo
     headers = untrusted_origin_headers(clients[0], origin)
 
     # Act
-    response = await clients[0].post(
-        "/api/v1/organizations",
-        json={"name": "acme"},
-        headers=headers,
-    )
+    response = await clients[0].post("/api/v1/organizations", json={"name": "acme"}, headers=headers)
 
     # Assert
     assert_origin_rejected(response)
@@ -167,9 +151,7 @@ async def test_authenticated_organization_creation_rejects_untrusted_origin_befo
 
 @pytest.mark.parametrize("origin", UNTRUSTED_ORIGINS)
 async def test_authenticated_profile_update_rejects_untrusted_origin_without_mutation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    origin: str | None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], origin: str | None
 ) -> None:
     """Reject cookie-authenticated profile writes before the route can persist data."""
 
@@ -177,11 +159,7 @@ async def test_authenticated_profile_update_rejects_untrusted_origin_without_mut
     headers = untrusted_origin_headers(clients[0], origin)
 
     # Act
-    response = await clients[0].patch(
-        "/api/v1/me",
-        json={"name": "attacker-name"},
-        headers=headers,
-    )
+    response = await clients[0].patch("/api/v1/me", json={"name": "attacker-name"}, headers=headers)
 
     # Assert
     assert_origin_rejected(response)
@@ -193,9 +171,7 @@ async def test_authenticated_profile_update_rejects_untrusted_origin_without_mut
 
 @pytest.mark.parametrize("origin", [None, "https://attacker.example"])
 async def test_authenticated_solution_creation_rejects_untrusted_origin_before_persistence(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    users: tuple[User, User, User],
-    origin: str | None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], origin: str | None
 ) -> None:
     """Reject cookie-authenticated solution writes before the route can persist data."""
 
@@ -219,9 +195,7 @@ async def test_authenticated_solution_creation_rejects_untrusted_origin_before_p
 
 @pytest.mark.parametrize("origin", UNTRUSTED_ORIGINS)
 async def test_authenticated_compute_creation_rejects_untrusted_origin_before_verification(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    monkeypatch: pytest.MonkeyPatch,
-    origin: str | None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], monkeypatch: pytest.MonkeyPatch, origin: str | None
 ) -> None:
     """Reject cookie-authenticated Compute writes before infrastructure construction."""
 
@@ -231,7 +205,7 @@ async def test_authenticated_compute_creation_rejects_untrusted_origin_before_ve
 
         raise AssertionError("untrusted Compute write must not verify infrastructure")
 
-    monkeypatch.setattr("src.routes.v1.computes.Kubernetes", unexpected_kubernetes)
+    monkeypatch.setattr("src.routes.v1.admin.computes.Kubernetes", unexpected_kubernetes)
     headers = untrusted_origin_headers(clients[0], origin)
 
     # Act
@@ -261,8 +235,7 @@ async def test_authenticated_compute_creation_rejects_untrusted_origin_before_ve
 
 @pytest.mark.parametrize("origin", UNTRUSTED_ORIGINS)
 async def test_authenticated_compute_deletion_rejects_untrusted_origin_without_mutation(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient],
-    origin: str | None,
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], origin: str | None
 ) -> None:
     """Reject cookie-authenticated Compute deletion before the registry can change."""
 
@@ -271,10 +244,7 @@ async def test_authenticated_compute_deletion_rejects_untrusted_origin_without_m
     headers = untrusted_origin_headers(clients[0], origin)
 
     # Act
-    response = await clients[0].delete(
-        f"/api/v1/computes/{compute.id}",
-        headers=headers,
-    )
+    response = await clients[0].delete(f"/api/v1/computes/{compute.id}", headers=headers)
 
     # Assert
     assert_origin_rejected(response)

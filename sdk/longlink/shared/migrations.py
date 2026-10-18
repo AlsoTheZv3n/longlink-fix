@@ -49,10 +49,7 @@ async def migrate_database(database_url: str | URL) -> None:
 
     # Use an operation-scoped pool because each organization has its own database.
     engine = create_async_engine(
-        database_url,
-        poolclass=pool.NullPool,
-        connect_args=config.attributes["connect_args"],
-        hide_parameters=True,
+        database_url, poolclass=pool.NullPool, connect_args=config.attributes["connect_args"], hide_parameters=True
     )
 
     # Close the connection before disposal, including on failure or cancellation, before releasing caller resources.

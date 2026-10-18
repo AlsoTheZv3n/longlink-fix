@@ -75,11 +75,7 @@ def create_engine(env: Envs) -> AsyncEngine:
         engine_kwargs["pool_use_lifo"] = True
 
         # Verify the Platform CA and configure UTC PostgreSQL sessions.
-        engine_kwargs["connect_args"] = urls.connect_args(
-            dburl,
-            schema=env.DATABASE_SCHEMA,
-            certificate=env.DATABASE_CERTIFICATE,
-        )
+        engine_kwargs["connect_args"] = urls.connect_args(dburl, schema=env.DATABASE_SCHEMA, certificate=env.DATABASE_CERTIFICATE)
 
     return create_async_engine(dburl, **engine_kwargs)
 
@@ -119,12 +115,7 @@ class Database:
                                 if user_id is None:
                                     name = "Development user" if self._env.ENV == "development" else "Testing user"
                                     await conn.execute(
-                                        sqlalchemy.insert(users).values(
-                                            id=LOCAL_USER_ID,
-                                            name=name,
-                                            email="local@example.com",
-                                            avatar="",
-                                        )
+                                        sqlalchemy.insert(users).values(id=LOCAL_USER_ID, name=name, email="local@example.com", avatar="")
                                     )
                         else:
                             async with engine.connect():
@@ -144,10 +135,7 @@ class Database:
 
         # Open one session bound to the initialized Solution engine.
         engine = await self._get_engine()
-        session = AsyncSession(
-            engine,
-            expire_on_commit=False,
-        )
+        session = AsyncSession(engine, expire_on_commit=False)
         async with session as database_session:
             yield database_session
 
