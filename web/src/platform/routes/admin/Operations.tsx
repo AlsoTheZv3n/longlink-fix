@@ -1,6 +1,5 @@
 import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
-import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
@@ -40,7 +39,7 @@ export default function Operations() {
 
     return (
         <Stack gap={2}>
-            <NoIndex title="Operations | LongLink" />
+            <title>Operations | LongLink</title>
             <Heading level={1}>Operations</Heading>
             <TextInput
                 label="Search operations"

@@ -3,7 +3,7 @@ import { Navbar } from '@/components/Navbar';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Outlet, useLocation } from 'react-router';
 import { AppShell } from '@astryxdesign/core/AppShell';
-import { documentationSections } from '@/platform/docs';
+import { documentationSections } from '@/platform/routes';
 import { Tab, TabList } from '@astryxdesign/core/TabList';
 import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
 

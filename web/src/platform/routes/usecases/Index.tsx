@@ -1,8 +1,8 @@
 import { Grid } from '@astryxdesign/core/Grid';
 import { Text } from '@astryxdesign/core/Text';
 import { Seo } from '@/platform/components/Seo';
+import { useCasePages } from '@/platform/routes';
 import { Stack } from '@astryxdesign/core/Stack';
-import { useCasePages } from '@/platform/usecases';
 import { Heading } from '@astryxdesign/core/Heading';
 import { Section } from '@astryxdesign/core/Section';
 import { ClickableCard } from '@astryxdesign/core/ClickableCard';

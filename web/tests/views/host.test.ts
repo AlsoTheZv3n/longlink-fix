@@ -118,27 +118,6 @@ describe('Solution response loading', () => {
         }
     );
 
-    it('accepts a complete multi-chunk response', async () => {
-        // Arrange
-        const body = new ReadableStream<Uint8Array>({
-            start(controller) {
-                controller.enqueue(new TextEncoder().encode('ab'));
-                controller.enqueue(new TextEncoder().encode('cd'));
-                controller.close();
-            },
-        });
-
-        vi.stubGlobal('fetch', async () => new Response(body));
-        const controller = new AbortController();
-
-        // Act
-        const response = await load('https://solution.example/items', { signal: controller.signal });
-
-        // Assert
-        expect(await response.text()).toBe('abcd');
-        expect(response.size).toBe(4);
-    });
-
     it.each([
         { name: 'missing Content-Length', headers: new Headers() },
         { name: 'underreported Content-Length', headers: new Headers({ 'Content-Length': '1' }) },
@@ -160,6 +139,7 @@ describe('Solution response loading', () => {
 
         // Assert
         expect(await response.text()).toBe('abcde');
+        expect(response.size).toBe(5);
     });
 });
 

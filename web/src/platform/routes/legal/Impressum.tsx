@@ -1,4 +1,4 @@
-import { legalPaths } from '@/platform/legal';
+import { legalPaths } from '@/platform/routes';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';

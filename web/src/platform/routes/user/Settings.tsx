@@ -2,7 +2,6 @@ import type { z } from 'zod';
 import { api } from '@/lib/api';
 import { useState } from 'react';
 import { useLocation } from 'react-router';
-import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Stack } from '@astryxdesign/core/Stack';
@@ -27,7 +26,7 @@ export default function Settings() {
 
     return (
         <PageContainer padding={2}>
-            <NoIndex title="Account Settings | LongLink" />
+            <title>Account Settings | LongLink</title>
             <SettingsPage key={user.id} user={user} />
         </PageContainer>
     );

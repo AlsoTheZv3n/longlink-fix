@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router';
+import { adminNavigation } from '@/platform/routes';
 import Platform from '@/components/layouts/Platform';
-import { adminNavigation } from '@/platform/navigation';
 import NotFoundLayout from '@/components/layouts/NotFound';
 import { PageContainer } from '@/components/PageContainer';
 import { useAuthenticatedUser } from '@/lib/hooks/use-user';

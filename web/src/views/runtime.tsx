@@ -49,11 +49,7 @@ function subscribeToHash(notify: () => void): () => void {
 
 /** Supplies the shared Menu with sandbox-owned fragment navigation. */
 function MenuNavigationProvider({ children }: { children: React.ReactNode }) {
-    const hash = React.useSyncExternalStore(
-        subscribeToHash,
-        () => window.location.hash,
-        () => ''
-    );
+    const hash = React.useSyncExternalStore(subscribeToHash, () => window.location.hash);
 
     // Fragment selection never acquires a host navigation capability.
     return (
@@ -65,10 +61,19 @@ function MenuNavigationProvider({ children }: { children: React.ReactNode }) {
                 },
             }}
         >
-            <FileRequestContext value={fileRequests}>
-                <FormRequestContext value={request}>{children}</FormRequestContext>
-            </FileRequestContext>
+            {children}
         </MenuNavigationContext>
+    );
+}
+
+/** Keeps loaded Views and compilation errors in the same content region. */
+function ViewLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <Layout height="auto">
+            <LayoutContent padding={0} isScrollable={false} label="Solution View" role="region">
+                {children}
+            </LayoutContent>
+        </Layout>
     );
 }
 
@@ -119,11 +124,12 @@ async function request(
 }
 
 /** Owns the deadline and channel transfer for each scoped operation. */
-async function exchange(command: RequestCommand | DownloadCommand | IconCommand): Promise<ViewData> {
-    lifetime.signal.throwIfAborted();
+function exchange(command: RequestCommand | DownloadCommand | IconCommand): Promise<ViewData> {
     const { id } = command;
 
     return new Promise<ViewData>((resolve, reject) => {
+        lifetime.signal.throwIfAborted();
+
         const timer = setTimeout(() => {
             pending.delete(id);
             reject(new Error('Solution request timed out'));
@@ -260,6 +266,8 @@ function initialize(event: MessageEvent<unknown>): void {
         { once: true }
     );
 
+    let content: React.ReactNode;
+
     // Compilation and evaluation happen only in the sandbox, never in the Platform module graph.
     try {
         const code = transform(parsed.data.source, {
@@ -286,9 +294,7 @@ function initialize(event: MessageEvent<unknown>): void {
 
         type ViewComponent = React.ComponentType<{ params: Readonly<Record<string, string>> }>;
 
-        type ViewModule = { exports: { default?: ViewComponent } };
-
-        const module: ViewModule = { exports: {} };
+        const module = { exports: {} };
 
         // oxlint-disable-next-line typescript/no-implied-eval -- This entry runs exclusively in the opaque-origin sandbox.
         const evaluate = new Function(
@@ -307,73 +313,75 @@ function initialize(event: MessageEvent<unknown>): void {
         const View = component as ViewComponent;
 
         const params = Object.freeze(parsed.data.params);
-        root.render(
-            <Theme theme={stoneTheme} mode="dark">
-                <LayerProvider toast={{ position: 'bottomEnd' }}>
-                    <QueryClientProvider client={client}>
-                        <QueryErrorResetBoundary>
-                            {({ reset }) => (
-                                <Layout height="auto">
-                                    <LayoutContent padding={0} isScrollable={false} label="Solution View" role="region">
-                                        <ErrorBoundary
-                                            onReset={reset}
-                                            fallbackRender={({ error, resetErrorBoundary }) => (
-                                                <Banner
-                                                    role="status"
-                                                    status="error"
-                                                    title="View could not be loaded"
-                                                    description={
-                                                        error instanceof Error
-                                                            ? error.message.slice(0, 1024)
-                                                            : 'An unexpected View error occurred.'
-                                                    }
-                                                    endContent={
-                                                        <components.Button label="Retry" onClick={resetErrorBoundary} />
-                                                    }
-                                                />
-                                            )}
-                                        >
-                                            <React.Suspense fallback={<Spinner label="Loading View" />}>
-                                                <IconRequestContext value={loadIcon}>
-                                                    <LinkNavigationContext
-                                                        value={{ baseUrl: parsed.data.navigationBaseUrl, navigate }}
-                                                    >
-                                                        <MenuNavigationProvider>
+        content = (
+            <LayerProvider toast={{ position: 'bottomEnd' }}>
+                <QueryClientProvider client={client}>
+                    <QueryErrorResetBoundary>
+                        {({ reset }) => (
+                            <ViewLayout>
+                                <ErrorBoundary
+                                    onReset={reset}
+                                    fallbackRender={({ error, resetErrorBoundary }) => (
+                                        <Banner
+                                            role="status"
+                                            status="error"
+                                            title="View could not be loaded"
+                                            description={
+                                                error instanceof Error
+                                                    ? error.message.slice(0, 1024)
+                                                    : 'An unexpected View error occurred.'
+                                            }
+                                            endContent={
+                                                <components.Button label="Retry" onClick={resetErrorBoundary} />
+                                            }
+                                        />
+                                    )}
+                                >
+                                    <React.Suspense fallback={<Spinner label="Loading View" />}>
+                                        <IconRequestContext value={loadIcon}>
+                                            <LinkNavigationContext
+                                                value={{ baseUrl: parsed.data.navigationBaseUrl, navigate }}
+                                            >
+                                                <MenuNavigationProvider>
+                                                    <FileRequestContext value={fileRequests}>
+                                                        <FormRequestContext value={request}>
                                                             <View params={params} />
-                                                        </MenuNavigationProvider>
-                                                    </LinkNavigationContext>
-                                                </IconRequestContext>
-                                            </React.Suspense>
-                                        </ErrorBoundary>
-                                    </LayoutContent>
-                                </Layout>
-                            )}
-                        </QueryErrorResetBoundary>
-                    </QueryClientProvider>
-                </LayerProvider>
-            </Theme>
+                                                        </FormRequestContext>
+                                                    </FileRequestContext>
+                                                </MenuNavigationProvider>
+                                            </LinkNavigationContext>
+                                        </IconRequestContext>
+                                    </React.Suspense>
+                                </ErrorBoundary>
+                            </ViewLayout>
+                        )}
+                    </QueryErrorResetBoundary>
+                </QueryClientProvider>
+            </LayerProvider>
         );
     } catch (error) {
         // Compilation diagnostics belong to the authored source, not privileged host state.
-        root.render(
-            <Theme theme={stoneTheme} mode="dark">
-                <Layout height="auto">
-                    <LayoutContent padding={0} isScrollable={false} label="Solution View" role="region">
-                        <Banner
-                            role="status"
-                            status="error"
-                            title="View compilation failed"
-                            description={
-                                error instanceof Error
-                                    ? error.message.slice(0, 1024)
-                                    : 'Export a default JSX component without package imports.'
-                            }
-                        />
-                    </LayoutContent>
-                </Layout>
-            </Theme>
+        content = (
+            <ViewLayout>
+                <Banner
+                    role="status"
+                    status="error"
+                    title="View compilation failed"
+                    description={
+                        error instanceof Error
+                            ? error.message.slice(0, 1024)
+                            : 'Export a default JSX component without package imports.'
+                    }
+                />
+            </ViewLayout>
         );
     }
+
+    root.render(
+        <Theme theme={stoneTheme} mode="dark">
+            {content}
+        </Theme>
+    );
 }
 
 // A fresh opaque-origin frame cannot read parent state, storage, or cookies.

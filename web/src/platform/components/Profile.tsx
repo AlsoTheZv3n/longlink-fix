@@ -10,8 +10,8 @@ import { Divider } from '@astryxdesign/core/Divider';
 import { Popover } from '@astryxdesign/core/Popover';
 import { List, ListItem } from '@astryxdesign/core/List';
 import { IconButton } from '@astryxdesign/core/IconButton';
+import { adminNavigation, userNavigation } from '@/platform/routes';
 import { BookOpen, ChevronRight, ExternalLink } from 'lucide-react';
-import { adminNavigation, userNavigation } from '@/platform/navigation';
 import type { zUserSummary } from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Renders a user profile popover with authentication and navigation actions. */

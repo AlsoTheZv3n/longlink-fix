@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { useCasePages, useCasePaths } from '@/platform/usecases';
+import { useCasePages, useCasePaths } from '@/platform/routes';
 
 it('keeps the showcased screening process within the use-case collection', () => {
     // Assert

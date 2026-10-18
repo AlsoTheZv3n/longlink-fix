@@ -2,7 +2,7 @@ import ViewLayout from './ViewLayout';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
-import { componentDocumentation } from '@/platform/docs';
+import { componentDocumentation } from '@/platform/routes';
 import { Table, proportional } from '@astryxdesign/core/Table';
 
 // Use the same function descriptions as the SDK command output.

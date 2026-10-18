@@ -1,6 +1,5 @@
 import { api } from '@/lib/api';
 import { AuthLayout } from './AuthLayout';
-import { NoIndex } from '@/components/NoIndex';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { useQuery } from '@tanstack/react-query';
@@ -36,7 +35,7 @@ export default function McpAuthorization() {
     }
 
     // Preserve only this first-party approval route across password or provider login.
-    if (loadingUser) return <NoIndex title="Authorize MCP | LongLink" />;
+    if (loadingUser) return <title>Authorize MCP | LongLink</title>;
 
     if (!user) {
         return <Navigate replace to={`/login?${new URLSearchParams({ return_to: `/mcp/authorize?${query}` })}`} />;
@@ -45,7 +44,7 @@ export default function McpAuthorization() {
     // Keep the existing standalone authentication shell and its 384px content budget.
     return (
         <AuthLayout title="Authorize MCP access" description={null}>
-            <NoIndex title="Authorize MCP | LongLink" />
+            <title>Authorize MCP | LongLink</title>
             {isLoading ? <Text as="p">Loading authorization request…</Text> : null}
             {error ? <Text as="p">This request is invalid or you do not have access to the Solution.</Text> : null}
             {consent ? (

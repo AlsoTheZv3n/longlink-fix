@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router';
+import { userNavigation } from '@/platform/routes';
 import Platform from '@/components/layouts/Platform';
-import { userNavigation } from '@/platform/navigation';
 import { useAuthenticatedUser } from '@/lib/hooks/use-user';
 import { ProfileMenu } from '@/platform/components/Profile';
 

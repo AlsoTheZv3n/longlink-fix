@@ -5,7 +5,6 @@ import { AuthLayout } from './AuthLayout';
 import { api, ApiError } from '@/lib/api';
 import { useForm } from 'react-hook-form';
 import { passwordSchema } from './validation';
-import { NoIndex } from '@/components/NoIndex';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
@@ -74,7 +73,7 @@ export default function ResetPassword() {
 
     const { verification } = useVerification(token, verify);
 
-    const pageMetadata = <NoIndex title="Set a New Password | LongLink" />;
+    const pageMetadata = <title>Set a New Password | LongLink</title>;
 
     // Invalid and expired credentials require a replacement email.
     if (verification?.status === 'error' || reset?.status === 'error') {
