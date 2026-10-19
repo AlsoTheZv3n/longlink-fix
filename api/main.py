@@ -27,19 +27,22 @@ logging.getLogger("uvicorn.access").addFilter(ApiAccessFilter())
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Run this API replica's background jobs."""
 
-    tasks: tuple[asyncio.Task[None], ...] = ()
+    # Dispose shared resources in reverse registration order, even when cleanup fails.
+    async with contextlib.AsyncExitStack() as stack:
+        stack.push_async_callback(dispose_engine)
+        stack.push_async_callback(client.dispose_clients)
+        tasks: tuple[asyncio.Task[None], ...] = ()
 
-    try:
-        # Start database work independently so static routes remain available during database outages.
-        tasks = (
-            asyncio.create_task(jobs.run_administrator_reconciler()),
-            asyncio.create_task(jobs.run_operation_scheduler()),
-            asyncio.create_task(invoices.run()),
-        )
-
-        yield
-    finally:
         try:
+            # Start database work independently so static routes remain available during database outages.
+            tasks = (
+                asyncio.create_task(jobs.run_administrator_reconciler()),
+                asyncio.create_task(jobs.run_operation_scheduler()),
+                asyncio.create_task(invoices.run()),
+            )
+
+            yield
+        finally:
             # Always stop background consumers before releasing their shared transports and database pool.
             for task in tasks:
                 task.cancel()
@@ -49,13 +52,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             for result in results:
                 if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
                     raise result
-        finally:
-            try:
-                # Kubernetes requests and port forwards have finished before their shared transport closes.
-                await client.dispose_clients()
-            finally:
-                # A transport cleanup failure must not prevent database pool disposal.
-                await dispose_engine()
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None, title="LongLink Platform API", version="1.0.0")

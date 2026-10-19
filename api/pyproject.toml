@@ -17,6 +17,7 @@ dependencies = [
     'aiosqlite>=0.22.1',
     'alembic>=1.19.1',
     'asyncpg>=0.31.0',
+    'authlib>=1.9.1,<2',
     'botocore>=1.40.61',
     'fastapi>=0.141.1',
     'httpx2>=2.9.1',

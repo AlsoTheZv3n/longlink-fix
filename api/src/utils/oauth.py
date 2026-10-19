@@ -1,12 +1,12 @@
-import base64
 import httpx2
-import hashlib
 from typing import Literal
 from pydantic import TypeAdapter, ValidationError
 from dataclasses import dataclass
-from urllib.parse import urlencode
 from longlink.types import Email
 from src.environments import env
+from authlib.oauth2.client import OAuth2Client
+from authlib.integrations.base_client import OAuthError
+from authlib.integrations.httpx_client import AsyncOAuth2Client
 
 OAuthProvider = Literal["google", "github"]
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -58,26 +58,18 @@ def redirect_uri(provider: OAuthProvider) -> str:
 def authorization_url(provider: OAuthProvider, state: str, verifier: str) -> str:
     """Build one provider authorization URL with PKCE protection."""
 
-    # Derive the standards-required S256 challenge without exposing the verifier in the redirect URL.
-    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest()).decode("ascii").rstrip("=")
-    params = {
-        "client_id": env.GOOGLE_OAUTH_CLIENT_ID if provider == "google" else env.GITHUB_OAUTH_CLIENT_ID,
-        "code_challenge": challenge,
-        "code_challenge_method": "S256",
-        "redirect_uri": redirect_uri(provider),
-        "response_type": "code",
-        "state": state,
-    }
-
-    # Request only profile data required to identify an account and verify its email address.
-    if provider == "google":
-        params["scope"] = "openid email profile"
-        authorization_endpoint = GOOGLE_AUTHORIZATION_URL
-    else:
-        params["scope"] = "read:user user:email"
-        authorization_endpoint = GITHUB_AUTHORIZATION_URL
-
-    return f"{authorization_endpoint}?{urlencode(params)}"
+    # Build PKCE authorization without allocating an HTTP client.
+    client = OAuth2Client(
+        session=None,
+        client_id=env.GOOGLE_OAUTH_CLIENT_ID if provider == "google" else env.GITHUB_OAUTH_CLIENT_ID,
+        scope="openid email profile" if provider == "google" else "read:user user:email",
+        redirect_uri=redirect_uri(provider),
+        code_challenge_method="S256",
+    )
+    url, _ = client.create_authorization_url(
+        GOOGLE_AUTHORIZATION_URL if provider == "google" else GITHUB_AUTHORIZATION_URL, state=state, code_verifier=verifier
+    )
+    return url
 
 
 async def identity(provider: OAuthProvider, code: str, verifier: str) -> OAuthIdentity | None:
@@ -89,48 +81,38 @@ async def identity(provider: OAuthProvider, code: str, verifier: str) -> OAuthId
 
     # Exchange the single-use authorization code through the provider's fixed HTTPS endpoint.
     try:
-        async with httpx2.AsyncClient(follow_redirects=False, timeout=10.0) as client:
-            # Share code-exchange fields while keeping provider requirements explicit.
-            data: dict[str, str | None] = {
-                "code": code,
-                "code_verifier": verifier,
-                "redirect_uri": redirect_uri(provider),
-                "client_id": env.GOOGLE_OAUTH_CLIENT_ID if provider == "google" else env.GITHUB_OAUTH_CLIENT_ID,
-                "client_secret": env.GOOGLE_OAUTH_CLIENT_SECRET if provider == "google" else env.GITHUB_OAUTH_CLIENT_SECRET,
-            }
-            headers: dict[str, str] = {}
-            if provider == "google":
-                token_url = GOOGLE_TOKEN_URL
-                data["grant_type"] = "authorization_code"
-            else:
-                token_url = GITHUB_TOKEN_URL
-                headers["Accept"] = "application/json"
-
-            # Exchange the code and validate the provider response.
-            token_response = await client.post(token_url, data=data, headers=headers)
-            if not token_response.is_success:
+        async with AsyncOAuth2Client(
+            client_id=env.GOOGLE_OAUTH_CLIENT_ID if provider == "google" else env.GITHUB_OAUTH_CLIENT_ID,
+            client_secret=env.GOOGLE_OAUTH_CLIENT_SECRET if provider == "google" else env.GITHUB_OAUTH_CLIENT_SECRET,
+            token_endpoint_auth_method="client_secret_post",  # noqa: S106
+            redirect_uri=redirect_uri(provider),
+            follow_redirects=False,
+            timeout=10.0,
+        ) as client:
+            # Reject HTTP failures even when a provider returns a token-shaped error body.
+            client.register_compliance_hook("access_token_response", httpx2.Response.raise_for_status)
+            token = await client.fetch_token(
+                GOOGLE_TOKEN_URL if provider == "google" else GITHUB_TOKEN_URL,
+                grant_type="authorization_code",
+                code=code,
+                code_verifier=verifier,
+            )
+            if _text(token, "access_token", 4096) is None:
                 return None
-            token_payload = token_response.json()
-            access_token = _text(token_payload, "access_token", 4096)
-            if access_token is None:
-                return None
+            token.setdefault("token_type", "Bearer")
 
             # Fetch the identity only with the ephemeral access token; it is never persisted.
-            authorization = {"Authorization": f"Bearer {access_token}"}
             if provider == "google":
-                profile_response = await client.get(GOOGLE_USERINFO_URL, headers=authorization)
-                if not profile_response.is_success:
-                    return None
+                profile_response = await client.get(GOOGLE_USERINFO_URL)
+                profile_response.raise_for_status()
                 return _google_identity(profile_response.json())
-            github_headers = {**authorization, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+            github_headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
             profile_response = await client.get(GITHUB_USER_URL, headers=github_headers)
-            if not profile_response.is_success:
-                return None
+            profile_response.raise_for_status()
             emails_response = await client.get(GITHUB_EMAILS_URL, headers=github_headers)
-            if not emails_response.is_success:
-                return None
+            emails_response.raise_for_status()
             return _github_identity(profile_response.json(), emails_response.json())
-    except (httpx2.HTTPError, TypeError, ValueError):
+    except (OAuthError, httpx2.HTTPError, TypeError, ValueError):
         return None
 
 
@@ -157,20 +139,15 @@ def _github_identity(profile: object, emails: object) -> OAuthIdentity | None:
     subject = str(raw_subject) if isinstance(raw_subject, int) and not isinstance(raw_subject, bool) else None
     if subject is None:
         return None
-    email = next(
-        (
-            verified_email
-            for item in emails
-            if isinstance(item, dict)
-            and item.get("primary") is True
-            and item.get("verified") is True
-            and (verified_email := _email(item)) is not None
-        ),
-        None,
-    )
-    if email is None:
-        return None
-    return OAuthIdentity(subject=subject, email=email, name=_name(profile, email), avatar=_text(profile, "avatar_url", 2048) or "")
+
+    # Select the first valid primary verified email without trusting profile email visibility.
+    for item in emails:
+        if not isinstance(item, dict) or item.get("primary") is not True or item.get("verified") is not True:
+            continue
+        email = _email(item)
+        if email is not None:
+            return OAuthIdentity(subject=subject, email=email, name=_name(profile, email), avatar=_text(profile, "avatar_url", 2048) or "")
+    return None
 
 
 def _email(payload: object) -> Email | None:
