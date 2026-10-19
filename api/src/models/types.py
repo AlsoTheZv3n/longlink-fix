@@ -1,15 +1,12 @@
 import re
 import urllib.parse
 from enum import StrEnum
-from typing import Self, Literal
+from typing import Self
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 
 # Match disjoint algorithm and digest segments without backtracking on untrusted values.
 IMAGE_DIGEST_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9]*+(?:[+._-][A-Za-z][A-Za-z0-9]*+)*+:[A-Za-z0-9=_+.-]++")
-
-MinScale = Literal[0, 1]
-"""Scale-to-zero versus always-on workload policy shared by API, persistence, and rendering."""
 
 
 class DatabaseSSLMode(StrEnum):

@@ -16,9 +16,6 @@ from src.models.organizations import DatabaseState
 from src.database.models.computes import ComputeRegistry
 from src.database.models.organizations import Organization, OrganizationActivity
 
-LEASE_SECONDS = 180
-RENEW_SECONDS = 30
-
 
 async def lock(session: AsyncSession, organization_id: UUID) -> Organization | None:
     """Serialize admission and transitions on SQLite, PostgreSQL, and MySQL."""
@@ -70,12 +67,12 @@ class Lease:
 
             try:
                 while True:
-                    await asyncio.sleep(RENEW_SECONDS)
-                    async with asyncio.timeout(RENEW_SECONDS), session_scope() as session:
+                    await asyncio.sleep(30)
+                    async with asyncio.timeout(30), session_scope() as session:
                         await lock(session, self.organization_id)
                         if not await self.owned(session):
                             raise RuntimeError("Organization activity lease was lost")
-                        expires_at = datetime.now(UTC).replace(microsecond=0) + timedelta(seconds=LEASE_SECONDS)
+                        expires_at = datetime.now(UTC).replace(microsecond=0) + timedelta(seconds=180)
                         await session.execute(
                             update(OrganizationActivity)
                             .where(col(OrganizationActivity.organization_id) == self.organization_id)
@@ -120,7 +117,7 @@ async def _claim(session: AsyncSession, organization_id: UUID) -> Lease | None:
     )
     if await session.get(OrganizationActivity, organization_id) is not None:
         return None
-    row = OrganizationActivity(organization_id=organization_id, expires_at=now.replace(microsecond=0) + timedelta(seconds=LEASE_SECONDS))
+    row = OrganizationActivity(organization_id=organization_id, expires_at=now.replace(microsecond=0) + timedelta(seconds=180))
     session.add(row)
     await session.flush()
     return Lease(organization_id, row.expires_at)

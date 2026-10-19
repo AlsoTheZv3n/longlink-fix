@@ -178,8 +178,6 @@ async def create_sample(client: httpx2.AsyncClient, settings: SeedSettings, orga
             "name": "Invoices",
             "image": "localhost:15000/sample:latest",
             "envs": settings.SAMPLE_ENVS,
-            "min_scale": 1,
-            "idle_seconds": 0,
             "description": "Track building projects and construction phases for ACME Ink.",
         },
     )

@@ -210,8 +210,6 @@ async def test_solution_creation_applies_user_and_managed_environment_values(
         secrets: dict[str, str],
         *,
         revision_id: object,
-        min_scale: int,
-        idle_seconds: int = 60,
         migrate: bool,
         registry_connection_id: UUID | None = None,
     ) -> None:
@@ -390,8 +388,6 @@ async def test_solution_creation_retry_reuses_persisted_runtime_secrets(
         secrets: dict[str, str],
         *,
         revision_id: object,
-        min_scale: int,
-        idle_seconds: int = 60,
         migrate: bool,
         registry_connection_id: UUID | None = None,
     ) -> None:
@@ -474,14 +470,11 @@ async def test_initial_deployment_failure_does_not_schedule_recovery(
         secrets: dict[str, str],
         *,
         revision_id: UUID,
-        min_scale: int,
-        idle_seconds: int = 60,
         migrate: bool,
         registry_connection_id: UUID | None = None,
     ) -> None:
         """Fail the initial Kubernetes rollout."""
 
-        assert min_scale == 0
         raise RuntimeError("rollout failed")
 
     monkeypatch.setattr(solution_operations, "Kubernetes", DatabaseKubernetes)
@@ -524,14 +517,11 @@ async def test_shutdown_keeps_deployment_resumable(users: tuple[User, User, User
         secrets: dict[str, str],
         *,
         revision_id: UUID,
-        min_scale: int,
-        idle_seconds: int = 60,
         migrate: bool,
         registry_connection_id: UUID | None = None,
     ) -> None:
         """Complete the first rollout and cancel its replacement."""
 
-        assert min_scale == (1 if image.endswith("@sha256:new") else 0)
         if image.endswith("@sha256:new") and migrate:
             raise asyncio.CancelledError
 
@@ -548,7 +538,7 @@ async def test_shutdown_keeps_deployment_resumable(users: tuple[User, User, User
     metadata = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:new"))
     async with session_scope() as session:
         current = await solutions.access(session, solution.id, owner.id)
-        await solutions.deploy(session, current, owner.id, metadata, {"KEY": "new"}, min_scale=1)
+        await solutions.deploy(session, current, owner.id, metadata, {"KEY": "new"})
         await session.commit()
         desired_id = current.desired_revision_id
     update = await claim_operation()
@@ -591,15 +581,12 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
         secrets: dict[str, str],
         *,
         revision_id: UUID,
-        min_scale: int,
-        idle_seconds: int = 60,
         migrate: bool,
         registry_connection_id: UUID | None = None,
     ) -> None:
         """Capture the exact snapshot and simulate rollout outcomes."""
 
         calls.append((image, secrets, migrate))
-        assert min_scale == (1 if image.endswith("@sha256:new") else 0)
         if not failing:
             return
         if failure == "deleted_during_rollout":
@@ -633,7 +620,7 @@ async def test_failed_update_recovery(users: tuple[User, User, User], monkeypatc
     metadata = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:new"))
     async with session_scope() as session:
         current = await solutions.access(session, solution.id, owner.id)
-        await solutions.deploy(session, current, owner.id, metadata, {"KEY": "new"}, min_scale=1)
+        await solutions.deploy(session, current, owner.id, metadata, {"KEY": "new"})
         await session.commit()
         desired_id = current.desired_revision_id
     failing = True
@@ -765,8 +752,6 @@ async def test_queued_deployments_keep_exact_targets(users: tuple[User, User, Us
         secrets: dict[str, str],
         *,
         revision_id: UUID,
-        min_scale: int,
-        idle_seconds: int = 60,
         migrate: bool,
         registry_connection_id: UUID | None = None,
     ) -> None:

@@ -106,7 +106,7 @@ declare function request<T = unknown>(
         json?: unknown;
         form?: [string, string | Blob][];
         binary?: boolean;
-    },
+    }
 ): Promise<T>;
 
 /**
@@ -4462,20 +4462,7 @@ type CardProps = {
     /** Clips full-bleed content to the card's rounded edges. */
     isClipped?: boolean;
     /** Background color variant, independent of the interaction mode. */
-    variant?:
-        | 'default'
-        | 'transparent'
-        | 'muted'
-        | 'blue'
-        | 'cyan'
-        | 'gray'
-        | 'green'
-        | 'orange'
-        | 'pink'
-        | 'purple'
-        | 'red'
-        | 'teal'
-        | 'yellow';
+    variant?: 'default' | 'transparent' | 'muted';
     /** Card width; numbers are pixels and strings are CSS sizes. */
     width?: number | string;
     /** Card height; numbers are pixels and strings are CSS sizes. */
@@ -4729,7 +4716,7 @@ declare function Avatar(
         src?: string | null;
         alt?: string;
         size?: 'sm' | 'md' | 'lg';
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Display */
@@ -4744,21 +4731,7 @@ declare function Image(props: {
 declare function Badge(props: {
     label?: ViewNode;
     icon?: StoneIconName;
-    variant?:
-        | 'neutral'
-        | 'info'
-        | 'success'
-        | 'warning'
-        | 'error'
-        | 'blue'
-        | 'cyan'
-        | 'green'
-        | 'orange'
-        | 'pink'
-        | 'purple'
-        | 'red'
-        | 'teal'
-        | 'yellow';
+    variant?: 'neutral' | 'info' | 'success' | 'warning' | 'error';
 }): React.JSX.Element;
 
 /** @category Display */
@@ -4766,7 +4739,6 @@ declare function Token(props: {
     /** Visible text and accessible name for the token. Long labels truncate to fit. */
     label: string;
     size?: 'sm' | 'md' | 'lg';
-    color?: 'default' | 'gray' | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'cyan' | 'blue' | 'purple' | 'pink';
     icon?: StoneIconName;
     disabled?: boolean;
     /** Accessible description of the tag or selection. */
@@ -4876,7 +4848,7 @@ declare function MultiSelector(
         hasSelectAll?: boolean;
         hasSearch?: boolean;
         hasClear?: boolean;
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form */
@@ -4893,7 +4865,7 @@ declare function TimeInput(
         increment?: number;
         placeholder?: string;
         size?: 'sm' | 'md' | 'lg';
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form */
@@ -4913,7 +4885,7 @@ declare function TextInput(
         isLabelHidden?: boolean;
         startIcon?: ViewNode;
         onEnter?: () => void;
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form */
@@ -4928,7 +4900,7 @@ declare function TextArea(
         maxLength?: number;
         hasAutoFocus?: boolean;
         autoComplete?: string;
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form */
@@ -4947,7 +4919,7 @@ declare function NumberInput(
     } & (
             | { hasClear?: false; onChange?: (value: number) => void }
             | { hasClear: true; onChange?: (value: number | null) => void }
-        ),
+        )
 ): React.JSX.Element;
 
 /** @category Form */
@@ -4957,7 +4929,7 @@ declare function CheckboxInput(
         defaultChecked?: boolean;
         onChange?: (value: boolean) => void;
         size?: 'sm' | 'md';
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form */
@@ -4967,7 +4939,7 @@ declare function Switch(
         defaultChecked?: boolean;
         onChange?: (value: boolean) => void;
         size?: 'sm' | 'md';
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form */
@@ -4990,7 +4962,7 @@ declare function Slider(
                   onChangeEnd?: (value: [number, number]) => void;
                   minStepsBetweenThumbs?: number;
               }
-        ),
+        )
 ): React.JSX.Element;
 
 /** @category Form */
@@ -5004,7 +4976,7 @@ declare function FileInput(
         maxFiles?: number;
         placeholder?: string;
         mode?: 'input' | 'dropzone';
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form */
@@ -5018,7 +4990,7 @@ declare function Selector(
     } & (
             | { hasClear?: false; value?: string; onChange?: (value: string) => void }
             | { hasClear: true; value?: string | null; onChange?: (value: string | null) => void }
-        ),
+        )
 ): React.JSX.Element;
 
 /** @category Form */
@@ -5030,7 +5002,7 @@ declare function RadioList(
         onChange?: (value: string) => void;
         orientation?: 'vertical' | 'horizontal';
         size?: 'sm' | 'md';
-    },
+    }
 ): React.JSX.Element;
 
 /** @category Form @group RadioList */
@@ -5067,8 +5039,6 @@ declare function MetadataListItem(props: {
 /** @category Display */
 declare function Table<T extends Record<string, unknown>>(props: {
     data: T[];
-    idKey?: (keyof T & string) | ((row: T) => string | number);
-    density?: 'compact' | 'balanced' | 'spacious';
     hasHover?: boolean;
     isStriped?: boolean;
     columns?: {
@@ -5097,7 +5067,7 @@ declare function proportional(
     value?: number,
     options?: {
         minWidth?: number;
-    },
+    }
 ): Extract<ColumnWidth, { type: 'proportional' }>;
 
 /** @category Display @group Table */

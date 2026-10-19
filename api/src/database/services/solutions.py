@@ -8,10 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import defer, selectinload, contains_eager
 from collections.abc import Mapping, Sequence
 from src.models.roles import OrganizationRoles
-from src.models.types import MinScale
 from src.database.types import attr
 from src.models.metadata import LongLinkMetadata
-from src.models.solutions import validate_idle_seconds, validate_environment_variables
+from src.models.solutions import validate_environment_variables
 from src.database.services import operations, registries, organizations
 from src.models.operations import OperationKind
 from src.models.pagination import Pagination
@@ -67,8 +66,6 @@ async def create(
     name: str,
     envs: Mapping[str, str],
     user_id: UUID,
-    min_scale: MinScale = 0,
-    idle_seconds: int = 60,
     description: str | None = None,
     registry_connection_id: UUID | None = None,
 ) -> Solution:
@@ -113,16 +110,7 @@ async def create(
         raise HTTPException(status_code=409, detail="Solution slug already exists")
 
     # Creation uses the same immutable release boundary as subsequent updates.
-    await deploy(
-        session,
-        solution,
-        user_id,
-        metadata,
-        envs,
-        min_scale=min_scale,
-        idle_seconds=idle_seconds,
-        registry_connection_id=registry_connection_id,
-    )
+    await deploy(session, solution, user_id, metadata, envs, registry_connection_id=registry_connection_id)
 
     return solution
 
@@ -167,8 +155,6 @@ async def deploy(
     metadata: LongLinkMetadata,
     envs: Mapping[str, str | None],
     *,
-    min_scale: MinScale | None = None,
-    idle_seconds: int | None = None,
     registry_connection_id: UUID | None = None,
 ) -> None:
     """Append a snapshot and queue its exact deployment target."""
@@ -202,23 +188,11 @@ async def deploy(
     if missing:
         raise HTTPException(status_code=422, detail=f"Solution environment does not satisfy required image variables: {', '.join(missing)}")
 
-    # Preserve omitted scaling and validate it before queuing work.
-    if min_scale is None:
-        min_scale = current.min_scale if current is not None else 0
-    if idle_seconds is None:
-        idle_seconds = current.idle_seconds if current is not None else 60
-    try:
-        validate_idle_seconds(idle_seconds)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-
     # Never change Solution-owned runtime credentials when appending a release.
     revision = Revision(
         solution_id=solution.id,
         image=metadata.image,
         version=metadata.version,
-        min_scale=min_scale,
-        idle_seconds=idle_seconds,
         envs=merged,
         created_id=user_id,
         registry_connection_id=registry_connection_id,

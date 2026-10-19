@@ -22,9 +22,8 @@ export default function BadgePage() {
                 },
                 {
                     name: 'variant',
-                    type: '"success" | "error" | "warning" | "info" | "neutral" | "blue" | "cyan" | "green" | "orange" | "pink" | "purple" | "red" | "teal" | "yellow"',
-                    description:
-                        'Visual style variant. Semantic variants (neutral, info, success, warning, error) use solid backgrounds. Non-semantic color variants use tinted backgrounds with colored text for categorization and tagging.',
+                    type: '"success" | "error" | "warning" | "info" | "neutral"',
+                    description: 'Semantic variants (neutral, info, success, warning, error) use solid backgrounds.',
                 },
             ]}
             examples={[

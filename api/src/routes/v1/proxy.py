@@ -22,8 +22,6 @@ router = APIRouter()
 BLOCKED_PROXY_CONTENT_TYPES = {"application/xhtml+xml", "image/svg+xml", "text/html"}
 PROXY_REQUEST_TIMEOUT_SECONDS = 120
 PROXY_RESPONSE_TIMEOUT_SECONDS = 30
-PROXY_ERROR_MAX_BYTES = 64 * 1024
-PROXY_ERROR_TIMEOUT_SECONDS = 5
 
 
 async def runtime_scope() -> AsyncGenerator[AsyncExitStack]:
@@ -57,10 +55,7 @@ async def proxy_solution_request(
     await ctx.database.commit()
 
     # Resolve fresh Solution access immediately before runtime admission; never reuse a stale snapshot.
-    access = await organizations.solution_runtime_access(ctx.database, user.id, solution_id)
-    if access is None:
-        raise HTTPException(status_code=403, detail="Access required")
-    solution, role, registry = access
+    solution, role, registry = await organizations.solution_runtime_access(ctx.database, user.id, solution_id)
 
     # Enforce method-level runtime access in the API before any request can reach Kubernetes.
     if not roles.atleast(role, required_role):
@@ -147,10 +142,10 @@ async def proxy_solution_request(
 
         # Only explicitly public JSON details cross the boundary; never forward raw diagnostics.
         try:
-            async with asyncio.timeout(PROXY_ERROR_TIMEOUT_SECONDS):
+            async with asyncio.timeout(5):
                 body = bytearray()
                 async for chunk in upstream.aiter_bytes():
-                    if len(body) + len(chunk) > PROXY_ERROR_MAX_BYTES:
+                    if len(body) + len(chunk) > 64 * 1024:
                         break
                     body.extend(chunk)
                 else:

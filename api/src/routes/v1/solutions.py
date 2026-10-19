@@ -83,8 +83,6 @@ async def check_update(ctx: Context, user: auth.CurrentUser, solution: auth.Solu
         "metadata": metadata,
         "revision_id": revision.id,
         "configured_envs": sorted(revision.envs),
-        "min_scale": revision.min_scale,
-        "idle_seconds": revision.idle_seconds,
     }
 
 
@@ -95,9 +93,7 @@ async def apply_update(ctx: Context, user: auth.CurrentUser, solution: auth.Solu
     solution, _revision, metadata = await update_candidate(ctx.database, solution, user.id, payload.expected_revision_id)
 
     # Compare and merge only against the current serialized desired state.
-    await solutions.deploy(
-        ctx.database, solution, user.id, metadata, payload.envs, min_scale=payload.min_scale, idle_seconds=payload.idle_seconds
-    )
+    await solutions.deploy(ctx.database, solution, user.id, metadata, payload.envs)
     await ctx.database.commit()
 
 

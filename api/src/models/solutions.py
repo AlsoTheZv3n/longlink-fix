@@ -3,21 +3,9 @@ from uuid import UUID
 from typing import Annotated
 from datetime import datetime
 from pydantic import Field, BaseModel, AfterValidator, field_validator
-from src.models.types import Image, MinScale
+from src.models.types import Image
 from src.models.metadata import LongLinkMetadata
 from src.models.resources import OrganizationIdentity, OrganizationSolutionSummary
-
-
-def validate_idle_seconds(value: int) -> int:
-    """Allow never-sleep zero or a bounded scale-to-zero timeout."""
-
-    if value != 0 and value < 30:
-        raise ValueError("idle_seconds must be 0 or between 30 and 3600")
-    return value
-
-
-# Share request-model bounds and policy while keeping service validation independent.
-IdleSeconds = Annotated[int, Field(ge=0, le=3600), AfterValidator(validate_idle_seconds)]
 
 
 def validate_environment_variables(envs: dict[str, str]) -> dict[str, str]:
@@ -58,8 +46,6 @@ class SolutionCreate(BaseModel):
     envs: Annotated[dict[str, str], AfterValidator(validate_environment_variables)] = Field(default_factory=dict)
     image: Image
     name: str = Field(min_length=1, max_length=100)
-    min_scale: MinScale = 0
-    idle_seconds: IdleSeconds = 60
     description: str | None = Field(default=None, max_length=255)
 
 
@@ -67,8 +53,6 @@ class SolutionPatch(BaseModel):
     """Preserve omitted values and remove variables explicitly set to null."""
 
     envs: dict[str, str | None] = Field(default_factory=dict)
-    min_scale: MinScale | None = None
-    idle_seconds: IdleSeconds | None = None
     expected_revision_id: UUID | None = None
 
     @field_validator("envs")
@@ -82,10 +66,6 @@ class SolutionPatch(BaseModel):
 
 class SolutionUpdateCheck(BaseModel):
     """Expose a candidate and configured names, never environment values."""
-
-    # Configuration
-    min_scale: MinScale
-    idle_seconds: int
 
     # Current release
     revision_id: UUID

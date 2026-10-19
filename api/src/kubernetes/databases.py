@@ -1,7 +1,7 @@
 import json
 import asyncio
 from uuid import UUID
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from src.utils import postgres, templates
 from src.kubernetes import tls, utils, databases, namespace
 from src.models.types import DatabaseSSLMode
@@ -90,9 +90,10 @@ async def resume(client: "Kubernetes", organization_id: UUID) -> None:
             ):
                 # False hibernation conditions still mean shutdown; after removal, verify live Pod state too.
                 ready_pods = 0
-                async for pod in Pod.list(
+                async for candidate in Pod.list(
                     api=api, namespace=database_namespace, label_selector={"cnpg.io/cluster": "database", "cnpg.io/podRole": "instance"}
                 ):
+                    pod = cast(Pod, candidate)
                     pod_status = pod.raw.get("status", {})
                     if (
                         pod.metadata.get("deletionTimestamp") is not None

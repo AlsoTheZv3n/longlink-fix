@@ -24,7 +24,6 @@ from src.database.models.users import User
 from src.database.models.solutions import Solution
 
 ACCESS_LIFETIME_SECONDS = 30 * 24 * 60 * 60
-CODE_LIFETIME_SECONDS = 300
 
 
 class OAuthError(Exception):
@@ -167,7 +166,7 @@ async def approve(session: AsyncSession, user: User, payload: mcp.Approval) -> s
         redirect_uri=payload.redirect_uri,
         challenge=payload.code_challenge,
         fingerprint=token.password_fingerprint(user.password),
-        expires_at=datetime.now(UTC) + timedelta(seconds=CODE_LIFETIME_SECONDS),
+        expires_at=datetime.now(UTC) + timedelta(seconds=300),
     )
     session.add(proof)
     return redirect(payload.redirect_uri, {"code": code, "state": payload.state})

@@ -129,10 +129,7 @@ async def authsolutionlogs(solution_id: UUID, user: CurrentUser, session: Sessio
     """Authenticate Solution log access and return its scoped cluster connection."""
 
     # Resolve active Solution access before enforcing runtime permissions.
-    access = await organizations.solution_logs_access(session, user.id, solution_id)
-    if access is None:
-        raise HTTPException(status_code=403, detail="Access required")
-    organization_id, role, kubeconfig = access
+    organization_id, role, kubeconfig = await organizations.solution_logs_access(session, user.id, solution_id)
     if not roles.atleast(role, OrganizationRoles.maintain):
         raise HTTPException(status_code=403, detail="Permission required")
     return organization_id, kubeconfig

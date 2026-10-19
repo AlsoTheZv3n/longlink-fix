@@ -6,21 +6,7 @@ import { Badge as AstryxBadge } from '@astryxdesign/core/Badge';
 export function Badge(props: {
     label?: ReactNode;
     icon?: StoneIconName;
-    variant?:
-        | 'neutral'
-        | 'info'
-        | 'success'
-        | 'warning'
-        | 'error'
-        | 'blue'
-        | 'cyan'
-        | 'green'
-        | 'orange'
-        | 'pink'
-        | 'purple'
-        | 'red'
-        | 'teal'
-        | 'yellow';
+    variant?: 'neutral' | 'info' | 'success' | 'warning' | 'error';
 }) {
     // Use a neutral state unless the caller chooses a semantic variant.
     return (

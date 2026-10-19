@@ -45,20 +45,7 @@ type CardProps = {
     /** Clips full-bleed content to the card's rounded edges. */
     isClipped?: boolean;
     /** Background color variant, independent of the interaction mode. */
-    variant?:
-        | 'default'
-        | 'transparent'
-        | 'muted'
-        | 'blue'
-        | 'cyan'
-        | 'gray'
-        | 'green'
-        | 'orange'
-        | 'pink'
-        | 'purple'
-        | 'red'
-        | 'teal'
-        | 'yellow';
+    variant?: 'default' | 'transparent' | 'muted';
     /** Card width; numbers are pixels and strings are CSS sizes. */
     width?: number | string;
     /** Card height; numbers are pixels and strings are CSS sizes. */

@@ -15,8 +15,6 @@ const candidate = {
     current_image: `ghcr.io/owner/sample@sha256:${'a'.repeat(64)}`,
     revision_id: revisionId,
     configured_envs: [],
-    min_scale: 0,
-    idle_seconds: 60,
     metadata: {
         image: `ghcr.io/owner/sample@sha256:${'b'.repeat(64)}`,
         environments: [],
