@@ -3,8 +3,6 @@ import { Text as AstryxText } from '@astryxdesign/core/Text';
 
 /** Displays View text with Astryx's semantic typography, alignment, wrapping, and truncation controls. */
 export function Text(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ReactNode;
     color?: 'primary' | 'secondary' | 'disabled' | 'placeholder' | 'accent' | 'inherit';
     type?: 'body' | 'large' | 'label' | 'supporting' | 'code' | 'display-1' | 'display-2' | 'display-3' | 'inherit';
@@ -22,9 +20,5 @@ export function Text(props: {
     hasTabularNumbers?: boolean;
 }) {
     // Keep typography behavior and defaults owned by Astryx without adding a wrapper.
-    return (
-        <AstryxText {...props} className={props.hidden ? 'hidden!' : undefined}>
-            {props.children}
-        </AstryxText>
-    );
+    return <AstryxText {...props}>{props.children}</AstryxText>;
 }

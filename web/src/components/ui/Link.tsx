@@ -67,19 +67,10 @@ export function NavigationLink({ href, target, onClick, ...props }: ComponentPro
 }
 
 /** Navigates within the Solution or opens an external HTTP(S) URL in a new tab. */
-export function Link({
-    to,
-    children,
-    hidden,
-}: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
-    to: string;
-    children?: ReactNode;
-}) {
+export function Link({ to, children }: { to: string; children?: ReactNode }) {
     // Share native anchor behavior with navigable cards.
     return (
-        <AstryxLink hidden={hidden} className={hidden ? 'hidden!' : undefined} as={NavigationLink} href={to}>
+        <AstryxLink as={NavigationLink} href={to}>
             {children}
         </AstryxLink>
     );

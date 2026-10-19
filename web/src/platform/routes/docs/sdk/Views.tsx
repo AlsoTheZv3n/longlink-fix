@@ -50,18 +50,22 @@ import { Blockquote } from '@astryxdesign/core/Blockquote';
 import { DocumentationArticle } from '@/components/Article';
 import { CheckboxInputExample } from './views/CheckboxInput';
 import { MultiSelectorExample } from './views/MultiSelector';
+import { Collapsible } from '@astryxdesign/core/Collapsible';
 import { documentationCategories } from '@/lib/documentation';
+import { Table, proportional } from '@astryxdesign/core/Table';
 import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
 
 const article = {
     description: 'Build interfaces with LongLink Views and components.',
     toc: [
         { id: 'views', label: 'Views', level: 1 },
-        ...documentationCategories.map((category) => ({
-            id: category.toLowerCase().replace(/\W+/g, '-'),
-            label: category,
-            level: 2,
-        })),
+        ...documentationCategories
+            .filter((category) => category !== 'Runtime')
+            .map((category) => ({
+                id: category.toLowerCase().replace(/\W+/g, '-'),
+                label: category,
+                level: 2,
+            })),
     ],
     lastUpdated: '2026-10-02',
     editUrl: 'https://github.com/xLongLink/longlink/edit/main/sdk/longlink/.static/jsx/frontend.d.ts',
@@ -159,13 +163,6 @@ export default function DocsArticleRoute() {
                     components, hooks such as useState() and useEffect(), fragments, queries, and scoped requests
                     directly, without imports or a React. prefix. Your Python Solution needs no frontend build.
                 </Text>
-                <Stack as="aside" className="border-s border-accent ps-4" gap={0}>
-                    <Text weight="semibold">Why?</Text>
-                    <Text as="p">
-                        Keeping the interface separate from the application logic makes each part easier to understand
-                        and maintain.
-                    </Text>
-                </Stack>
                 <CodeBlock
                     code={`/** @param {ViewProps} props */
 export default function Item({ params }) {
@@ -177,58 +174,113 @@ export default function Item({ params }) {
                     title="items/[item].jsx"
                     hasLanguageLabel={false}
                 />
-                {documentationCategories.map((category) => (
-                    <Stack key={category} gap={3}>
-                        <Heading id={category.toLowerCase().replace(/\W+/g, '-')} level={2}>
-                            {category}
-                        </Heading>
-                        <Grid columns={{ minWidth: 190, max: 3, repeat: 'fit' }} gap={4}>
-                            {componentDocumentation
-                                .filter((component) => component.category === category)
-                                .map((component) => (
-                                    <Stack key={component.slug} className="relative min-w-0" gap={2}>
-                                        <Card
-                                            aria-hidden="true"
-                                            inert
-                                            padding={3}
-                                            variant="muted"
-                                            width="100%"
-                                            maxWidth="100%"
-                                        >
-                                            {/* Constrain artwork before scaling so intrinsic control sizes cannot widen the card. */}
-                                            <Center className="h-40 min-w-0 overflow-hidden" width="100%">
-                                                <Stack
-                                                    className="min-w-0 scale-90 [&>*]:min-w-0 [&>*]:max-w-full"
-                                                    width="100%"
-                                                    maxWidth="100%"
-                                                    align={component.category === 'Form' ? 'stretch' : 'center'}
-                                                    gap={0}
-                                                >
-                                                    {component.category === 'Runtime' ? (
-                                                        <Code>{component.name}</Code>
-                                                    ) : (
-                                                        (previews.get(component.name) ?? (
-                                                            <Code>{`<${component.name} />`}</Code>
-                                                        ))
-                                                    )}
-                                                </Stack>
-                                            </Center>
-                                        </Card>
-                                        <Text type="supporting">
-                                            {component.category === 'Action' || component.category === 'Form'
-                                                ? component.label.replace(/([a-z])([A-Z])/g, '$1 $2')
-                                                : component.label}
-                                        </Text>
-                                        <RouterLink
-                                            aria-label={`Open ${component.label} documentation`}
-                                            className="absolute inset-0 z-10 rounded-lg focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                                            to={`/docs/sdk/views/${component.slug}/`}
-                                        />
+                <Collapsible trigger="API reference" chevronPosition="start" defaultIsOpen={false}>
+                    <Table
+                        idKey="name"
+                        density="compact"
+                        verticalAlign="top"
+                        data={[
+                            {
+                                name: 'navigate(path)',
+                                description:
+                                    'Navigates within the current Solution or opens an HTTP(S) URL in a new tab. External URLs require user activation and open without an opener or referrer.',
+                            },
+                            {
+                                name: 'request(path, options)',
+                                description:
+                                    'Requests a Solution operation and returns its data. Options support the HTTP method, JSON, form data, and binary responses. Requests and responses are limited to 2,000,000 bytes, with at most 32 form entries and 8 pending operations. Successful writes refresh cached View data. Failed HTTP requests reject with an Error containing an optional numeric status and a bounded client-facing message.',
+                            },
+                            {
+                                name: 'useState(initial)',
+                                description:
+                                    'Returns the current state and a setter. Pass a value or an initializer function; updates can use the previous state.',
+                            },
+                            {
+                                name: 'useEffect(effect, dependencies)',
+                                description:
+                                    'Synchronizes with external systems after rendering. Return a cleanup function to release timers or subscriptions. Include every reactive value used by the effect in its dependencies.',
+                            },
+                            {
+                                name: 'useMemo(factory, dependencies)',
+                                description:
+                                    'Caches a calculated value until its dependencies change. Use it for expensive calculations, not required application state.',
+                            },
+                            {
+                                name: 'useRef(initial)',
+                                description:
+                                    'Returns a stable object with a mutable current property. Changing current does not trigger a render.',
+                            },
+                            {
+                                name: 'useApi(path)',
+                                description:
+                                    'Returns Solution data and an awaitable invalidator scoped to the full request path. The renderer handles initial loading, errors, and retry.',
+                            },
+                        ]}
+                        columns={[
+                            {
+                                key: 'name',
+                                header: 'API',
+                                width: proportional(1),
+                                renderCell: (api) => (
+                                    <Stack gap={0}>
+                                        <Code className="self-start">{api.name}</Code>
+                                        <Text type="supporting">{api.description}</Text>
                                     </Stack>
-                                ))}
-                        </Grid>
-                    </Stack>
-                ))}
+                                ),
+                            },
+                        ]}
+                    />
+                </Collapsible>
+                {documentationCategories
+                    .filter((category) => category !== 'Runtime')
+                    .map((category) => (
+                        <Stack key={category} gap={3}>
+                            <Heading id={category.toLowerCase().replace(/\W+/g, '-')} level={2}>
+                                {category}
+                            </Heading>
+                            <Grid columns={{ minWidth: 190, max: 3, repeat: 'fit' }} gap={4}>
+                                {componentDocumentation
+                                    .filter((component) => component.category === category)
+                                    .map((component) => (
+                                        <Stack key={component.slug} className="relative min-w-0" gap={2}>
+                                            <Card
+                                                aria-hidden="true"
+                                                inert
+                                                padding={3}
+                                                variant="muted"
+                                                width="100%"
+                                                maxWidth="100%"
+                                            >
+                                                {/* Constrain artwork before scaling so intrinsic control sizes cannot widen the card. */}
+                                                <Center className="h-40 min-w-0 overflow-hidden" width="100%">
+                                                    <Stack
+                                                        className="min-w-0 scale-90 [&>*]:min-w-0 [&>*]:max-w-full"
+                                                        width="100%"
+                                                        maxWidth="100%"
+                                                        align={component.category === 'Form' ? 'stretch' : 'center'}
+                                                        gap={0}
+                                                    >
+                                                        {previews.get(component.name) ?? (
+                                                            <Code>{`<${component.name} />`}</Code>
+                                                        )}
+                                                    </Stack>
+                                                </Center>
+                                            </Card>
+                                            <Text type="supporting">
+                                                {component.category === 'Action' || component.category === 'Form'
+                                                    ? component.label.replace(/([a-z])([A-Z])/g, '$1 $2')
+                                                    : component.label}
+                                            </Text>
+                                            <RouterLink
+                                                aria-label={`Open ${component.label} documentation`}
+                                                className="absolute inset-0 z-10 rounded-lg focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                                to={`/docs/sdk/views/${component.slug}/`}
+                                            />
+                                        </Stack>
+                                    ))}
+                            </Grid>
+                        </Stack>
+                    ))}
             </Stack>
         </DocumentationArticle>
     );

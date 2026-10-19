@@ -16,7 +16,6 @@ export function FormField({
     name,
     required,
     disabled,
-    hidden,
 }: FieldProps & {
     children: ReactNode;
     fieldRef: RefObject<HTMLElement | null>;
@@ -108,7 +107,7 @@ export function FormField({
 
     // Leave control presentation to Astryx and expose submission errors accessibly.
     return (
-        <Stack ref={fieldRef} gap={2} hidden={hidden} className={hidden ? 'hidden!' : undefined}>
+        <Stack ref={fieldRef} gap={2}>
             {children}
             {serialize &&
                 name &&

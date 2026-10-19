@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { Code } from '@astryxdesign/core/Code';
+import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
-import { useSearchParams } from 'react-router';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
-import { Tab, TabList } from '@astryxdesign/core/TabList';
+import { Blockquote } from '@astryxdesign/core/Blockquote';
 import { DocumentationArticle } from '@/components/Article';
 import { documentationLastUpdated } from '@/lib/documentation';
 import { Table, proportional } from '@astryxdesign/core/Table';
@@ -15,12 +15,7 @@ type ViewProperty = NonNullable<(typeof componentCatalog)[number]['properties']>
 
 type ViewExample = { title: string; code: string; preview: ReactNode };
 
-const tabs = [
-    { value: 'examples', label: 'Examples' },
-    { value: 'properties', label: 'Properties' },
-];
-
-/** Provides the article shell and reference tabs for an independently authored View page. */
+/** Provides examples and property references for an independently authored View page. */
 export default function ViewLayout({
     name,
     introduction: authoredIntroduction,
@@ -34,20 +29,17 @@ export default function ViewLayout({
     children?: ReactNode;
     toc?: { id: string; label: string; level: number }[];
 }) {
-    const [searchParams, setSearchParams] = useSearchParams();
-
     // Resolve the declaration catalog and optional authored introduction for this explicit page.
     const component = componentDocumentation.find((entry) => entry.name === name);
 
     if (!component) throw new Error(`Missing View documentation: ${name}`);
     const introduction = authoredIntroduction ?? component.introduction;
-    const activeTab = tabs.find((tab) => tab.value === searchParams.get('tab')) ?? tabs[0];
     const runtime = component.category === 'Runtime';
 
-    // Prepare property tables only for the panel that displays them.
+    // Prepare property tables below the examples.
     const groups = new Map<string, ViewProperty[]>();
 
-    if (!runtime && activeTab.value === 'properties') {
+    if (!runtime) {
         // Include grouped JSX children and the Buttons companion in the generated tables.
         const entries =
             name === 'Button'
@@ -80,23 +72,31 @@ export default function ViewLayout({
         title: `${component.label} | LongLink Documentation`,
         toc: [
             { id: 'introduction', label: 'Introduction', level: 1 },
-            ...(toc ?? [
-                {
-                    id: runtime ? 'reference' : `component-${activeTab.value}`,
-                    label: runtime ? 'Reference' : activeTab.label,
-                    level: 2,
-                },
-            ]),
+            ...(toc ??
+                (runtime
+                    ? [{ id: 'reference', label: 'Reference', level: 2 }]
+                    : [
+                          { id: 'component-examples', label: 'Examples', level: 2 },
+                          { id: 'component-properties', label: 'Properties', level: 2 },
+                      ])),
         ],
     };
 
-    // Render page-owned content within the existing article and reference-tab structure.
+    // Render examples followed by the property reference in the same article.
     return (
         <DocumentationArticle article={article}>
             <Stack gap={5}>
                 <Heading id="introduction" level={1}>
                     {component.label}
                 </Heading>
+                <Blockquote className="border-s-(--color-text-orange) text-(--color-text-orange)">
+                    <Stack gap={0}>
+                        <Text type="inherit">Beta notice: This page is being built.</Text>
+                        <Link color="inherit" href={article.editUrl} hasUnderline isExternalLink type="inherit">
+                            Edit on GitHub
+                        </Link>
+                    </Stack>
+                </Blockquote>
                 <Text as="p">{introduction}</Text>
                 {authoredIntroduction !== undefined && !runtime && (
                     <Text as="p">This is a LongLink-specific component.</Text>
@@ -111,80 +111,56 @@ export default function ViewLayout({
                     children
                 ) : (
                     <Stack gap={5}>
-                        <TabList
-                            role="tablist"
-                            value={activeTab.value}
-                            onChange={(value) => {
-                                // Preserve other query parameters while making each tab linkable.
-                                const params = new URLSearchParams(searchParams);
-                                params.set('tab', value);
-                                setSearchParams(params, { preventScrollReset: true });
-                            }}
-                            hasDivider
-                        >
-                            {tabs.map((tab) => (
-                                <Tab
-                                    key={tab.value}
-                                    value={tab.value}
-                                    label={tab.label}
-                                    panelId={`component-${tab.value}`}
-                                />
-                            ))}
-                        </TabList>
-                        {/* Mount only the URL-selected panel, without parsing Solution View JSX markers. */}
-                        <Stack
-                            id={`component-${activeTab.value}`}
-                            role="tabpanel"
-                            tabIndex={0}
-                            aria-label={activeTab.label}
-                            gap={5}
-                        >
-                            {activeTab.value === 'examples' && (
-                                <>
-                                    {examples.map((example) => (
-                                        <Stack key={example.title} gap={3}>
-                                            <Stack
-                                                padding={4}
-                                                className="overflow-auto rounded-lg border border-border"
-                                                aria-label={`${example.title} preview`}
-                                            >
-                                                {example.preview}
-                                            </Stack>
-                                            <CodeBlock code={example.code} language="jsx" hasLanguageLabel={false} />
-                                        </Stack>
-                                    ))}
-                                    {!examples.length && (
-                                        <Text as="p">No standalone examples are available for this component.</Text>
-                                    )}
-                                </>
-                            )}
-                            {activeTab.value === 'properties' &&
-                                [...groups].map(([name, properties]) => (
-                                    <Stack key={name} gap={3}>
-                                        {name && <Heading level={2}>{name}</Heading>}
-                                        <Table
-                                            data={properties}
-                                            idKey="name"
-                                            density="compact"
-                                            columns={[
-                                                {
-                                                    key: 'name',
-                                                    header: 'Property',
-                                                    width: proportional(1),
-                                                    renderCell: (property) => (
-                                                        <Stack gap={0}>
-                                                            <Stack direction="horizontal" align="center" gap={2}>
-                                                                <Text>{property.name}</Text>
-                                                                <Code className="text-sm">{property.type}</Code>
-                                                            </Stack>
-                                                            <Text type="supporting">{property.description}</Text>
-                                                        </Stack>
-                                                    ),
-                                                },
-                                            ]}
-                                        />
+                        <Stack as="section" gap={5} aria-labelledby="component-examples">
+                            <Heading id="component-examples" level={2}>
+                                Examples
+                            </Heading>
+                            {examples.map((example) => (
+                                <Stack key={example.title} gap={3}>
+                                    <Stack
+                                        padding={4}
+                                        className="overflow-auto rounded-lg border border-border"
+                                        aria-label={`${example.title} preview`}
+                                    >
+                                        {example.preview}
                                     </Stack>
-                                ))}
+                                    <CodeBlock code={example.code} language="jsx" hasLanguageLabel={false} />
+                                </Stack>
+                            ))}
+                            {!examples.length && (
+                                <Text as="p">No standalone examples are available for this component.</Text>
+                            )}
+                        </Stack>
+                        <Stack as="section" gap={5} aria-labelledby="component-properties">
+                            <Heading id="component-properties" level={2}>
+                                Properties
+                            </Heading>
+                            {[...groups].map(([name, properties]) => (
+                                <Stack key={name} gap={3}>
+                                    {name && <Heading level={3}>{name}</Heading>}
+                                    <Table
+                                        data={properties}
+                                        idKey="name"
+                                        density="compact"
+                                        columns={[
+                                            {
+                                                key: 'name',
+                                                header: 'Property',
+                                                width: proportional(1),
+                                                renderCell: (property) => (
+                                                    <Stack gap={0}>
+                                                        <Stack direction="horizontal" align="center" gap={2}>
+                                                            <Text>{property.name}</Text>
+                                                            <Code className="text-sm">{property.type}</Code>
+                                                        </Stack>
+                                                        <Text type="supporting">{property.description}</Text>
+                                                    </Stack>
+                                                ),
+                                            },
+                                        ]}
+                                    />
+                                </Stack>
+                            ))}
                         </Stack>
                     </Stack>
                 )}

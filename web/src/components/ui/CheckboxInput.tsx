@@ -23,7 +23,6 @@ export function CheckboxInput(
         <AstryxCheckboxInput
             {...control}
             {...field}
-            className={props.hidden ? 'hidden!' : undefined}
             htmlName={props.name}
             size={props.size ?? 'md'}
             isReadOnly={false}

@@ -8,8 +8,6 @@ const GridCollapseContext = createContext(false);
 
 /** Arranges View content into fixed or width-responsive columns. */
 export function Grid(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ReactNode;
     /** Fixed columns or responsive tracks with a minimum width in pixels and optional column cap. Use one-column or full spans with responsive tracks. */
     columns?: number | { minWidth: number; max?: number; repeat?: 'fill' | 'fit' };
@@ -32,20 +30,13 @@ export function Grid(props: {
 
     return (
         <GridCollapseContext value={collapsed}>
-            <AstryxGrid
-                {...grid}
-                className={props.hidden ? 'hidden!' : undefined}
-                columns={collapsed ? 1 : (props.columns ?? 1)}
-                gap={props.gap ?? 3}
-            />
+            <AstryxGrid {...grid} columns={collapsed ? 1 : (props.columns ?? 1)} gap={props.gap ?? 3} />
         </GridCollapseContext>
     );
 }
 
 /** Spans a View item across grid columns. */
 export function GridSpan(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Content rendered inside the grid item. */
     children?: ReactNode;
     /** Number of columns to occupy, or full to span the entire grid. */
@@ -54,11 +45,5 @@ export function GridSpan(props: {
     // Avoid implicit extra tracks when the parent collapses to a single column.
     const collapsed = useContext(GridCollapseContext);
 
-    return (
-        <AstryxGridSpan
-            {...props}
-            className={props.hidden ? 'hidden!' : undefined}
-            columns={collapsed ? 'full' : (props.columns ?? 1)}
-        />
-    );
+    return <AstryxGridSpan {...props} columns={collapsed ? 'full' : (props.columns ?? 1)} />;
 }

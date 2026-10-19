@@ -7,8 +7,6 @@ import { Dialog as AstryxDialog } from '@astryxdesign/core/Dialog';
 
 /** Displays an accessible modal that closes with Escape or its close button, not backdrop clicks. */
 export function Dialog(props: {
-    /** Hides the modal without unmounting its fields or changing the caller's open state. */
-    hidden?: boolean;
     children?: ReactNode;
     /** Shows a dialog header when a title is provided. */
     title?: string;
@@ -20,9 +18,7 @@ export function Dialog(props: {
     // Share the Platform frame while letting content own its layout and scrolling.
     return (
         <AstryxDialog
-            hidden={props.hidden}
-            className={props.hidden ? 'hidden!' : undefined}
-            isOpen={props.isOpen && !props.hidden}
+            isOpen={props.isOpen}
             onOpenChange={props.onOpenChange}
             purpose="form"
             width={960}

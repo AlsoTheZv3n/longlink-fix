@@ -12,11 +12,6 @@
                     "default": "circle"
                 },
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "name",
                     "type": "string",
                     "description": "User name for initials and alt text."
@@ -61,11 +56,6 @@
             "guidance": "Use for counts or enumerated states, not decoration.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "label",
                     "type": "ReactNode",
                     "description": "Badge text content. A badge is one line, so a label wider than the space available is cut with an ellipsis rather than escaping its container; a string or number label is also set as the badge's title so the full text stays reachable on hover."
@@ -96,11 +86,6 @@
             ],
             "guidance": "Return the asynchronous operation from onClick so automatic loading and duplicate-click prevention cover the request.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -182,11 +167,6 @@
             "introduction": "Groups related flat action buttons.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "children",
                     "type": "ReactNode",
                     "description": "Button or IconButton children."
@@ -227,11 +207,6 @@
             ],
             "guidance": "Do not wrap dense lists or individual table rows in cards.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "children",
                     "type": "ReactNode",
@@ -332,11 +307,6 @@
             "introduction": "Edits a boolean or indeterminate field.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
-                {
                     "name": "label",
                     "type": "string",
                     "description": "Label text for the checkbox (always rendered for accessibility)."
@@ -394,11 +364,6 @@
             "category": "Display",
             "introduction": "Displays source code using standard copy and highlighting behavior.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "code",
                     "type": "string",
@@ -469,11 +434,6 @@
             "introduction": "Shows or hides content using controlled or initially open state.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "children",
                     "type": "ReactNode",
                     "description": "Content that collapses and expands."
@@ -513,11 +473,6 @@
             "introduction": "",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "value",
                     "type": "number",
                     "description": "Amount to format in currency units."
@@ -539,11 +494,6 @@
             "category": "Form",
             "introduction": "Selects a constrained date with standard month and week presentation.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -635,11 +585,6 @@
             ],
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the modal without unmounting its fields or changing the caller's open state."
-                },
-                {
                     "name": "children",
                     "type": "ReactNode",
                     "description": "Dialog content."
@@ -673,11 +618,6 @@
             "introduction": "Separates View content with an optional label and configurable line presentation.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "label",
                     "type": "ReactNode",
                     "description": "Optional label centered on the divider. Numeric zero is preserved; null, booleans, and empty strings render no label."
@@ -708,16 +648,14 @@
             "introduction": "Opens an action menu using standard adaptive presentation and placement.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the trigger and closes its popup without unmounting the component."
-                },
-                {
                     "name": "button",
                     "type": "{ label: string; variant?: \"ghost\" | \"primary\" | \"secondary\" | \"destructive\"; size?: \"sm\" | \"lg\" | \"md\"; isDisabled?: boolean; }",
                     "description": "Props for the trigger button (Button props except onClick). Mutually exclusive with `trigger`.",
                     "default": {
-                        "label": "Menu"
+                        "label": "Menu",
+                        "variant": "secondary",
+                        "size": "md",
+                        "isDisabled": false
                     }
                 },
                 {
@@ -748,11 +686,6 @@
             ],
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "title",
                     "type": "string",
                     "description": "Primary message rendered as an <h3> heading inside the empty state."
@@ -770,11 +703,6 @@
             "category": "Form",
             "introduction": "Selects files with explicit upload constraints; uploading remains a Solution operation.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -855,11 +783,6 @@
             "introduction": "",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "src",
                     "type": "string",
                     "description": "Scoped Solution operation path returning the file to preview."
@@ -890,11 +813,6 @@
             ],
             "guidance": "Inspect the submission contract and field names before wiring a form. Validate and authorize mutations on the server.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the form while keeping its fields mounted and enabled for submission and validation."
-                },
                 {
                     "name": "children",
                     "type": "ReactNode",
@@ -984,11 +902,6 @@
             ],
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "children",
                     "type": "ReactNode",
                     "description": "Grid content."
@@ -1052,11 +965,6 @@
                     "description": "Minimum container height. Numbers are treated as pixels, strings are used as-is."
                 },
                 {
-                    "name": "GridSpan.hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "GridSpan.children",
                     "type": "ReactNode",
                     "description": "Content rendered inside the grid item."
@@ -1073,11 +981,6 @@
             "category": "Display",
             "introduction": "Displays a semantic View heading without a separate visual-level override.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "children",
                     "type": "ReactNode",
@@ -1133,11 +1036,6 @@
             "introduction": "Renders any Lucide icon by its kebab-case name. Existing LongLink aliases remain immediate; other icons load on demand and are cached without blocking the View or changing icon dimensions.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "icon",
                     "type": "StoneIconName",
                     "description": "Lucide kebab-case name or LongLink alias. Prefix with lucide: to bypass an existing alias, such as lucide:logs."
@@ -1154,11 +1052,6 @@
             "category": "Action",
             "introduction": "Runs a labeled icon action with automatic async feedback.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -1205,11 +1098,6 @@
             "introduction": "",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the image without unmounting it."
-                },
-                {
                     "name": "src",
                     "type": "string",
                     "description": "Scoped Solution image path, or an image data/blob URL."
@@ -1234,11 +1122,6 @@
                 "footer"
             ],
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the layout without unmounting its content."
-                },
                 {
                     "name": "children",
                     "type": "ReactNode",
@@ -1291,11 +1174,6 @@
                     "description": "Default for header and footer dividers; omitted values inherit the surrounding layout."
                 },
                 {
-                    "name": "LayoutContent.hidden",
-                    "type": "boolean",
-                    "description": "Hides the region without unmounting its content."
-                },
-                {
                     "name": "LayoutContent.children",
                     "type": "ReactNode"
                 },
@@ -1316,11 +1194,6 @@
                 {
                     "name": "LayoutContent.role",
                     "type": "\"main\" | \"region\""
-                },
-                {
-                    "name": "LayoutHeader.hidden",
-                    "type": "boolean",
-                    "description": "Hides the header without unmounting its content."
                 },
                 {
                     "name": "LayoutHeader.children",
@@ -1354,11 +1227,6 @@
                     "description": "Use banner only for a site-wide header, not a nested View section."
                 },
                 {
-                    "name": "LayoutFooter.hidden",
-                    "type": "boolean",
-                    "description": "Hides the footer without unmounting its content."
-                },
-                {
                     "name": "LayoutFooter.children",
                     "type": "ReactNode"
                 },
@@ -1384,11 +1252,6 @@
                     "name": "LayoutFooter.role",
                     "type": "\"region\" | \"contentinfo\"",
                     "description": "Use contentinfo only for a site-wide footer, not a nested View section."
-                },
-                {
-                    "name": "LayoutPanel.hidden",
-                    "type": "boolean",
-                    "description": "Hides the panel without unmounting its content."
                 },
                 {
                     "name": "LayoutPanel.children",
@@ -1428,11 +1291,6 @@
             "introduction": "Navigates within the Solution or opens an external HTTP(S) URL in a new tab.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "to",
                     "type": "string",
                     "description": "The to prop."
@@ -1455,11 +1313,6 @@
             ],
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the navigation and selected content without unmounting them."
-                },
-                {
                     "name": "children",
                     "type": "ReactNode",
                     "description": "MenuSection elements defining navigation and content."
@@ -1468,11 +1321,6 @@
                     "name": "gap",
                     "type": "0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10",
                     "default": 3
-                },
-                {
-                    "name": "MenuSection.hidden",
-                    "type": "boolean",
-                    "description": "Hides the section navigation and its selected content without unmounting them."
                 },
                 {
                     "name": "MenuSection.children",
@@ -1490,11 +1338,6 @@
                     "description": "Section heading displayed in the navigation."
                 },
                 {
-                    "name": "MenuItem.hidden",
-                    "type": "boolean",
-                    "description": "Hides the navigation item and its selected content without unmounting them."
-                },
-                {
                     "name": "MenuItem.children",
                     "type": "ReactNode",
                     "description": "Content mounted beside the navigation while this item is selected."
@@ -1508,11 +1351,6 @@
                     "name": "MenuItem.label",
                     "type": "string",
                     "description": "Navigation label; its lowercase, hyphenated form identifies the item's URL fragment."
-                },
-                {
-                    "name": "MenuSubSection.hidden",
-                    "type": "boolean",
-                    "description": "Hides the group navigation and its selected content without unmounting them."
                 },
                 {
                     "name": "MenuSubSection.children",
@@ -1541,11 +1379,6 @@
                 "labeled values"
             ],
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "children",
                     "type": "ReactNode",
@@ -1580,11 +1413,6 @@
                     "default": "vertical"
                 },
                 {
-                    "name": "MetadataListItem.hidden",
-                    "type": "boolean",
-                    "description": "Hides both the label and value without unmounting them."
-                },
-                {
                     "name": "MetadataListItem.children",
                     "type": "ReactNode",
                     "description": "Value rendered beside the metadata label."
@@ -1606,11 +1434,6 @@
             "category": "Action",
             "introduction": "Opens additional actions without exposing popup geometry or presentation modes.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the trigger and closes its popup without unmounting the component."
-                },
                 {
                     "name": "items",
                     "type": "DropdownMenuOption[]",
@@ -1650,11 +1473,6 @@
                 "filter"
             ],
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -1742,11 +1560,6 @@
             "category": "Form",
             "introduction": "Edits a constrained number without wheel editing or custom value formatting.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -1849,11 +1662,6 @@
             "introduction": "Navigates pages of table or gallery items without owning their data or selection.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "page",
                     "type": "number",
                     "description": "Current page number, starting at 1."
@@ -1886,11 +1694,6 @@
             "category": "Display",
             "introduction": "Displays determinate or indeterminate progress with a semantic state.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -1956,11 +1759,6 @@
             "introduction": "Selects one of a small number of labeled values.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
-                {
                     "name": "label",
                     "type": "string",
                     "description": "Label text for the radio group (always rendered for accessibility)."
@@ -2023,11 +1821,6 @@
                     "default": "md"
                 },
                 {
-                    "name": "RadioListItem.hidden",
-                    "type": "boolean",
-                    "description": "Hides the option without unmounting or disabling it."
-                },
-                {
                     "name": "RadioListItem.label",
                     "type": "string",
                     "description": "Visible label identifying this choice."
@@ -2060,11 +1853,6 @@
                 "filter"
             ],
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -2146,11 +1934,6 @@
             "category": "Form",
             "introduction": "Edits a number or range using a standard horizontal slider.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -2244,11 +2027,6 @@
                     "description": "Stack content."
                 },
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the stack while keeping children mounted and enabled for form submission and validation."
-                },
-                {
                     "name": "width",
                     "type": "string | number",
                     "description": "Container width; numbers are pixels and strings are CSS sizes."
@@ -2320,11 +2098,6 @@
                     "default": "nowrap"
                 },
                 {
-                    "name": "StackItem.hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "StackItem.children",
                     "type": "ReactNode",
                     "description": "Content rendered inside the stack item."
@@ -2352,11 +2125,6 @@
             "introduction": "Displays the current step using standard progress indicators.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "children",
                     "type": "ReactNode",
                     "description": "Step elements to render in the stepper."
@@ -2377,11 +2145,6 @@
                     "name": "onStepClick",
                     "type": "(index: number) => void",
                     "description": "Enables step activation and receives the clicked step's zero-based index."
-                },
-                {
-                    "name": "Step.hidden",
-                    "type": "boolean",
-                    "description": "Hides the step indicator and label without changing its index."
                 },
                 {
                     "name": "Step.step",
@@ -2410,11 +2173,6 @@
             "category": "Form",
             "introduction": "Edits an on/off setting using one controlled change handler.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -2484,11 +2242,6 @@
             "guidance": "Present dense records as rows. Keep selection and query state explicit; do not wrap each row in a Card.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "data",
                     "type": "T[]",
                     "description": "Array of data items to render as rows. T must extend Record<string, unknown> (use `interface MyRow extends Record<string, unknown>` for custom types)."
@@ -2534,11 +2287,6 @@
             ],
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the tab strip and selected panel without unmounting them."
-                },
-                {
                     "name": "children",
                     "type": "ReactNode",
                     "description": "Tab elements defining labels and panel content."
@@ -2562,11 +2310,6 @@
                     "name": "value",
                     "type": "string",
                     "description": "Selected Tab value; omit for internal selection, initially choosing the first tab."
-                },
-                {
-                    "name": "Tab.hidden",
-                    "type": "boolean",
-                    "description": "Hides this tab and its selected panel without changing the selection."
                 },
                 {
                     "name": "Tab.children",
@@ -2595,11 +2338,6 @@
             "category": "Display",
             "introduction": "Displays View text with Astryx's semantic typography, alignment, wrapping, and truncation controls.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "children",
                     "type": "ReactNode",
@@ -2692,11 +2430,6 @@
             "introduction": "Edits themed multi-line text with native form serialization. Required fields cannot be blank.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
-                {
                     "name": "label",
                     "type": "string",
                     "description": "Label text for the textarea. Always rendered for accessibility."
@@ -2783,11 +2516,6 @@
             ],
             "guidance": "Use a controlled value and callback when input changes affect local query state.",
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
                 {
                     "name": "label",
                     "type": "string",
@@ -2896,11 +2624,6 @@
             "introduction": "Selects a constrained time using the standard picker.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the field while keeping it mounted and enabled for form submission and validation."
-                },
-                {
                     "name": "label",
                     "type": "string",
                     "description": "Label text for the input (required for accessibility)."
@@ -2999,11 +2722,6 @@
             "introduction": "Formats a date or timestamp using the standard date formats.",
             "properties": [
                 {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
-                {
                     "name": "value",
                     "type": "string | number",
                     "description": "The date/time to display. Accepts Unix timestamps (seconds) or ISO 8601 strings."
@@ -3027,11 +2745,6 @@
                 "state"
             ],
             "properties": [
-                {
-                    "name": "hidden",
-                    "type": "boolean",
-                    "description": "Hides the component without unmounting it."
-                },
                 {
                     "name": "label",
                     "type": "string",

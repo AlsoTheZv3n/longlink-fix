@@ -3,8 +3,6 @@ import { Token as AstryxToken } from '@astryxdesign/core/Token';
 
 /** Displays a tag, category, or selection with optional click and removal actions. */
 export function Token(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Visible text and accessible name for the token. Long labels truncate to fit. */
     label: string;
     size?: 'sm' | 'md' | 'lg';
@@ -21,8 +19,6 @@ export function Token(props: {
     // Forward only the supported metadata and actions, without unrestricted links or styling.
     return (
         <AstryxToken
-            hidden={props.hidden}
-            className={props.hidden ? 'hidden!' : undefined}
             label={props.label}
             size={props.size ?? 'md'}
             color={props.color ?? 'default'}

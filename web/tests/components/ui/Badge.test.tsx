@@ -3,11 +3,10 @@ import { it, expect } from 'vitest';
 import { renderStatic } from '../../render';
 import { Badge } from '@/components/ui/Badge';
 
-it('retains the label when hidden rather than unmounting it', () => {
+it('renders the label', () => {
     // Act
-    const output = renderStatic(<Badge label="12" hidden />);
+    const output = renderStatic(<Badge label="12" />);
 
     // Assert
     expect(output.textContent).toBe('12');
-    expect(output.querySelector('.hidden\\!')).not.toBeNull();
 });

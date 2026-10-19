@@ -3,8 +3,6 @@ import { Collapsible as AstryxCollapsible } from '@astryxdesign/core/Collapsible
 
 /** Shows or hides content using controlled or initially open state. */
 export function Collapsible(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ReactNode;
     trigger: ReactNode;
     defaultIsOpen?: boolean;
@@ -16,7 +14,6 @@ export function Collapsible(props: {
     return (
         <AstryxCollapsible
             {...props}
-            className={props.hidden ? 'hidden!' : undefined}
             defaultIsOpen={props.defaultIsOpen ?? true}
             isDisabled={props.isDisabled ?? false}
         />

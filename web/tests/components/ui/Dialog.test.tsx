@@ -4,11 +4,11 @@ import { it, expect, vi } from 'vitest';
 import { withMounted } from '../../render';
 import { Dialog } from '@/components/ui/Dialog';
 
-it('hides an open dialog without changing caller-owned state', async () => {
+it('conditionally unmounts an open dialog without changing caller-owned state', async () => {
     // Arrange
     const change = vi.fn();
 
-    /** Change only the visibility mask, leaving the caller's open state intact. */
+    /** Toggle rendering without changing the caller's open state. */
     function Probe() {
         const [hidden, setHidden] = useState(false);
 
@@ -17,16 +17,18 @@ it('hides an open dialog without changing caller-owned state', async () => {
                 <button type="button" onClick={() => setHidden(true)}>
                     Hide
                 </button>
-                <Dialog title="Edit order" isOpen hidden={hidden} onOpenChange={change}>
-                    Draft
-                </Dialog>
+                {!hidden && (
+                    <Dialog title="Edit order" isOpen onOpenChange={change}>
+                        Draft
+                    </Dialog>
+                )}
             </>
         );
     }
 
     // Act
     await withMounted(<Probe />, async (output) => {
-        // Assert the dialog can render before testing its visibility mask.
+        // Assert the dialog can render before removing it.
         expect(document.querySelector('dialog[open]')).not.toBeNull();
 
         // Hide the dialog without changing its controlled open state.
