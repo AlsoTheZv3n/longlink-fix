@@ -82,7 +82,7 @@ async def test_create_refreshes_cached_maintainer_access_before_authorizing(user
 
     # Cache the maintainer as the route dependency does before awaiting external image metadata.
     async with session_scope() as session:
-        cached_membership = await organizations.membership(session, maintainer.id, organization.id)
+        cached_membership = await organizations.require_membership(session, maintainer.id, organization.id)
         assert cached_membership is not None
         assert cached_membership.role == OrganizationRoles.maintain
 

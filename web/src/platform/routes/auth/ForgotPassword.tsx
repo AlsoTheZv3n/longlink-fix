@@ -1,5 +1,4 @@
 import { api } from '@/lib/api';
-import { useState } from 'react';
 import { TextField } from './Field';
 import { AuthLayout } from './AuthLayout';
 import { useForm } from 'react-hook-form';
@@ -14,7 +13,6 @@ import { emailPayloadSchema, type EmailPayload } from './validation';
 
 /** Requests a password reset email without disclosing whether an account exists. */
 export default function ForgotPassword() {
-    const [sent, setSent] = useState(false);
     const announce = useAnnounce();
 
     const form = useForm<EmailPayload>({
@@ -28,7 +26,7 @@ export default function ForgotPassword() {
             description="Enter your account email and LongLink will send password reset instructions."
         >
             <title>Reset Your Password | LongLink</title>
-            {sent ? (
+            {form.formState.isSubmitSuccessful ? (
                 <Stack gap={4}>
                     <Banner
                         status="success"
@@ -43,7 +41,6 @@ export default function ForgotPassword() {
                             form.handleSubmit(async (payload) => {
                                 // Show the confirmation without disclosing whether an account exists.
                                 await api('/api/v1/auth/forgot-password', { json: payload, method: 'POST' });
-                                setSent(true);
                                 announce(
                                     'If an account exists for that email, password reset instructions are on the way.'
                                 );

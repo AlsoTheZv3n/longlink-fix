@@ -324,13 +324,12 @@ def test_build_solution_generates_docker_artifacts_from_project_metadata(chdir_p
 
     monkeypatch.setattr(build, "package_version", missing_package_version)
 
-    # Validate project metadata before rendering the build artifacts.
+    # Read project metadata before rendering the build artifacts.
     pyproject_data = build.read_pyproject(chdir_project)
-    _, _, project_description = build.read_project_metadata(pyproject_data)
 
     # Act
     with chdir(chdir_project.parent):
-        build.build_solution(chdir_project, build_context, pyproject_data=pyproject_data, project_description=project_description)
+        build.build_solution(chdir_project, build_context, pyproject_data=pyproject_data)
 
     # Assert
     dockerfile = build_context.joinpath("Dockerfile").read_text(encoding="utf-8")
@@ -401,12 +400,11 @@ def test_build_solution_filters_symlinks_by_resolved_target(chdir_project: Path)
     chdir_project.joinpath("linked-database").symlink_to("dev.db")
     build_context = chdir_project.parent / "context"
 
-    # Validate project metadata before rendering the build artifacts.
+    # Read project metadata before rendering the build artifacts.
     pyproject_data = build.read_pyproject(chdir_project)
-    _, _, project_description = build.read_project_metadata(pyproject_data)
 
     # Act
-    build.build_solution(chdir_project, build_context, pyproject_data=pyproject_data, project_description=project_description)
+    build.build_solution(chdir_project, build_context, pyproject_data=pyproject_data)
 
     # Assert
     assert build_context.joinpath("linked-envs.py").readlink() == Path("src/envs.py")
@@ -547,12 +545,11 @@ def test_build_solution_filters_expanded_context(chdir_project: Path) -> None:
     chdir_project.joinpath("nested", "source.py").write_text("VALUE = 1\n", encoding="utf-8")
     build_context = chdir_project.parent / "context"
 
-    # Validate project metadata before rendering the build artifacts.
+    # Read project metadata before rendering the build artifacts.
     pyproject_data = build.read_pyproject(chdir_project)
-    _, _, project_description = build.read_project_metadata(pyproject_data)
 
     # Act
-    build.build_solution(chdir_project, build_context, pyproject_data=pyproject_data, project_description=project_description)
+    build.build_solution(chdir_project, build_context, pyproject_data=pyproject_data)
 
     # Assert
     assert not build_context.joinpath("solution", ".env").exists()
@@ -623,10 +620,9 @@ def test_build_solution_preserves_workspace_manifests_without_unrelated_sources(
     )
     context = workspace / "context"
     metadata = build.read_pyproject(build_project)
-    _, _, description = build.read_project_metadata(metadata)
 
     # Act
-    build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
+    build.build_solution(build_project, context, pyproject_data=metadata)
 
     # Assert
     dockerfile = context.joinpath("Dockerfile").read_text(encoding="utf-8")
@@ -661,12 +657,11 @@ def test_build_solution_requires_workspace_lockfile(build_project: Path) -> None
     workspace = build_project.parent
     workspace.joinpath("pyproject.toml").write_text('[tool.uv.workspace]\nmembers = ["solution"]\n', encoding="utf-8")
     metadata = build.read_pyproject(build_project)
-    _, _, description = build.read_project_metadata(metadata)
     context = workspace / "context"
 
     # Act and assert
     with pytest.raises(errors.Error, match="Lockfile not found"):
-        build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
+        build.build_solution(build_project, context, pyproject_data=metadata)
     assert not context.exists()
 
 
@@ -685,13 +680,12 @@ def test_build_solution_rechecks_lockfile_after_model_import(build_project: Path
         encoding="utf-8",
     )
     metadata = build.read_pyproject(build_project)
-    _, _, description = build.read_project_metadata(metadata)
     context = build_project.parent / "context"
     message = "inside the UV workspace" if target_kind == "outside" else "must not reference an ignored path"
 
     # Reject the changed lockfile after inspection and before the explicit metadata copy.
     with pytest.raises(errors.Error, match=message):
-        build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
+        build.build_solution(build_project, context, pyproject_data=metadata)
     assert not context.joinpath("uv.lock").exists()
 
 
@@ -716,12 +710,11 @@ def test_build_solution_rejects_unsafe_workspace_paths(build_project: Path, dire
     )
     workspace.joinpath("uv.lock").write_text("workspace lock", encoding="utf-8")
     metadata = build.read_pyproject(build_project)
-    _, _, description = build.read_project_metadata(metadata)
     context = workspace / "context"
 
     # Act and assert
     with pytest.raises(errors.Error, match=f"must not contain {message}"):
-        build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
+        build.build_solution(build_project, context, pyproject_data=metadata)
     assert not context.exists()
 
 
@@ -732,7 +725,6 @@ def test_build_solution_rejects_unsafe_metadata_symlinks(build_project: Path, fi
 
     # Arrange
     metadata = build.read_pyproject(build_project)
-    _, _, description = build.read_project_metadata(metadata)
     original = build_project / filename
     content = original.read_text(encoding="utf-8") if original.exists() else "private lockfile"
     target = build_project.parent / "outside.toml" if target_kind == "outside" else build_project / ".env"
@@ -744,7 +736,7 @@ def test_build_solution_rejects_unsafe_metadata_symlinks(build_project: Path, fi
 
     # Act and assert
     with pytest.raises(errors.Error, match=message):
-        build.build_solution(build_project, context, pyproject_data=metadata, project_description=description)
+        build.build_solution(build_project, context, pyproject_data=metadata)
     assert not context.joinpath(filename).exists()
 
 
@@ -927,8 +919,7 @@ def test_generated_manifest_layer_preserves_literal_workspace_paths(tmp_path: Pa
     # Generate the actual context and retain manifest instructions verbatim, not reconstructed arguments.
     context = tmp_path / "context"
     metadata = build.read_pyproject(solution)
-    _, _, description = build.read_project_metadata(metadata)
-    build.build_solution(solution, context, pyproject_data=metadata, project_description=description)
+    build.build_solution(solution, context, pyproject_data=metadata)
     assert not context.joinpath("unrelated", "private.txt").exists()
     assert context.joinpath("shared", "source.py").is_file()
     generated_lines = context.joinpath("Dockerfile").read_text(encoding="utf-8").splitlines()

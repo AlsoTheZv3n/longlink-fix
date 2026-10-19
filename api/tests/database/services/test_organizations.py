@@ -74,7 +74,7 @@ async def test_membership_mutation_services_revalidate_demoted_administrator_acc
     # Cache authorization in independent request sessions before concurrently demoting the administrator.
     async with session_scope() as create_invitation_session, session_scope() as revoke_invitation_session, session_scope() as role_session:
         for request_session in (create_invitation_session, revoke_invitation_session, role_session):
-            cached_membership = await organizations.membership(request_session, administrator.id, organization.id)
+            cached_membership = await organizations.require_membership(request_session, administrator.id, organization.id)
             assert cached_membership is not None
 
         async with session_scope() as concurrent_session:
