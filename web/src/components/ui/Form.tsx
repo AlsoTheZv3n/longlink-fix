@@ -24,7 +24,7 @@ export function Form(props: {
     method?: 'post' | 'put' | 'patch' | 'delete';
     /** Native form ID for associating external submit or reset buttons. */
     id?: string;
-    /** Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields. Use "100%" inside a fixed-height Dialog with padding={0} and contentWidth="100%". */
+    /** Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields, including inside a Dialog. */
     height?: number | string;
     /** Label for the automatic final submit button when using FormStep children; defaults to Save. */
     submitLabel?: string;

@@ -3,12 +3,11 @@ import { api } from '@/lib/api';
 import { useState } from 'react';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
+import { Dialog } from '@/components/ui/Dialog';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Form, FormStep } from '@/components/Form';
-import { Dialog } from '@astryxdesign/core/Dialog';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@/components/ui/TextInput';
-import { DialogClose } from '@/components/ui/DialogClose';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Owns one creation attempt, shared by the organization list and settings pages. */
@@ -64,17 +63,11 @@ export default function CreateSolution({
     // Keep the existing dialog frame and content width while sharing all wizard mechanics.
     return (
         <Dialog
-            aria-label="Create solution"
             isOpen
-            purpose="info"
-            width={960}
-            maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-            padding={0}
             onOpenChange={(open) => {
                 if (!open) onClose();
             }}
         >
-            <DialogClose onClose={onClose} />
             <Form
                 height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
                 action={createSolution}

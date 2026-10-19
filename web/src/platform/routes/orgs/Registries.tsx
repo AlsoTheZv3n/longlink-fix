@@ -5,14 +5,13 @@ import { Form } from '@/components/Form';
 import { useApiError } from '@/lib/errors';
 import { useApi } from '@/lib/hooks/use-api';
 import { Text } from '@astryxdesign/core/Text';
+import { Dialog } from '@/components/ui/Dialog';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
-import { Dialog } from '@astryxdesign/core/Dialog';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
 import { DeletionDialog } from '@/components/Deletion';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { DialogClose } from '@/components/ui/DialogClose';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
@@ -127,17 +126,11 @@ function RegistryForm({
     // Match Solution creation's 960px shell, 560px height, and 640px scrolling content column.
     return (
         <Dialog
-            aria-label="Add registry"
             isOpen
-            purpose="info"
-            width={960}
-            maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-            padding={0}
             onOpenChange={(open) => {
                 if (!open) onClose();
             }}
         >
-            <DialogClose onClose={onClose} />
             <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                 <Layout
                     padding={0}

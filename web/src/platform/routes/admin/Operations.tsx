@@ -1,6 +1,7 @@
 import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { Text } from '@astryxdesign/core/Text';
+import { Dialog } from '@/components/ui/Dialog';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { useDeferredValue, useState } from 'react';
@@ -8,7 +9,6 @@ import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@/components/ui/TextInput';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { zPageOperationResponse } from '@/lib/generated/platform-api-v1/zod.gen';
 
 const kinds = {
@@ -113,13 +113,18 @@ export default function Operations() {
             </Stack>
             {metadata && (
                 <Dialog
+                    title="Operation metadata"
                     isOpen
                     onOpenChange={(open) => {
                         if (!open) setMetadataId(null);
                     }}
                 >
-                    <DialogHeader title="Operation metadata" onOpenChange={() => setMetadataId(null)} />
-                    <Stack gap={2}>
+                    <Stack
+                        gap={2}
+                        height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
+                        padding={8}
+                        className="overflow-auto"
+                    >
                         <Text>
                             <b>Operation</b> {metadata.kind}
                         </Text>

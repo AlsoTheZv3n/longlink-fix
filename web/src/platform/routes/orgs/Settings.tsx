@@ -9,6 +9,7 @@ import { useApi } from '@/lib/hooks/use-api';
 import PaymentMethods from './PaymentMethods';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
+import { Dialog } from '@/components/ui/Dialog';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { Divider } from '@astryxdesign/core/Divider';
@@ -19,14 +20,13 @@ import { DeletionDialog } from '@/components/Deletion';
 import { MoreMenu } from '@astryxdesign/core/MoreMenu';
 import { Selector } from '@astryxdesign/core/Selector';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { DialogClose } from '@/components/ui/DialogClose';
 import { SideNavItem } from '@/components/ui/SideNavItem';
 import { useLocation, useOutletContext } from 'react-router';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 import { SideNav, SideNavSection } from '@astryxdesign/core/SideNav';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
+import { Dialog as AstryxDialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { ArrowUp, Boxes, Building2, CheckCheck, CreditCard, EyeOff, Users, Wrench } from 'lucide-react';
 
 const organizationSections = [
@@ -319,7 +319,7 @@ function MembersSection({ base, canAdminister }: { base: string; canAdminister: 
                 />
             </Stack>
             {member && (
-                <Dialog
+                <AstryxDialog
                     isOpen
                     purpose="form"
                     onOpenChange={(open) => {
@@ -358,7 +358,7 @@ function MembersSection({ base, canAdminister }: { base: string; canAdminister: 
                             />
                         </Stack>
                     </Stack>
-                </Dialog>
+                </AstryxDialog>
             )}
         </>
     );
@@ -447,16 +447,7 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
                 />
             </Stack>
             {/* Match organization creation with a centered form and a desktop-only illustration. */}
-            <Dialog
-                aria-label="Invite user"
-                isOpen={inviting}
-                purpose="info"
-                onOpenChange={setInviting}
-                width={960}
-                maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-                padding={0}
-            >
-                <DialogClose onClose={() => setInviting(false)} />
+            <Dialog isOpen={inviting} onOpenChange={setInviting}>
                 <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                     <Layout
                         padding={0}

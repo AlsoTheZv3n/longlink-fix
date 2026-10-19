@@ -11,7 +11,7 @@ export default function FormPage() {
         <ViewLayout
             name="Form"
             introduction={
-                'Form submits named fields to a Solution API without draft state, imports, or page navigation. Form validation runs before the request; Python schemas remain authoritative. Set height on a multi-step Form to pin progress above centered, independently scrollable fields. Inside a fixed-height Dialog, use Form height="100%", Dialog padding={0}, and Dialog contentWidth="100%" so the Form owns the layout.'
+                'Form submits named fields to a Solution API without draft state, imports, or page navigation. Form validation runs before the request; Python schemas remain authoritative. Set height on a multi-step Form to pin progress above centered, independently scrollable fields. Inside a Dialog, the Form owns its height and layout without additional dialog configuration.'
             }
             examples={[
                 {

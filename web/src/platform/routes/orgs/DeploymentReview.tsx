@@ -1,14 +1,13 @@
 import { api } from '@/lib/api';
 import { useState } from 'react';
 import { Text } from '@astryxdesign/core/Text';
+import { Dialog } from '@/components/ui/Dialog';
 import { useQuery } from '@tanstack/react-query';
 import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
-import { Dialog } from '@astryxdesign/core/Dialog';
 import { Heading } from '@astryxdesign/core/Heading';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { DialogClose } from '@/components/ui/DialogClose';
 import { Stack, StackItem } from '@astryxdesign/core/Stack';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
@@ -90,17 +89,11 @@ export default function DeploymentReview({ update, onSuccess, onClose }: Deploym
     // Share wizard navigation while retaining revision fencing and configured-secret semantics.
     return (
         <Dialog
-            aria-label={`Update ${update.item.name}`}
             isOpen
-            purpose="form"
-            width={960}
-            maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-            padding={0}
             onOpenChange={(open) => {
                 if (!open) onClose();
             }}
         >
-            <DialogClose onClose={onClose} />
             {!candidate ? (
                 <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                     <Layout

@@ -5,9 +5,9 @@ import { useApi } from '@/lib/hooks/use-api';
 import CreateSolution from './CreateSolution';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
+import { Dialog } from '@/components/ui/Dialog';
 import { OpenAI } from '@/components/svg/OpenAI';
 import { Button } from '@astryxdesign/core/Button';
-import { Dialog } from '@astryxdesign/core/Dialog';
 import { useToast } from '@astryxdesign/core/Toast';
 import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
@@ -15,7 +15,6 @@ import { ApiBoundary } from '@/components/ApiBoundary';
 import { DeletionDialog } from '@/components/Deletion';
 import { MoreMenu } from '@astryxdesign/core/MoreMenu';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
-import { DialogClose } from '@/components/ui/DialogClose';
 import { Stack, StackItem } from '@astryxdesign/core/Stack';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import DeploymentReview, { type Update } from './DeploymentReview';
@@ -292,17 +291,11 @@ export default function SolutionManagement({
             )}
             {selected?.kind === 'logs' && (
                 <Dialog
-                    aria-label="Pod logs"
                     isOpen
-                    purpose="info"
-                    width={960}
-                    maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-                    padding={0}
                     onOpenChange={(open) => {
                         if (!open) closeSelected();
                     }}
                 >
-                    <DialogClose onClose={closeSelected} />
                     <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))" paddingInline={8} paddingBlock={4}>
                         <ApiBoundary key={selected.id}>
                             <SolutionLogs solutionId={selected.id} onClose={closeSelected} />
@@ -313,17 +306,11 @@ export default function SolutionManagement({
             {/* Offer direct MCP connection details and the selected Solution's credential-free package. */}
             {selected?.kind === 'mcp' && (
                 <Dialog
-                    aria-label="Model Context Protocol"
                     isOpen
-                    purpose="info"
-                    width={960}
-                    maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-                    padding={0}
                     onOpenChange={(open) => {
                         if (!open) closeSelected();
                     }}
                 >
-                    <DialogClose onClose={closeSelected} />
                     <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                         <Layout
                             padding={0}

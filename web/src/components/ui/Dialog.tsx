@@ -1,76 +1,38 @@
 import type { Spacing } from './types';
 import type { ReactNode } from 'react';
-import { Text } from '@astryxdesign/core/Text';
+import { DialogClose } from './DialogClose';
 import { Stack } from '@astryxdesign/core/Stack';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
-import { Layout, LayoutContent } from '@astryxdesign/core/Layout';
 import { Dialog as AstryxDialog } from '@astryxdesign/core/Dialog';
 
-/** Displays an accessible modal with an explicit purpose and controlled visibility. */
+/** Displays an accessible modal that closes with Escape or its close button, not backdrop clicks. */
 export function Dialog(props: {
     /** Hides the modal without unmounting its fields or changing the caller's open state. */
     hidden?: boolean;
     children?: ReactNode;
-    'aria-label': string;
-    /** Shows the accessible dialog name as a visible header title; defaults to true. */
-    showTitle?: boolean;
+    /** Shows a dialog header when a title is provided. */
+    title?: string;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    purpose?: 'form' | 'info' | 'required';
-    /** Preferred dialog width, clamped to the viewport, matching Platform dialogs. */
-    width?: number | string;
-    /** Frame height, limited by the viewport. Short content is vertically centered while longer content scrolls. */
-    height?: number | string;
-    /** Maximum dialog height within the View viewport. */
-    maxHeight?: number | string;
-    /** Content inset using the shared spacing scale. */
-    padding?: Spacing;
-    /** Maximum width of the centered content column. */
-    contentWidth?: number | string;
+    /** Spacing between the title and content; defaults to 3. */
+    gap?: Spacing;
 }) {
-    // Keep modal content inside a scroll region bounded by the View's viewport.
+    // Share the Platform frame while letting content own its layout and scrolling.
     return (
         <AstryxDialog
-            aria-label={props['aria-label']}
             hidden={props.hidden}
             className={props.hidden ? 'hidden!' : undefined}
             isOpen={props.isOpen && !props.hidden}
             onOpenChange={props.onOpenChange}
-            purpose={props.purpose ?? 'info'}
-            width={props.width ?? 960}
-            maxHeight={props.maxHeight ?? 'calc(100dvh - var(--spacing-10) * 4)'}
+            purpose="form"
+            width={960}
+            maxHeight="calc(100dvh - var(--spacing-10) * 4)"
             padding={0}
         >
-            <Stack gap={0} height={props.height ?? 'min(560px, calc(100dvh - var(--spacing-10) * 4))'}>
-                <Layout
-                    height="fill"
-                    padding={4}
-                    header={
-                        <DialogHeader
-                            title={
-                                props.showTitle === false ? (
-                                    <Text className="sr-only">{props['aria-label']}</Text>
-                                ) : (
-                                    props['aria-label']
-                                )
-                            }
-                            onOpenChange={props.onOpenChange}
-                        />
-                    }
-                >
-                    <LayoutContent padding={props.padding ?? 4}>
-                        {/* Resolve full-height forms and keep oversized content scrollable from its top. */}
-                        <Stack
-                            gap={0}
-                            height="100%"
-                            width="100%"
-                            maxWidth={props.contentWidth}
-                            className="mx-auto justify-center-safe [&>*]:shrink-0"
-                        >
-                            {props.children}
-                        </Stack>
-                    </LayoutContent>
-                </Layout>
+            <DialogClose onClose={() => props.onOpenChange(false)} />
+            <Stack gap={props.gap ?? 3} minHeight={0}>
+                {props.title && <DialogHeader title={props.title} className="p-8 pe-16" />}
+                {props.children}
             </Stack>
         </AstryxDialog>
     );
