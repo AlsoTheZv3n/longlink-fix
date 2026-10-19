@@ -38,8 +38,6 @@ function activateLink(event: MouseEvent<HTMLElement>) {
 }
 
 type CardProps = {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Content rendered inside the card. */
     children?: ReactNode;
     /** Inner spacing using the theme spacing scale. */
@@ -108,7 +106,7 @@ export function Card({
         return (
             <SelectableCard
                 {...props}
-                className={props.hidden ? 'hidden!' : isClipped ? 'overflow-hidden' : undefined}
+                className={isClipped ? 'overflow-hidden' : undefined}
                 padding={padding}
                 variant={variant}
                 label={label}
@@ -125,7 +123,7 @@ export function Card({
             <LinkProvider component={NavigationLink}>
                 <ClickableCard
                     {...props}
-                    className={props.hidden ? 'hidden!' : isClipped ? 'overflow-hidden' : undefined}
+                    className={isClipped ? 'overflow-hidden' : undefined}
                     padding={padding}
                     variant={variant}
                     label={label}
@@ -163,7 +161,7 @@ export function Card({
     return (
         <AstryxCard
             {...props}
-            className={props.hidden ? 'hidden!' : isClipped ? 'overflow-hidden' : undefined}
+            className={isClipped ? 'overflow-hidden' : undefined}
             padding={padding}
             variant={variant}
         />

@@ -7,6 +7,12 @@ import {
     ArrowUpDown,
     BookOpen,
     Building2,
+    Calendar,
+    CheckSquare,
+    ChevronDown,
+    Circle,
+    Clock,
+    Columns3,
     CreditCard,
     Database,
     FileCode2,
@@ -14,15 +20,21 @@ import {
     FlaskConical,
     Gem,
     Globe,
+    Grip,
     HardDrive,
     Image,
+    Layers,
+    List,
+    Menu,
     MessageSquare,
     Package,
+    PanelTop,
     Plug,
     Rocket,
     Settings2,
     ShieldCheck,
     Users,
+    Type,
     Waypoints,
     Wrench,
     type LucideIcon,
@@ -32,6 +44,7 @@ type DocumentationPage = {
     path: string;
     label: string;
     icon: LucideIcon;
+    children?: Array<{ path: string; label: string; icon: LucideIcon }>;
 };
 
 // Keep branding routes, navigation, and publication in their established reading order.
@@ -123,6 +136,55 @@ export const componentDocumentation = componentCatalog
                       .toLowerCase(),
     }));
 
+const componentIcons = new Map<string, LucideIcon>(
+    Object.entries({
+        Avatar: Users,
+        Badge: Circle,
+        Button: PanelTop,
+        Card: PanelTop,
+        CheckboxInput: CheckSquare,
+        Collapsible: ChevronDown,
+        Currency: CreditCard,
+        DateInput: Calendar,
+        Dialog: AppWindow,
+        Divider: Columns3,
+        DropdownMenu: ChevronDown,
+        EmptyState: Package,
+        FileInput: FileCode2,
+        FileViewer: FileText,
+        Form: FileText,
+        FormStep: Waypoints,
+        Grid: Grip,
+        Heading: Type,
+        Icon: Gem,
+        IconButton: Circle,
+        Image,
+        Layout: AppWindow,
+        Link: Globe,
+        Menu,
+        MetadataList: List,
+        MoreMenu: Menu,
+        MultiSelector: CheckSquare,
+        NumberInput: ArrowUpDown,
+        Pagination: BookOpen,
+        ProgressBar: Layers,
+        RadioList: List,
+        Selector: ChevronDown,
+        Slider: Settings2,
+        Stack: Layers,
+        Stepper: Waypoints,
+        Switch: Settings2,
+        Table: Columns3,
+        Tabs: PanelTop,
+        Text: Type,
+        TextArea: FileText,
+        TextInput: Type,
+        TimeInput: Clock,
+        Timestamp: Calendar,
+        Token: Gem,
+    })
+);
+
 export const documentationSections: Array<{ title: string; pages: Array<DocumentationPage> }> = [
     {
         title: 'Introduction',
@@ -136,10 +198,33 @@ export const documentationSections: Array<{ title: string; pages: Array<Document
             { path: '/docs/sdk/routes', label: 'Routes', icon: Waypoints },
             { path: '/docs/sdk/storage', label: 'Storage', icon: HardDrive },
             { path: '/docs/sdk/database', label: 'Database', icon: Database },
-            { path: '/docs/sdk/views', label: 'Views', icon: FileCode2 },
             { path: '/docs/sdk/testing', label: 'Testing', icon: FlaskConical },
             { path: '/docs/sdk/building', label: 'Building', icon: Rocket },
         ],
+    },
+    {
+        title: 'Views',
+        pages: [
+            { label: 'Introduction', category: 'Runtime', anchor: '', icon: BookOpen },
+            { label: 'Layout', category: 'Layouts', anchor: '#layouts', icon: FileCode2 },
+            { label: 'Action', category: 'Action', anchor: '#action', icon: Waypoints },
+            { label: 'Display', category: 'Display', anchor: '#display', icon: Image },
+            { label: 'Form', category: 'Form', anchor: '#form', icon: FileText },
+        ].map(({ label, category, anchor, icon }) => ({
+            path: `/docs/sdk/views${anchor}`,
+            label,
+            icon,
+            children:
+                category === 'Runtime'
+                    ? undefined
+                    : componentDocumentation
+                          .filter((component) => component.category === category)
+                          .map((component) => ({
+                              path: `/docs/sdk/views/${component.slug}`,
+                              label: component.label,
+                              icon: componentIcons.get(component.name) ?? FileCode2,
+                          })),
+        })),
     },
     {
         title: 'Platform',
@@ -167,8 +252,8 @@ const viewDocumentationPaths = [
     ),
 ];
 
-export const documentationPaths = documentationSections.flatMap(({ pages }) =>
-    pages.flatMap(({ path }) => (path === '/docs/sdk/views' ? viewDocumentationPaths : path))
+export const documentationPaths = documentationSections.flatMap(({ title, pages }) =>
+    title === 'Views' ? viewDocumentationPaths : pages.map(({ path }) => path)
 );
 
 export default [

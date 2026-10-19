@@ -9,7 +9,7 @@ import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav
 
 /** Renders documentation with section navigation, article, and outline columns. */
 export default function Documentation() {
-    const { pathname } = useLocation();
+    const { pathname, hash } = useLocation();
     const pagePath = pathname.replace(/\/+$/, '') || '/';
 
     const activeSection =
@@ -20,7 +20,10 @@ export default function Documentation() {
               : 'Solutions';
 
     const sections = documentationSections.filter(
-        (section) => section.title === 'Introduction' || section.title === activeSection
+        (section) =>
+            section.title === 'Introduction' ||
+            section.title === activeSection ||
+            (activeSection === 'Solutions' && section.title === 'Views')
     );
 
     return (
@@ -37,7 +40,7 @@ export default function Documentation() {
             />
             <Stack className="mx-auto flex-1" maxWidth={1320} width="100%">
                 <AppShell
-                    className="min-h-0! [&_:has(>.astryx-app-shell-sidenav)]:h-fit! [&_:has(>.astryx-app-shell-sidenav)]:max-h-dvh"
+                    className="min-h-0!"
                     height="auto"
                     mobileNav={{ breakpoint: 'lg' }}
                     variant="wash"
@@ -49,11 +52,28 @@ export default function Documentation() {
                                         {section.pages.map((page) => (
                                             <SideNavItem
                                                 key={page.path}
-                                                href={`${page.path}/`}
-                                                icon={<page.icon aria-hidden size={16} />}
-                                                isSelected={pagePath === page.path}
+                                                href={page.children?.length ? undefined : `${page.path}/`}
+                                                icon={
+                                                    page.children?.length ? undefined : (
+                                                        <page.icon aria-hidden size={16} />
+                                                    )
+                                                }
+                                                isSelected={`${pagePath}${hash}` === page.path}
                                                 label={page.label}
-                                            />
+                                                collapsible={
+                                                    page.children?.length ? { defaultIsCollapsed: true } : false
+                                                }
+                                            >
+                                                {page.children?.map((child) => (
+                                                    <SideNavItem
+                                                        key={child.path}
+                                                        href={`${child.path}/`}
+                                                        icon={<child.icon aria-hidden size={16} />}
+                                                        isSelected={pagePath === child.path}
+                                                        label={child.label}
+                                                    />
+                                                ))}
+                                            </SideNavItem>
                                         ))}
                                     </SideNavSection>
                                 ))}

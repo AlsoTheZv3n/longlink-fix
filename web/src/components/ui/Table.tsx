@@ -4,8 +4,6 @@ import { Table as AstryxTable, type ColumnWidth } from '@astryxdesign/core/Table
 export { proportional, pixel } from '@astryxdesign/core/Table';
 
 type TableProps<T extends Record<string, unknown>> = {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     data: T[];
     idKey?: (keyof T & string) | ((row: T) => string | number);
     density?: 'compact' | 'balanced' | 'spacious';
@@ -26,7 +24,6 @@ export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
     return (
         <AstryxTable
             {...props}
-            className={props.hidden ? 'hidden!' : undefined}
             density={props.density ?? 'balanced'}
             hasHover={props.hasHover ?? false}
             isStriped={props.isStriped ?? false}

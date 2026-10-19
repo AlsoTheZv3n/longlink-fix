@@ -20,7 +20,6 @@ export function Switch(
         <AstryxSwitch
             {...control}
             {...field}
-            className={props.hidden ? 'hidden!' : undefined}
             htmlName={props.name}
             size={props.size ?? 'md'}
             isLabelHidden={false}

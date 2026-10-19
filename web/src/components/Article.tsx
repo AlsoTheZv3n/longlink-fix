@@ -136,7 +136,7 @@ function ArticleRenderer({
                                     className={`space-y-7 [&_:is(h2,h3,h4,h5,h6)]:[margin-block-start:var(--article-heading-spacing,var(--spacing-8))] [&_p]:opacity-90${className ? ` ${className}` : ''}`}
                                 >
                                     {children}
-                                    <Stack as="footer" gap={3} paddingBlockStart={8}>
+                                    <Stack as="footer" className="pb-30" gap={3} paddingBlockStart={8}>
                                         <ArticleFooter
                                             lastUpdated={article.lastUpdated}
                                             editUrl={article.editUrl}

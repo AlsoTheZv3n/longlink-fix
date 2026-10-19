@@ -15,8 +15,6 @@ export { FormStep };
 
 /** Owns validation, navigation, pending state, and errors for native and Solution forms. */
 export function Form(props: {
-    /** Hides the form while keeping its fields mounted and enabled for submission and validation. */
-    hidden?: boolean;
     /** Named controls and layout, or direct FormStep children for automatic navigation. Next validates the current step and shared fields; final submission validates all steps and reveals the first invalid field. Inactive fields remain mounted and enabled. */
     children?: ReactNode;
     /** Performs the final write after validating and collecting all enabled fields. */
@@ -188,13 +186,14 @@ export function Form(props: {
                 <Stack direction="horizontal" justify="between" align="center" gap={2}>
                     <Stack direction="horizontal" gap={2}>
                         {props.onCancel && <Button label="Cancel" variant="ghost" onClick={props.onCancel} />}
-                        <Button
-                            label="Back"
-                            variant={props.backVariant ?? 'secondary'}
-                            hidden={Boolean(props.onCancel) && activeStep === 0}
-                            disabled={activeStep === 0}
-                            onClick={() => setStep(activeStep - 1)}
-                        />
+                        {(!props.onCancel || activeStep > 0) && (
+                            <Button
+                                label="Back"
+                                variant={props.backVariant ?? 'secondary'}
+                                disabled={activeStep === 0}
+                                onClick={() => setStep(activeStep - 1)}
+                            />
+                        )}
                     </Stack>
                     <Button
                         label={
@@ -214,9 +213,8 @@ export function Form(props: {
 
     // Use a real form so Enter, reset buttons, and browser constraint validation stay native.
     return (
-        <Stack height={props.height} gap={0} hidden={props.hidden} className={props.hidden ? 'hidden!' : undefined}>
+        <Stack height={props.height} gap={0}>
             <form
-                hidden={props.hidden}
                 className={props.height === undefined ? undefined : 'h-full'}
                 id={props.id}
                 method="post"

@@ -11,8 +11,6 @@ import {
 } from '@astryxdesign/core/SideNav';
 
 type MenuSectionProps = {
-    /** Hides the section navigation and its selected content without unmounting them. */
-    hidden?: boolean;
     /** MenuItem elements or nested MenuSubSection groups. */
     children?: ReactNode;
     /** Hides the section heading; visible by default. */
@@ -22,8 +20,6 @@ type MenuSectionProps = {
 };
 
 type MenuItemProps = {
-    /** Hides the navigation item and its selected content without unmounting them. */
-    hidden?: boolean;
     /** Content mounted beside the navigation while this item is selected. */
     children?: ReactNode;
     /** Optional LongLink icon name displayed beside the label. */
@@ -57,10 +53,7 @@ function isMenuItem(child: ReactNode): child is ReactElement<MenuItemProps> {
 export function Menu({
     children,
     gap = 3,
-    hidden,
 }: {
-    /** Hides the navigation and selected content without unmounting them. */
-    hidden?: boolean;
     /** MenuSection elements defining navigation and content. */
     children?: ReactNode;
     gap?: Spacing;
@@ -94,22 +87,13 @@ export function Menu({
             }),
         }));
 
-    // Carry inherited visibility with each selectable item instead of rediscovering its ancestry.
-    const items = sections.flatMap(({ section, entries }) =>
-        entries.flatMap((entry) =>
-            entry.kind === 'subsection'
-                ? entry.items.map((item) => ({
-                      item,
-                      hidden: item.props.hidden || section.props.hidden || entry.group.props.hidden,
-                  }))
-                : [{ item: entry.item, hidden: entry.item.props.hidden || section.props.hidden }]
-        )
+    // Resolve selectable items in navigation order.
+    const items = sections.flatMap(({ entries }) =>
+        entries.flatMap((entry) => (entry.kind === 'subsection' ? entry.items : [entry.item]))
     );
 
-    // Resolve the selected item together with its inherited visibility, preserving first-item fallback.
-    const active = items.find(({ item }) => `#${menuItemId(item)}` === hash) ?? items[0];
-    const activeItem = active?.item;
-    const activeContentHidden = Boolean(active?.hidden);
+    // Preserve first-item fallback when no item matches the current fragment.
+    const activeItem = items.find((item) => `#${menuItemId(item)}` === hash) ?? items[0];
 
     /** Renders direct and nested items with the same navigation and selection behavior. */
     function renderItem(item: ReactElement<MenuItemProps>) {
@@ -118,8 +102,6 @@ export function Menu({
         // Preserve normal link semantics while routing ordinary clicks through the runtime API.
         return (
             <AstryxSideNavItem
-                hidden={item.props.hidden}
-                className={item.props.hidden ? 'hidden!' : undefined}
                 href={`#${id}`}
                 icon={item.props.icon ? <Icon icon={item.props.icon} size="sm" /> : undefined}
                 isSelected={item === activeItem}
@@ -158,8 +140,7 @@ export function Menu({
                     <AstryxSideNavSection
                         title={section.props.title}
                         isHeaderHidden={section.props.isHeaderHidden}
-                        hidden={section.props.hidden}
-                        className={section.props.hidden ? 'pt-0 hidden!' : 'pt-0'}
+                        className="pt-0"
                         key={section.props.title}
                     >
                         {entries.map((entry) => {
@@ -168,8 +149,6 @@ export function Menu({
 
                                 return (
                                     <AstryxSideNavItem
-                                        hidden={entry.group.props.hidden}
-                                        className={entry.group.props.hidden ? 'hidden!' : undefined}
                                         collapsible={{ defaultIsCollapsed: true }}
                                         icon={icon ? <Icon icon={icon} size="sm" /> : undefined}
                                         key={label}
@@ -191,16 +170,12 @@ export function Menu({
     // Keep the content in the same slot so resizing does not reset its local draft state.
     return (
         <Layout
-            hidden={hidden}
-            className={hidden ? 'hidden!' : undefined}
             height="auto"
             padding={0}
             header={narrow ? navigationPanel : undefined}
             start={narrow ? undefined : navigationPanel}
         >
-            <Stack gap={gap} hidden={activeContentHidden} className={activeContentHidden ? 'hidden!' : undefined}>
-                {activeItem?.props.children}
-            </Stack>
+            <Stack gap={gap}>{activeItem?.props.children}</Stack>
         </Layout>
     );
 }
@@ -217,8 +192,6 @@ export function MenuItem(_props: MenuItemProps) {
 
 /** Defines a collapsible group of MenuItems. */
 export function MenuSubSection(_props: {
-    /** Hides the group navigation and its selected content without unmounting them. */
-    hidden?: boolean;
     /** MenuItem elements nested inside this collapsible group. */
     children?: ReactNode;
     /** Optional LongLink icon name displayed beside the group label. */

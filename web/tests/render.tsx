@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { expect, it } from 'vitest';
+import * as icons from '@/lib/icons';
 import { MemoryRouter } from 'react-router';
 import { createRoot } from 'react-dom/client';
 import { Theme } from '@astryxdesign/core/theme';
@@ -7,6 +8,7 @@ import { stoneTheme } from '@/lib/generated/stone.js';
 import type { ComponentType, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LayerProvider } from '@astryxdesign/core/Layer';
+import { IconRequestContext } from '@/components/ui/Icon';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 /** Renders a component through real theme, routing, and query providers without browser automation. */
@@ -44,7 +46,12 @@ export function renderStatic(
 export function documentationPage(Page: ComponentType, heading: string, path: string) {
     it('publishes its documented heading within an article', () => {
         // Act
-        const output = renderStatic(<Page />, `${path}?tab=properties`);
+        const output = renderStatic(
+            <IconRequestContext value={icons.load}>
+                <Page />
+            </IconRequestContext>,
+            path
+        );
 
         // Assert
         expect(output.querySelector('article h1')?.textContent).toBe(heading);

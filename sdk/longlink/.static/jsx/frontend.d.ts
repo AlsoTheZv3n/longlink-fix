@@ -4455,8 +4455,6 @@ type StoneIconName =
 
 /** @category Layouts @group Card */
 type CardProps = {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Content rendered inside the card. */
     children?: ViewNode;
     /** Inner spacing using the theme spacing scale. */
@@ -4508,8 +4506,6 @@ type CardProps = {
 
 /** @category Action @group Button */
 type ButtonProps = {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Visible button text and accessible label. */
     label: string;
     variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
@@ -4545,8 +4541,6 @@ type DateInputProps = FieldProps & {
 
 /** Shared props for form controls. */
 type FieldProps = {
-    /** Hides the field while keeping it mounted and enabled for form submission and validation. */
-    hidden?: boolean;
     label: string;
     description?: string;
     /** Includes the themed control's value under this form submission name. */
@@ -4560,8 +4554,6 @@ type FieldProps = {
 
 /** @category Layouts */
 declare function Layout(props: {
-    /** Hides the layout without unmounting its content. */
-    hidden?: boolean;
     /** Main content; shorthand for the content slot. */
     children?: ViewNode;
     content?: ViewNode;
@@ -4581,8 +4573,6 @@ declare function Layout(props: {
 
 /** @category Layouts @group Layout */
 declare function LayoutContent(props: {
-    /** Hides the region without unmounting its content. */
-    hidden?: boolean;
     children?: ViewNode;
     padding?: Spacing;
     /** Enables independent scrolling; defaults to true. */
@@ -4594,8 +4584,6 @@ declare function LayoutContent(props: {
 
 /** @category Layouts @group Layout */
 declare function LayoutHeader(props: {
-    /** Hides the header without unmounting its content. */
-    hidden?: boolean;
     children?: ViewNode;
     /** Overrides the surrounding layout's divider default when provided. */
     hasDivider?: boolean;
@@ -4610,8 +4598,6 @@ declare function LayoutHeader(props: {
 
 /** @category Layouts @group Layout */
 declare function LayoutFooter(props: {
-    /** Hides the footer without unmounting its content. */
-    hidden?: boolean;
     children?: ViewNode;
     /** Overrides the surrounding layout's divider default when provided. */
     hasDivider?: boolean;
@@ -4625,8 +4611,6 @@ declare function LayoutFooter(props: {
 
 /** @category Layouts @group Layout */
 declare function LayoutPanel(props: {
-    /** Hides the panel without unmounting its content. */
-    hidden?: boolean;
     children?: ViewNode;
     hasDivider?: boolean;
     padding?: Spacing;
@@ -4641,8 +4625,6 @@ declare function LayoutPanel(props: {
 /** @category Layouts */
 declare function Stack(props: {
     children?: ViewNode;
-    /** Hides the stack while keeping children mounted and enabled for form submission and validation. */
-    hidden?: boolean;
     /** Container width; numbers are pixels and strings are CSS sizes. */
     width?: number | string;
     /** Container height; numbers are pixels and strings are CSS sizes. */
@@ -4668,8 +4650,6 @@ declare function Stack(props: {
 
 /** @category Layouts @group Stack */
 declare function StackItem(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Content rendered inside the stack item. */
     children?: ViewNode;
     size?: 'static' | 'fill';
@@ -4680,8 +4660,6 @@ declare function StackItem(props: {
 
 /** @category Layouts */
 declare function Grid(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ViewNode;
     /** Fixed columns or responsive tracks with a minimum width in pixels and optional column cap. Use one-column or full spans with responsive tracks. */
     columns?: number | { minWidth: number; max?: number; repeat?: 'fill' | 'fit' };
@@ -4700,8 +4678,6 @@ declare function Grid(props: {
 
 /** @category Layouts @group Grid */
 declare function GridSpan(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Content rendered inside the grid item. */
     children?: ViewNode;
     /** Number of columns to occupy, or full to span the entire grid. */
@@ -4710,8 +4686,6 @@ declare function GridSpan(props: {
 
 /** @category Layouts */
 declare function Collapsible(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ViewNode;
     trigger: ViewNode;
     defaultIsOpen?: boolean;
@@ -4721,17 +4695,10 @@ declare function Collapsible(props: {
 }): React.JSX.Element;
 
 /** @category Display */
-declare function Heading(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
-    children?: ViewNode;
-    level?: 1 | 2 | 3 | 4 | 5 | 6;
-}): React.JSX.Element;
+declare function Heading(props: { children?: ViewNode; level?: 1 | 2 | 3 | 4 | 5 | 6 }): React.JSX.Element;
 
 /** @category Display */
 declare function Text(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ViewNode;
     color?: 'primary' | 'secondary' | 'disabled' | 'placeholder' | 'accent' | 'inherit';
     type?: 'body' | 'large' | 'label' | 'supporting' | 'code' | 'display-1' | 'display-2' | 'display-3' | 'inherit';
@@ -4754,8 +4721,6 @@ declare function Avatar(
     props: {
         shape?: undefined | 'circle' | 'rounded' | 'square';
     } & {
-        /** Hides the component without unmounting it. */
-        hidden?: boolean;
         name?: string;
         /** Stable identity for generated avatars, independent of the display name. */
         seed?: string;
@@ -4769,8 +4734,6 @@ declare function Avatar(
 
 /** @category Display */
 declare function Image(props: {
-    /** Hides the image without unmounting it. */
-    hidden?: boolean;
     /** Scoped Solution image path, or an image data/blob URL. */
     src: string;
     /** Accessible description of the photo. */
@@ -4779,8 +4742,6 @@ declare function Image(props: {
 
 /** @category Display */
 declare function Badge(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     label?: ViewNode;
     icon?: StoneIconName;
     variant?:
@@ -4802,8 +4763,6 @@ declare function Badge(props: {
 
 /** @category Display */
 declare function Token(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Visible text and accessible name for the token. Long labels truncate to fit. */
     label: string;
     size?: 'sm' | 'md' | 'lg';
@@ -4826,8 +4785,6 @@ declare function Button(props: ButtonProps): React.JSX.Element;
 
 /** @category Action */
 declare function ButtonGroup(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ViewNode;
     label: string;
     orientation?: 'horizontal' | 'vertical';
@@ -4837,8 +4794,6 @@ declare function ButtonGroup(props: {
 
 /** @category Action */
 declare function DropdownMenu(props: {
-    /** Hides the trigger and closes its popup without unmounting the component. */
-    hidden?: boolean;
     button?: {
         label: string;
         variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
@@ -4852,8 +4807,6 @@ declare function DropdownMenu(props: {
 
 /** @category Action */
 declare function IconButton(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     label: string;
     icon: StoneIconName;
     variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
@@ -4865,8 +4818,6 @@ declare function IconButton(props: {
 
 /** @category Display */
 declare function Divider(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     label?: ViewNode;
     variant?: 'subtle' | 'strong';
     orientation?: 'horizontal' | 'vertical';
@@ -4875,8 +4826,6 @@ declare function Divider(props: {
 
 /** @category Layouts */
 declare function Dialog(props: {
-    /** Hides the modal without unmounting its fields or changing the caller's open state. */
-    hidden?: boolean;
     children?: ViewNode;
     /** Shows a dialog header when a title is provided. */
     title?: string;
@@ -4888,8 +4837,6 @@ declare function Dialog(props: {
 
 /** Submits named themed fields and ordinary HTML inputs to a Solution API endpoint. @category Form */
 declare function Form(props: {
-    /** Hides the form while keeping its fields mounted and enabled for submission and validation. */
-    hidden?: boolean;
     /** Named controls and layout, or direct FormStep children for automatic navigation. Next validates the current step and shared fields; final submission validates all steps and reveals the first invalid field. Inactive fields remain mounted and enabled. */
     children?: ViewNode;
     /** Solution-relative API path; external URLs are not supported. */
@@ -5088,8 +5035,6 @@ declare function RadioList(
 
 /** @category Form @group RadioList */
 declare function RadioListItem(props: {
-    /** Hides the option without unmounting or disabling it. */
-    hidden?: boolean;
     /** Visible label identifying this choice. */
     label: string;
     /** Value passed to the surrounding RadioList when selected. */
@@ -5101,8 +5046,6 @@ declare function RadioListItem(props: {
 
 /** @category Display */
 declare function MetadataList(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ViewNode;
     columns?: 'multi' | 'single' | number;
     title?: ViewNode;
@@ -5113,8 +5056,6 @@ declare function MetadataList(props: {
 
 /** @category Display @group MetadataList */
 declare function MetadataListItem(props: {
-    /** Hides both the label and value without unmounting them. */
-    hidden?: boolean;
     /** Value rendered beside the metadata label. */
     children?: ViewNode;
     /** Label identifying the metadata value. */
@@ -5125,8 +5066,6 @@ declare function MetadataListItem(props: {
 
 /** @category Display */
 declare function Table<T extends Record<string, unknown>>(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     data: T[];
     idKey?: (keyof T & string) | ((row: T) => string | number);
     density?: 'compact' | 'balanced' | 'spacious';
@@ -5143,8 +5082,6 @@ declare function Table<T extends Record<string, unknown>>(props: {
 
 /** @category Action */
 declare function Pagination(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Current page number, starting at 1. */
     page: number;
     /** Receives the selected page number. */
@@ -5168,8 +5105,6 @@ declare function pixel(value: number): Extract<ColumnWidth, { type: 'pixel' }>;
 
 /** @category Display */
 declare function Timestamp(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     value: number | string;
     format?:
         | 'date'
@@ -5185,8 +5120,6 @@ declare function Timestamp(props: {
 
 /** @category Display */
 declare function CodeBlock(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     code: string;
     language?: string;
     title?: string;
@@ -5202,8 +5135,6 @@ declare function CodeBlock(props: {
 
 /** @category Display */
 declare function ProgressBar(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     label: string;
     value?: number;
     max?: number;
@@ -5219,8 +5150,6 @@ declare function ProgressBar(props: {
 
 /** @category Layouts */
 declare function Stepper(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     children?: ViewNode;
     activeStep?: number;
     orientation?: 'horizontal' | 'vertical';
@@ -5230,8 +5159,6 @@ declare function Stepper(props: {
 
 /** @category Layouts @group Stepper */
 declare function Step(props: {
-    /** Hides the step indicator and label without changing its index. */
-    hidden?: boolean;
     /** Zero-based index of this step in the process. */
     step: number;
     /** Visible label identifying the step. */
@@ -5244,8 +5171,6 @@ declare function Step(props: {
 
 /** @category Layouts */
 declare function Tabs(props: {
-    /** Hides the tab strip and selected panel without unmounting them. */
-    hidden?: boolean;
     /** Tab elements defining labels and panel content. */
     children?: ViewNode;
     gap?: Spacing;
@@ -5258,8 +5183,6 @@ declare function Tabs(props: {
 
 /** @category Layouts @group Tabs */
 declare function Tab(props: {
-    /** Hides this tab and its selected panel without changing the selection. */
-    hidden?: boolean;
     /** Panel content mounted only while this tab is selected. */
     children?: ViewNode;
     /** Unique value identifying this tab. */
@@ -5271,17 +5194,10 @@ declare function Tab(props: {
 }): React.JSX.Element;
 
 /** @category Display */
-declare function EmptyState(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
-    title: string;
-    isCompact?: boolean;
-}): React.JSX.Element;
+declare function EmptyState(props: { title: string; isCompact?: boolean }): React.JSX.Element;
 
 /** @category Action */
 declare function MoreMenu(props: {
-    /** Hides the trigger and closes its popup without unmounting the component. */
-    hidden?: boolean;
     items: DropdownMenuOption[];
     label?: string;
     icon?: StoneIconName;
@@ -5291,8 +5207,6 @@ declare function MoreMenu(props: {
 
 /** @category Layouts */
 declare function Menu(props: {
-    /** Hides the navigation and selected content without unmounting them. */
-    hidden?: boolean;
     /** MenuSection elements defining navigation and content. */
     children?: ViewNode;
     gap?: Spacing;
@@ -5300,8 +5214,6 @@ declare function Menu(props: {
 
 /** @category Layouts @group Menu */
 declare function MenuSection(props: {
-    /** Hides the section navigation and its selected content without unmounting them. */
-    hidden?: boolean;
     /** MenuItem elements or nested MenuSubSection groups. */
     children?: ViewNode;
     /** Hides the section heading; visible by default. */
@@ -5312,8 +5224,6 @@ declare function MenuSection(props: {
 
 /** @category Layouts @group Menu */
 declare function MenuItem(props: {
-    /** Hides the navigation item and its selected content without unmounting them. */
-    hidden?: boolean;
     /** Content mounted beside the navigation while this item is selected. */
     children?: ViewNode;
     /** Optional LongLink icon name displayed beside the label. */
@@ -5324,8 +5234,6 @@ declare function MenuItem(props: {
 
 /** @category Layouts @group Menu */
 declare function MenuSubSection(props: {
-    /** Hides the group navigation and its selected content without unmounting them. */
-    hidden?: boolean;
     /** MenuItem elements nested inside this collapsible group. */
     children?: ViewNode;
     /** Optional LongLink icon name displayed beside the group label. */
@@ -5336,25 +5244,16 @@ declare function MenuSubSection(props: {
 
 /** @category Display */
 declare function Icon(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Lucide kebab-case name or LongLink alias. Prefix with lucide: to bypass an existing alias, such as lucide:logs. */
     icon: StoneIconName;
     size: 'sm' | 'md' | 'lg';
 }): React.JSX.Element;
 
 /** @category Action */
-declare function Link(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
-    to: string;
-    children?: ViewNode;
-}): React.JSX.Element;
+declare function Link(props: { to: string; children?: ViewNode }): React.JSX.Element;
 
 /** @category Display */
 declare function Currency(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Amount to format in currency units. */
     value: number;
     /** ISO 4217 currency code, such as USD or CHF. */
@@ -5365,8 +5264,6 @@ declare function Currency(props: {
 
 /** @category Display */
 declare function FileViewer(props: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Scoped Solution operation path returning the file to preview. */
     src: string;
     /** Attachment name used for accessible action labels and the downloaded filename. */

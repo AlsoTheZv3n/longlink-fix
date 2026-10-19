@@ -17,10 +17,7 @@ const emptyIcon = createLucideIcon({ size: 24, node: [] });
 export function Icon({
     icon,
     size,
-    hidden,
 }: {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     /** Lucide kebab-case name or LongLink alias. Prefix with lucide: to bypass an existing alias, such as lucide:logs. */
     icon: StoneIconName;
     size: 'sm' | 'md' | 'lg';
@@ -30,15 +27,15 @@ export function Icon({
         // SAFETY: The own-property check restricts the lookup to the bundled icon names.
         const component = stoneIconComponents[icon as keyof typeof stoneIconComponents];
 
-        return <AstryxIcon icon={component} size={size} className={hidden ? 'hidden!' : undefined} />;
+        return <AstryxIcon icon={component} size={size} />;
     }
 
     // Explicit Lucide names bypass legacy aliases but share the same on-demand cache.
-    return <DeferredIcon icon={icon.startsWith('lucide:') ? icon.slice(7) : icon} size={size} hidden={hidden} />;
+    return <DeferredIcon icon={icon.startsWith('lucide:') ? icon.slice(7) : icon} size={size} />;
 }
 
 /** Caches on-demand glyphs without suspending the containing page or changing icon dimensions. */
-function DeferredIcon({ icon, size, hidden }: { icon: string; size: 'sm' | 'md' | 'lg'; hidden?: boolean }) {
+function DeferredIcon({ icon, size }: { icon: string; size: 'sm' | 'md' | 'lg' }) {
     const load = useContext(IconRequestContext);
 
     if (load === null) throw new Error('Icon requires IconRequestContext');
@@ -57,11 +54,5 @@ function DeferredIcon({ icon, size, hidden }: { icon: string; size: 'sm' | 'md' 
     });
 
     // Keep labeled controls usable even if an icon cannot be loaded.
-    return (
-        <AstryxIcon
-            icon={component ?? (isError ? AlertTriangle : emptyIcon)}
-            size={size}
-            className={hidden ? 'hidden!' : undefined}
-        />
-    );
+    return <AstryxIcon icon={component ?? (isError ? AlertTriangle : emptyIcon)} size={size} />;
 }

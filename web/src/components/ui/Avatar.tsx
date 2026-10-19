@@ -22,8 +22,6 @@ const wavesStyle = new dicebear.Style(waves);
 type AvatarProps = {
     shape?: undefined | 'circle' | 'rounded' | 'square';
 } & {
-    /** Hides the component without unmounting it. */
-    hidden?: boolean;
     name?: string;
     /** Stable identity for generated avatars, independent of the display name. */
     seed?: string;
@@ -54,7 +52,6 @@ export function Avatar({ kind, src, name, seed, ...props }: AvatarProps) {
     return (
         <AstryxAvatar
             {...props}
-            className={props.hidden ? 'hidden!' : undefined}
             size={props.size ?? 'md'}
             name={name}
             tooltip={false}

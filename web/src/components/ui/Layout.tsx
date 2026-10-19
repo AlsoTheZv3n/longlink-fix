@@ -10,8 +10,6 @@ import {
 
 /** Arranges header, footer, side panels, and main content within a View or bounded container. */
 export function Layout(props: {
-    /** Hides the layout without unmounting its content. */
-    hidden?: boolean;
     /** Main content; shorthand for the content slot. */
     children?: ReactNode;
     content?: ReactNode;
@@ -29,13 +27,11 @@ export function Layout(props: {
     defaultHasDividers?: boolean;
 }) {
     // Preserve Astryx's slot layout and contextual spacing without introducing custom sizing behavior.
-    return <AstryxLayout {...props} className={props.hidden ? 'hidden!' : undefined} />;
+    return <AstryxLayout {...props} />;
 }
 
 /** Provides the main content region, with optional independently scrollable overflow. */
 export function LayoutContent(props: {
-    /** Hides the region without unmounting its content. */
-    hidden?: boolean;
     children?: ReactNode;
     padding?: Spacing;
     /** Enables independent scrolling; defaults to true. */
@@ -45,13 +41,11 @@ export function LayoutContent(props: {
     role?: 'main' | 'region';
 }) {
     // Let Astryx align the content and inherit padding from its containing layout.
-    return <AstryxLayoutContent {...props} className={props.hidden ? 'hidden!' : undefined} />;
+    return <AstryxLayoutContent {...props} />;
 }
 
 /** Keeps titles and toolbars above the main content region. */
 export function LayoutHeader(props: {
-    /** Hides the header without unmounting its content. */
-    hidden?: boolean;
     children?: ReactNode;
     /** Overrides the surrounding layout's divider default when provided. */
     hasDivider?: boolean;
@@ -64,13 +58,11 @@ export function LayoutHeader(props: {
     role?: 'banner' | 'region';
 }) {
     // Keep inherited divider behavior and Astryx's header padding collapse intact.
-    return <AstryxLayoutHeader {...props} className={props.hidden ? 'hidden!' : undefined} />;
+    return <AstryxLayoutHeader {...props} />;
 }
 
 /** Keeps actions, pagination, or status below the main content region. */
 export function LayoutFooter(props: {
-    /** Hides the footer without unmounting its content. */
-    hidden?: boolean;
     children?: ReactNode;
     /** Overrides the surrounding layout's divider default when provided. */
     hasDivider?: boolean;
@@ -82,13 +74,11 @@ export function LayoutFooter(props: {
     role?: 'contentinfo' | 'region';
 }) {
     // Retain the shared footer's divider inheritance and contextual spacing.
-    return <AstryxLayoutFooter {...props} className={props.hidden ? 'hidden!' : undefined} />;
+    return <AstryxLayoutFooter {...props} />;
 }
 
 /** Provides a side region in a Layout's start or end slot without automatic narrow-screen reflow. */
 export function LayoutPanel(props: {
-    /** Hides the panel without unmounting its content. */
-    hidden?: boolean;
     children?: ReactNode;
     hasDivider?: boolean;
     padding?: Spacing;
@@ -100,5 +90,5 @@ export function LayoutPanel(props: {
     width?: number | string;
 }) {
     // Keep panel sizing, divider placement, and scrolling owned by Astryx.
-    return <AstryxLayoutPanel {...props} className={props.hidden ? 'hidden!' : undefined} />;
+    return <AstryxLayoutPanel {...props} />;
 }
