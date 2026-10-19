@@ -7,6 +7,30 @@ export default function DividerPage() {
     return (
         <ViewLayout
             name="Divider"
+            introduction={'Separates View content with an optional label and configurable line presentation.'}
+            properties={[
+                {
+                    name: 'label',
+                    type: 'ReactNode',
+                    description:
+                        'Optional label centered on the divider. Numeric zero is preserved; null, booleans, and empty strings render no label.',
+                },
+                {
+                    name: 'variant',
+                    type: '"subtle" | "strong"',
+                    description: 'Visual weight of the divider line.',
+                },
+                {
+                    name: 'orientation',
+                    type: '"horizontal" | "vertical"',
+                    description: 'Orientation of the divider.',
+                },
+                {
+                    name: 'isFullBleed',
+                    type: 'boolean',
+                    description: 'Extend the divider to container edges with negative margins.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Divider',

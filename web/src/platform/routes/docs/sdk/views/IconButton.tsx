@@ -10,6 +10,45 @@ export default function IconButtonPage() {
     return (
         <ViewLayout
             name="IconButton"
+            introduction={'Runs a labeled icon action with automatic async feedback.'}
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Accessible label. Used as aria-label (not rendered as visible text).',
+                },
+                {
+                    name: 'icon',
+                    type: 'StoneIconName',
+                    description:
+                        'Icon element rendered inside the button. An Astryx Icon with no explicit size defaults to sm for sm/md buttons and md for lg buttons.',
+                },
+                {
+                    name: 'variant',
+                    type: '"ghost" | "primary" | "secondary" | "destructive"',
+                    description: 'Visual style variant.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "lg" | "md"',
+                    description: 'Size variant.',
+                },
+                {
+                    name: 'tooltip',
+                    type: 'string',
+                    description: 'Tooltip text shown on hover.',
+                },
+                {
+                    name: 'isDisabled',
+                    type: 'boolean',
+                    description: 'Disables the button.',
+                },
+                {
+                    name: 'onClick',
+                    type: '(event: ViewMouseEvent) => void | Promise<void>',
+                    description: 'Standard click handler.',
+                },
+            ]}
             examples={[
                 {
                     title: 'IconButton',

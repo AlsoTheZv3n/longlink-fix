@@ -7,6 +7,20 @@ export default function HeadingPage() {
     return (
         <ViewLayout
             name="Heading"
+            introduction={'Displays a semantic View heading without a separate visual-level override.'}
+            properties={[
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description: 'Heading content.',
+                },
+                {
+                    name: 'level',
+                    type: '1 | 2 | 3 | 4 | 5 | 6',
+                    description:
+                        'Heading level. Determines the semantic HTML element (h1-h6) and the visual styling from the theme (unless `type` is set).',
+                },
+            ]}
             examples={[
                 {
                     title: 'Heading',

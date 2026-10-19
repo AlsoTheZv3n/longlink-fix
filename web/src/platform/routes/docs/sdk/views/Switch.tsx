@@ -8,6 +8,61 @@ export default function SwitchPage() {
     return (
         <ViewLayout
             name="Switch"
+            introduction={'Edits an on/off setting using one controlled change handler.'}
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Label text for the switch (always rendered for accessibility).',
+                },
+                {
+                    name: 'description',
+                    type: 'string',
+                    description: 'Description text displayed below the label.',
+                },
+                {
+                    name: 'name',
+                    type: 'string',
+                    description: "Includes the themed control's value under this form submission name.",
+                },
+                {
+                    name: 'required',
+                    type: 'boolean',
+                    description: 'Requires a value before native form submission.',
+                },
+                {
+                    name: 'disabled',
+                    type: 'boolean',
+                    description: 'Prevents interaction and excludes the field from submission.',
+                },
+                {
+                    name: 'width',
+                    type: 'string | number',
+                    description:
+                        'Width of the field (number = pixels, string used as-is, e.g. "100%"). Sizes the whole field (label, control, and status) so they stay aligned.',
+                },
+                {
+                    name: 'value',
+                    type: 'boolean',
+                    description: 'Whether the switch is on or off.',
+                },
+                {
+                    name: 'defaultChecked',
+                    type: 'boolean',
+                    description: 'The defaultChecked prop.',
+                },
+                {
+                    name: 'onChange',
+                    type: '(value: boolean) => void',
+                    description: 'Callback fired when the switch state changes.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "md"',
+                    description:
+                        'Size variant controlling track and thumb dimensions. sm matches sm checkbox/radio vertical rhythm; md matches md checkbox/radio vertical rhythm.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Preference form',

@@ -8,6 +8,97 @@ export default function TimeInputPage() {
     return (
         <ViewLayout
             name="TimeInput"
+            introduction={'Selects a constrained time using the standard picker.'}
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Label text for the input (required for accessibility).',
+                },
+                {
+                    name: 'description',
+                    type: 'string',
+                    description: 'Description text displayed between the label and input.',
+                },
+                {
+                    name: 'name',
+                    type: 'string',
+                    description: "Includes the themed control's value under this form submission name.",
+                },
+                {
+                    name: 'required',
+                    type: 'boolean',
+                    description: 'Requires a value before native form submission.',
+                },
+                {
+                    name: 'disabled',
+                    type: 'boolean',
+                    description: 'Prevents interaction and excludes the field from submission.',
+                },
+                {
+                    name: 'width',
+                    type: 'string | number',
+                    description:
+                        'Width of the field (number = pixels, string used as-is, e.g. "100%"). Sizes the whole field (label, control, and status) so they stay aligned.',
+                },
+                {
+                    name: 'value',
+                    type: 'ISOTimeString',
+                    description: 'Controlled time value in ISO format (HH:MM or HH:MM:SS).',
+                },
+                {
+                    name: 'defaultValue',
+                    type: 'ISOTimeString',
+                    description: 'The defaultValue prop.',
+                },
+                {
+                    name: 'onChange',
+                    type: '(value: ISOTimeString | undefined) => void',
+                    description: 'Callback fired when the time changes. Receives undefined when the input is cleared.',
+                },
+                {
+                    name: 'min',
+                    type: 'ISOTimeString',
+                    description: 'Minimum selectable time in ISO format. Values outside the range are rejected.',
+                },
+                {
+                    name: 'max',
+                    type: 'ISOTimeString',
+                    description: 'Maximum selectable time in ISO format. Values outside the range are rejected.',
+                },
+                {
+                    name: 'hasSeconds',
+                    type: 'boolean',
+                    description: 'Includes seconds in the time display and parsing.',
+                },
+                {
+                    name: 'hasClear',
+                    type: 'boolean',
+                    description: 'Shows a clear button when a value is set and the input is not disabled.',
+                },
+                {
+                    name: 'hourFormat',
+                    type: '"12h" | "24h"',
+                    description:
+                        "Controls the display format. '12h' shows AM/PM (e.g. '2:30 PM'); '24h' uses 24-hour notation (e.g. '14:30').",
+                },
+                {
+                    name: 'increment',
+                    type: 'number',
+                    description: 'Number of minutes to add or subtract when the user presses the up or down arrow key.',
+                },
+                {
+                    name: 'placeholder',
+                    type: 'string',
+                    description:
+                        'Placeholder text shown when no time is selected. When the input is focused and empty, a format hint overrides this text.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "lg" | "md"',
+                    description: 'Controls the height of the input element.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Start time form',

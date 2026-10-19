@@ -7,6 +7,20 @@ export default function TimestampPage() {
     return (
         <ViewLayout
             name="Timestamp"
+            introduction={'Formats a date or timestamp using the standard date formats.'}
+            properties={[
+                {
+                    name: 'value',
+                    type: 'string | number',
+                    description: 'The date/time to display. Accepts Unix timestamps (seconds) or ISO 8601 strings.',
+                },
+                {
+                    name: 'format',
+                    type: '"date" | "date_long" | "date_weekday" | "date_time" | "time" | "relative" | "system_date" | "system_date_time" | "system_time"',
+                    description:
+                        "Display format. 'relative' uses the locale's native long relative-time wording ('2 hours ago' in English), 'relative_short' uses its narrow pattern ('2h ago' in English) for compact surfaces, 'date' shows 'Mar 21, 2025', 'date_long' shows 'March 21, 2025', 'date_weekday' shows 'Wed, Mar 21, 2025', 'date_time' shows 'Mar 21, 2025, 2:51 PM', 'time' shows '2:51 PM', 'system_*' variants use ISO-style formatting, 'unix_seconds' shows the Unix time in whole seconds since the epoch (an absolute, zone-independent value), 'auto' switches from relative to date_time based on recency.",
+                },
+            ]}
             examples={[
                 {
                     title: 'Timestamp',

@@ -8,6 +8,19 @@ export default function ImagePage() {
     return (
         <ViewLayout
             name="Image"
+            introduction={''}
+            properties={[
+                {
+                    name: 'src',
+                    type: 'string',
+                    description: 'Scoped Solution image path, or an image data/blob URL.',
+                },
+                {
+                    name: 'alt',
+                    type: 'string',
+                    description: 'Accessible description of the photo.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Card photo',

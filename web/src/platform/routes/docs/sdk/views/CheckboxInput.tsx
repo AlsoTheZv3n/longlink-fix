@@ -8,6 +8,60 @@ export default function CheckboxInputPage() {
     return (
         <ViewLayout
             name="CheckboxInput"
+            introduction={'Edits a boolean or indeterminate field.'}
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Label text for the checkbox (always rendered for accessibility).',
+                },
+                {
+                    name: 'description',
+                    type: 'string',
+                    description: 'Description text displayed below the label.',
+                },
+                {
+                    name: 'name',
+                    type: 'string',
+                    description: "Includes the themed control's value under this form submission name.",
+                },
+                {
+                    name: 'required',
+                    type: 'boolean',
+                    description: 'Requires a value before native form submission.',
+                },
+                {
+                    name: 'disabled',
+                    type: 'boolean',
+                    description: 'Prevents interaction and excludes the field from submission.',
+                },
+                {
+                    name: 'width',
+                    type: 'string | number',
+                    description:
+                        'Width of the field (number = pixels, string used as-is, e.g. "100%"). Sizes the whole field (label, control, and status) so they stay aligned.',
+                },
+                {
+                    name: 'value',
+                    type: 'boolean | "indeterminate"',
+                    description: 'Whether the checkbox is checked, unchecked, or indeterminate.',
+                },
+                {
+                    name: 'defaultChecked',
+                    type: 'boolean',
+                    description: 'The defaultChecked prop.',
+                },
+                {
+                    name: 'onChange',
+                    type: '(value: boolean) => void',
+                    description: 'Callback fired when the checkbox state changes.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "md"',
+                    description: 'The size of the checkbox. sm for compact layouts, md for default.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Approval form',

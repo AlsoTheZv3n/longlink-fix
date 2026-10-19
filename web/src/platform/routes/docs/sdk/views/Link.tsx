@@ -7,6 +7,19 @@ export default function LinkPage() {
     return (
         <ViewLayout
             name="Link"
+            introduction={'Navigates within the Solution or opens an external HTTP(S) URL in a new tab.'}
+            properties={[
+                {
+                    name: 'to',
+                    type: 'string',
+                    description: 'The to prop.',
+                },
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description: 'Link content',
+                },
+            ]}
             examples={[
                 {
                     title: 'Link',

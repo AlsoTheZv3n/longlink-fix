@@ -2,8 +2,8 @@ import { z } from 'zod';
 import * as React from 'react';
 import { transform } from 'sucrase';
 import * as components from './components';
-import { ReportedError } from '@/lib/errors';
 import { createRoot } from 'react-dom/client';
+import { ReportedError } from '@/lib/reported';
 import { Theme } from '@astryxdesign/core/theme';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Spinner } from '@astryxdesign/core/Spinner';
@@ -30,7 +30,7 @@ import {
     iconSchema,
     iconDataSchema,
 } from './protocol';
-import '../theme.css';
+import '../index.css';
 
 declare global {
     interface Window {

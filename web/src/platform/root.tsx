@@ -1,17 +1,14 @@
 import * as icons from '@/lib/icons';
-import { ApiErrorContext } from '@/lib/errors';
+import type { ReactNode } from 'react';
 import { PageLoading } from '@/components/Utils';
 import { Theme } from '@astryxdesign/core/theme';
-import { useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router';
-import { useToast } from '@astryxdesign/core/Toast';
 import { stoneTheme } from '@/lib/generated/stone.js';
 import { ApiBoundary } from '@/components/ApiBoundary';
-import { createQueryRuntime } from '@/lib/react-query';
+import { ApiProvider } from '@/components/ApiProvider';
 import { LinkProvider } from '@astryxdesign/core/Link';
 import { LayerProvider } from '@astryxdesign/core/Layer';
 import { IconRequestContext } from '@/components/ui/Icon';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import '@/index.css';
 // Handwritten fonts belong only to native Platform pages, not the embedded SDK application.
@@ -45,26 +42,6 @@ export default function PlatformRoot() {
                 </LayerProvider>
             </LinkProvider>
         </Theme>
-    );
-}
-
-/** Connects cache and direct-request failures to the notification layer. */
-function ApiProvider({ children }: { children: ReactNode }) {
-    const toast = useToast();
-
-    const [runtime] = useState(() =>
-        createQueryRuntime(
-            (body) => {
-                toast({ body, type: 'error', isAutoHide: true });
-            },
-            import.meta.env.MODE !== 'sdk'
-        )
-    );
-
-    return (
-        <ApiErrorContext value={runtime.reportError}>
-            <QueryClientProvider client={runtime.client}>{children}</QueryClientProvider>
-        </ApiErrorContext>
     );
 }
 

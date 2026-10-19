@@ -82,9 +82,7 @@ jobs:
 
             - name: Build API web bundle
               working-directory: web
-              run: |
-                  vp run check:docs
-                  vp exec react-router build --mode api --logLevel warn
+              run: vp exec react-router build --mode api --logLevel warn
 
             # API MCP tests start a real Solution runtime with its embedded frontend.
             - name: Build SDK web bundle

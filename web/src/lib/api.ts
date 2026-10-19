@@ -36,42 +36,40 @@ export const api = ky.create({
                 // Ky bounds error-body parsing by size and timeout before invoking this hook.
                 request.signal.throwIfAborted();
 
-                if (isHTTPError(error)) {
-                    const payload = errorPayloadSchema.safeParse(error.data);
-                    const detail = payload.success ? payload.data.detail : null;
-                    const parsedMessage = errorMessageSchema.safeParse(detail);
+                if (!isHTTPError(error)) return error;
 
-                    let message = parsedMessage.success
-                        ? parsedMessage.data
-                        : 'The server could not complete the request. Please try again.';
+                const payload = errorPayloadSchema.safeParse(error.data);
+                const detail = payload.success ? payload.data.detail : null;
+                const parsedMessage = errorMessageSchema.safeParse(detail);
 
-                    // Report validation locations and messages, never submitted values or error context.
-                    if (error.response.status === 422 && Array.isArray(detail)) {
-                        const messages = detail.slice(0, 5).flatMap((value) => {
-                            // Parse each issue separately so malformed entries do not hide valid feedback.
-                            const issue = validationIssueSchema.safeParse(value);
+                let message = parsedMessage.success
+                    ? parsedMessage.data
+                    : 'The server could not complete the request. Please try again.';
 
-                            if (!issue.success) return [];
+                // Report validation locations and messages, never submitted values or error context.
+                if (error.response.status === 422 && Array.isArray(detail)) {
+                    const messages = detail.slice(0, 5).flatMap((value) => {
+                        // Parse each issue separately so malformed entries do not hide valid feedback.
+                        const issue = validationIssueSchema.safeParse(value);
 
-                            const location = issue.data.loc
-                                .flatMap((part) => {
-                                    const parsed = locationPartSchema.safeParse(part);
+                        if (!issue.success) return [];
 
-                                    return parsed.success ? [parsed.data] : [];
-                                })
-                                .slice(1)
-                                .join('.');
+                        const location = issue.data.loc
+                            .flatMap((part) => {
+                                const parsed = locationPartSchema.safeParse(part);
 
-                            return [location ? `${location}: ${issue.data.msg}` : issue.data.msg];
-                        });
+                                return parsed.success ? [parsed.data] : [];
+                            })
+                            .slice(1)
+                            .join('.');
 
-                        if (messages.length > 0) message = messages.join('; ');
-                    }
+                        return [location ? `${location}: ${issue.data.msg}` : issue.data.msg];
+                    });
 
-                    return new ApiError(message, error.response.status, request.url);
+                    if (messages.length > 0) message = messages.join('; ');
                 }
 
-                return error;
+                return new ApiError(message, error.response.status, request.url);
             },
         ],
     },

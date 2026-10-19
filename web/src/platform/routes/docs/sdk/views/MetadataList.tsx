@@ -7,6 +7,55 @@ export default function MetadataListPage() {
     return (
         <ViewLayout
             name="MetadataList"
+            introduction={'Lists labeled values with optional truncation and label placement.'}
+            properties={[
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description: 'Metadata items (MetadataListItem components).',
+                },
+                {
+                    name: 'columns',
+                    type: 'number | "multi" | "single"',
+                    description: 'Column layout mode.',
+                },
+                {
+                    name: 'title',
+                    type: 'ReactNode',
+                    description: 'Optional title or heading above the list.',
+                },
+                {
+                    name: 'label',
+                    type: '{ position: "start" | "top"; width?: string | number; }',
+                    description:
+                        "Label display configuration. position controls label placement, width sets a custom label column width. Defaults to { position: 'top' } for multi-column layouts.",
+                },
+                {
+                    name: 'maxNumOfItems',
+                    type: 'number',
+                    description: 'Maximum items to show before collapsing with a show more/less toggle.',
+                },
+                {
+                    name: 'orientation',
+                    type: '"horizontal" | "vertical"',
+                    description: 'Layout orientation. Horizontal mode flows items in a row with flex-wrap.',
+                },
+                {
+                    name: 'MetadataListItem.children',
+                    type: 'ReactNode',
+                    description: 'Value rendered beside the metadata label.',
+                },
+                {
+                    name: 'MetadataListItem.label',
+                    type: 'string',
+                    description: 'Label identifying the metadata value.',
+                },
+                {
+                    name: 'MetadataListItem.icon',
+                    type: 'StoneIconName',
+                    description: 'Optional icon displayed beside the metadata label.',
+                },
+            ]}
             examples={[
                 {
                     title: 'MetadataList',

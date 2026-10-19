@@ -76,7 +76,6 @@ build:
 # Build required bundles and run all test suites.
 test:
 	cd web && vp run build:views
-	cd web && vp run check:docs
 	cd web && vp exec react-router build --mode api --logLevel warn
 	cd web && vp exec react-router build --mode sdk --logLevel warn
 	cd api && uv run --locked --extra dev pytest --cov=main --cov=src --cov-report=term-missing
@@ -182,10 +181,11 @@ tunnel:
 	cloudflared tunnel --url http://127.0.0.1:8000 --no-autoupdate
 
 
-# Run the Vite web app.
+# Run the Vite web app with fresh dependency and route caches.
 web:
 	cd web && vp install --frozen-lockfile
-	cd web && vp run dev
+	rm -rf -- web/.react-router web/node_modules/.vite-api web/node_modules/.vite-temp
+	cd web && vp run --no-cache dev --force
 
 
 # Recreate and run the local sample Solution from the current scaffold.

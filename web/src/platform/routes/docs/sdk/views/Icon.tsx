@@ -7,6 +7,23 @@ export default function IconPage() {
     return (
         <ViewLayout
             name="Icon"
+            introduction={
+                'Renders any Lucide icon by its kebab-case name. Existing LongLink aliases remain immediate; other icons load on demand and are cached without blocking the View or changing icon dimensions.'
+            }
+            properties={[
+                {
+                    name: 'icon',
+                    type: 'StoneIconName',
+                    description:
+                        'Lucide kebab-case name or LongLink alias. Prefix with lucide: to bypass an existing alias, such as lucide:logs.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "lg" | "md"',
+                    description:
+                        'Icon size. An explicit value wins. When omitted, Icon uses the nearest default supplied by an owning Astryx component for its icon slot, then falls back to md when no contextual default exists.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Icon',

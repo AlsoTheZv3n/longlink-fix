@@ -1,35 +1,5 @@
 export const RELATIVE_URL_ORIGIN = 'http://longlink.local';
 
-/** Resolves a solution-relative URL against a base URL string. */
-function resolveUrl(baseUrl: string, path: string): string {
-    const base = new URL(baseUrl, RELATIVE_URL_ORIGIN);
-    const pathUrl = new URL(path, RELATIVE_URL_ORIGIN);
-    const baseSegments = base.pathname.split('/').filter(Boolean);
-    const pathEnd = path.search(/[?#]/);
-    const pathSegments = (pathEnd === -1 ? path : path.slice(0, pathEnd)).split('/');
-    const resolvedSegments = [...baseSegments];
-
-    // Apply relative path segments on top of the base path.
-    for (const segment of pathSegments) {
-        // Ignore empty and current-directory segments.
-        if (!segment || segment === '.') continue;
-
-        // Resolve parent-directory segments without escaping the base.
-        if (segment === '..') {
-            // Only pop segments added by the relative path.
-            if (resolvedSegments.length > baseSegments.length) {
-                resolvedSegments.pop();
-            }
-
-            continue;
-        }
-
-        resolvedSegments.push(segment);
-    }
-
-    return `${base.origin === RELATIVE_URL_ORIGIN ? '' : base.origin}/${resolvedSegments.join('/')}${pathUrl.search}${pathUrl.hash}`;
-}
-
 /** Returns whether a URL can be safely fetched relative to a solution base URL. */
 function isSolutionRelativeUrl(path: string): boolean {
     // Block Windows separators before URL parsing.
@@ -76,5 +46,32 @@ export function resolveRequestUrl(baseUrl: string, path: string): string {
 export function resolveNavigationUrl(baseUrl: string, path: string): string {
     const value = path.trim();
 
-    return value && isSolutionRelativeUrl(value) ? resolveUrl(baseUrl, path) : '';
+    if (!value || !isSolutionRelativeUrl(value)) return '';
+
+    const base = new URL(baseUrl, RELATIVE_URL_ORIGIN);
+    const pathUrl = new URL(path, RELATIVE_URL_ORIGIN);
+    const resolvedSegments = base.pathname.split('/').filter(Boolean);
+    const baseDepth = resolvedSegments.length;
+    const pathEnd = path.search(/[?#]/);
+    const pathSegments = (pathEnd === -1 ? path : path.slice(0, pathEnd)).split('/');
+
+    // Apply relative path segments on top of the base path.
+    for (const segment of pathSegments) {
+        // Ignore empty and current-directory segments.
+        if (!segment || segment === '.') continue;
+
+        // Resolve parent-directory segments without escaping the base.
+        if (segment === '..') {
+            // Only pop segments added by the relative path.
+            if (resolvedSegments.length > baseDepth) {
+                resolvedSegments.pop();
+            }
+
+            continue;
+        }
+
+        resolvedSegments.push(segment);
+    }
+
+    return `${base.origin === RELATIVE_URL_ORIGIN ? '' : base.origin}/${resolvedSegments.join('/')}${pathUrl.search}${pathUrl.hash}`;
 }

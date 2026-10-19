@@ -11,6 +11,34 @@ export default function DialogPage() {
     return (
         <ViewLayout
             name="Dialog"
+            isLongLinkSpecific
+            properties={[
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description: 'Dialog content.',
+                },
+                {
+                    name: 'title',
+                    type: 'string',
+                    description: 'Shows a dialog header when a title is provided.',
+                },
+                {
+                    name: 'isOpen',
+                    type: 'boolean',
+                    description: 'Whether the dialog is open.',
+                },
+                {
+                    name: 'onOpenChange',
+                    type: '(open: boolean) => void',
+                    description: 'Callback when dialog visibility changes.',
+                },
+                {
+                    name: 'gap',
+                    type: '0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10',
+                    description: 'Spacing between the title and content; defaults to 3.',
+                },
+            ]}
             introduction="Dialog uses the Platform's 960px-wide, viewport-limited frame. A title adds a visible header; otherwise only the close control is shown. The gap between title and content defaults to spacing step 3, matching Stack and Grid. Escape and the close button dismiss it; clicking the backdrop does not. Content owns its padding, height, and scrolling. The modal stays within the isolated View viewport without blocking the surrounding Platform navigation."
             examples={[
                 {

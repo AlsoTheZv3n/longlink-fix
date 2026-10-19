@@ -9,6 +9,20 @@ export default function FormStepPage() {
     return (
         <ViewLayout
             name="FormStep"
+            isLongLinkSpecific
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Visible label identifying this step in the progress indicator.',
+                },
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description:
+                        'Fields arranged vertically with spacing step 3. Use an explicit layout child for custom grouping.',
+                },
+            ]}
             introduction="Place FormStep directly inside Form to enable automatic progress and Next/Back controls. Direct fields are arranged vertically with spacing step 3; no extra Stack is needed. Use an explicit layout child for custom grouping. Next validates the current step and shared fields. Save validates every step and opens the first invalid one. Inactive fields remain mounted and enabled, preserving edits and complete submission data."
             examples={[
                 {
