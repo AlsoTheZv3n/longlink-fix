@@ -1,6 +1,6 @@
 cloudnative-pg:
     image:
-        tag: 1.29.1@sha256:0dfff19ba7b52ca25851a1010028b6940fff2e233290465af1cfb08a5f3f4661
+        tag: 1.30.1@sha256:923c267ec29636db3bee20f993d0ec4973fa22998e1adad37da79e4d32b5bc07
 
 gateway:
     service:
@@ -9,13 +9,13 @@ gateway:
 storage:
     image:
         repository: nginx
-        tag: 1.29.1-alpine@sha256:42a516af16b852e33b7682d5ef8acbd5d13fe08fecadc7ed98605ba5e3b26ab8
+        tag: 1.31.7-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d
     resources:
         requests:
             cpu: 100m
             memory: 64Mi
         limits:
-            cpu: "1"
+            cpu: '1'
             memory: 256Mi
     service:
         type: LoadBalancer
@@ -23,7 +23,7 @@ storage:
 rustfs:
     image:
         repository: rustfs/rustfs
-        tag: 1.0.0@sha256:8cc9801755448b71a786705ce76692c77e14936cccd87cf2fc31842e58f4d1ff
+        tag: 1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
     mode: standalone
     storage:
         name: block-storage

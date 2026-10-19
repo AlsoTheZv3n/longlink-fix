@@ -154,6 +154,14 @@
         "resources": {
             "type": "object"
         },
+        "scratchData": {
+            "type": "object",
+            "properties": {
+                "emptyDir": {
+                    "type": "object"
+                }
+            }
+        },
         "service": {
             "type": "object",
             "properties": {
