@@ -1,9 +1,14 @@
 import pytest
 from httpx2 import AsyncClient
+from datetime import UTC, datetime, timedelta
 from factories import create_organization
+from src.models.roles import OrganizationRoles
+from src.models.pricing import FREE_USERS
 from src.database.session import session_scope
 from src.database.services import organizations
 from src.database.models.users import User
+from src.database.models.association import UserOrganization
+from src.database.models.invitations import OrganizationInvitation
 
 
 async def test_get_me_returns_authenticated_user_profile_and_separate_org_memberships(
@@ -125,3 +130,126 @@ async def test_patch_me_persists_without_organization_database_access(
         persisted_user = await session.get(User, user.id)
         assert persisted_user is not None
         assert persisted_user.name == expected_name
+
+
+async def test_accept_my_invitation_adds_membership(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
+) -> None:
+    """List only the account's unexpired invitations and turn an accepted one into membership."""
+
+    # Arrange
+    owner, invitee, other_user = users
+    organization = await create_organization(owner)
+    expired_organization = await create_organization(owner, name="expired")
+    invitation = OrganizationInvitation(organization_id=organization.id, email=invitee.email, role=OrganizationRoles.write)
+    invitation_id = invitation.id
+    async with session_scope() as session:
+        session.add(invitation)
+        session.add(OrganizationInvitation(organization_id=organization.id, email=other_user.email, role=OrganizationRoles.read))
+        session.add(
+            OrganizationInvitation(
+                organization_id=expired_organization.id,
+                email=invitee.email,
+                role=OrganizationRoles.read,
+                created_at=datetime.now(UTC) - timedelta(days=7, seconds=1),
+            )
+        )
+        await session.commit()
+    organization_payload = {"id": str(organization.id), "name": "acme", "slug": "acme", "status": "creating"}
+
+    # Act
+    invitations_response = await clients[1].get("/api/v1/me/invitations")
+    accept_response = await clients[1].post(f"/api/v1/me/invitations/{invitation_id}/accept")
+    organizations_response = await clients[1].get("/api/v1/me/organizations")
+    remaining_response = await clients[1].get("/api/v1/me/invitations")
+
+    # Assert
+    assert invitations_response.status_code == 200
+    assert invitations_response.json() == [{"id": str(invitation_id), "organization": organization_payload, "role": "write"}]
+    assert accept_response.status_code == 204
+    assert organizations_response.json() == [{"organization": organization_payload, "role": "write"}]
+    assert remaining_response.json() == []
+
+
+async def test_decline_my_invitation_removes_it_from_the_organization(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
+) -> None:
+    """Delete a declined invitation from the inviter's list without creating membership."""
+
+    # Arrange
+    owner, invitee = users[0], users[1]
+    organization = await create_organization(owner)
+    invitation = OrganizationInvitation(organization_id=organization.id, email=invitee.email, role=OrganizationRoles.write)
+    invitation_id = invitation.id
+    async with session_scope() as session:
+        session.add(invitation)
+        await session.commit()
+
+    # Act
+    decline_response = await clients[1].delete(f"/api/v1/me/invitations/{invitation_id}")
+    details_response = await clients[0].get(f"/api/v1/organizations/{organization.id}")
+    organizations_response = await clients[1].get("/api/v1/me/organizations")
+
+    # Assert
+    assert decline_response.status_code == 204
+    assert details_response.json()["invitations"] == []
+    assert organizations_response.json() == []
+
+
+async def test_my_invitation_actions_reject_other_accounts(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
+) -> None:
+    """Hide invitations addressed to another account from accept and decline."""
+
+    # Arrange
+    owner, invitee, other_user = users
+    organization = await create_organization(owner)
+    invitation = OrganizationInvitation(organization_id=organization.id, email=invitee.email, role=OrganizationRoles.write)
+    invitation_id = invitation.id
+    async with session_scope() as session:
+        session.add(invitation)
+        await session.commit()
+
+    # Act
+    accept_response = await clients[2].post(f"/api/v1/me/invitations/{invitation_id}/accept")
+    decline_response = await clients[2].delete(f"/api/v1/me/invitations/{invitation_id}")
+    async with session_scope() as session:
+        remaining_invitation = await session.get(OrganizationInvitation, invitation_id)
+        membership = await session.get(UserOrganization, (other_user.id, organization.id))
+
+    # Assert
+    assert accept_response.status_code == 404
+    assert decline_response.status_code == 404
+    assert remaining_invitation is not None
+    assert membership is None
+
+
+async def test_accept_my_invitation_reports_free_member_limit(
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
+) -> None:
+    """Keep the invitation and report the Free member limit instead of admitting another member."""
+
+    # Arrange
+    owner, invitee = users[0], users[1]
+    organization = await create_organization(owner)
+    invitation = OrganizationInvitation(organization_id=organization.id, email=invitee.email, role=OrganizationRoles.write)
+    invitation_id = invitation.id
+    async with session_scope() as session:
+        for index in range(FREE_USERS - 1):
+            member = User(name=f"Member {index}", email=f"member-{index}@example.com", password=owner.password)
+            session.add(member)
+            session.add(UserOrganization(user_id=member.id, organization_id=organization.id, role=OrganizationRoles.read))
+        session.add(invitation)
+        await session.commit()
+
+    # Act
+    response = await clients[1].post(f"/api/v1/me/invitations/{invitation_id}/accept")
+    async with session_scope() as session:
+        remaining_invitation = await session.get(OrganizationInvitation, invitation_id)
+        membership = await session.get(UserOrganization, (invitee.id, organization.id))
+
+    # Assert
+    assert response.status_code == 409
+    assert response.json() == {"detail": "This organization has reached its member limit. Ask an owner to register a card."}
+    assert remaining_invitation is not None
+    assert membership is None

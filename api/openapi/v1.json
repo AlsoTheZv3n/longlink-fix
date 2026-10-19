@@ -2313,6 +2313,157 @@
         }
       }
     },
+    "/api/v1/me/invitations": {
+      "get": {
+        "summary": "Get My Invitations",
+        "description": "Return the authenticated user's pending Organization invitations.",
+        "operationId": "get_my_invitations_api_v1_me_invitations_get",
+        "parameters": [
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserOrganizationInvitation"
+                  },
+                  "title": "Response Get My Invitations Api V1 Me Invitations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/invitations/{invitation_id}/accept": {
+      "post": {
+        "summary": "Accept My Invitation",
+        "description": "Join an Organization by accepting one pending invitation.",
+        "operationId": "accept_my_invitation_api_v1_me_invitations__invitation_id__accept_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/invitations/{invitation_id}": {
+      "delete": {
+        "summary": "Decline My Invitation",
+        "description": "Decline one pending Organization invitation.",
+        "operationId": "decline_my_invitation_api_v1_me_invitations__invitation_id__delete",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organization_id}/image": {
       "get": {
         "summary": "Inspect Image",
@@ -5225,6 +5376,29 @@
         ],
         "title": "UserIdentity",
         "description": "Represent a user identity in nested API responses."
+      },
+      "UserOrganizationInvitation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/OrganizationIdentity"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OrganizationRoles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organization",
+          "role"
+        ],
+        "title": "UserOrganizationInvitation",
+        "description": "Represent one pending Organization invitation for the current user."
       },
       "UserOrganizationMembership": {
         "properties": {

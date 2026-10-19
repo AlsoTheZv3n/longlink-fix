@@ -1,6 +1,11 @@
+from uuid import UUID
+from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col
-from sqlalchemy import delete, select
+from sqlalchemy import select
+from sqlalchemy.orm import contains_eager
+from collections.abc import Sequence
+from src.database.types import attr
 from src.models.pricing import FREE_USERS
 from src.database.services import organizations
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,40 +15,61 @@ from src.database.models.invitations import OrganizationInvitation
 from src.database.models.organizations import Organization
 
 
-async def accept(session: AsyncSession, user: User) -> None:
-    """Accept email grants for changed memberships in the caller's transaction."""
+async def pending(session: AsyncSession, user: User) -> Sequence[OrganizationInvitation]:
+    """Return unexpired invitations addressed to the user's email."""
 
-    # Discover recipient grants without taking invitation locks before their organization admission locks.
-    result = await session.scalars(
+    # Load response-ready Organizations and hide grants for deleted Organizations.
+    statement = (
         select(OrganizationInvitation)
         .join(Organization, col(Organization.id) == col(OrganizationInvitation.organization_id))
-        .where(col(Organization.deleted_at).is_(None), col(OrganizationInvitation.email) == user.email)
+        .options(
+            contains_eager(attr(OrganizationInvitation.organization)).load_only(
+                attr(Organization.id), attr(Organization.name), attr(Organization.slug), attr(Organization.status)
+            )
+        )
+        .where(
+            col(OrganizationInvitation.email) == user.email,
+            col(OrganizationInvitation.created_at) > datetime.now(UTC) - timedelta(days=7),
+            col(Organization.deleted_at).is_(None),
+        )
+        .order_by(col(OrganizationInvitation.created_at).desc())
     )
-    pending_invitations = result.all()
-    if not pending_invitations:
-        return
+    result = await session.scalars(statement)
+    return result.all()
 
-    # Keep grants active for seven days and consume expired grants without creating access.
-    cutoff = datetime.now(UTC) - timedelta(days=7)
-    active_invitations = [invitation for invitation in pending_invitations if invitation.created_at > cutoff]
-    consumed_ids = [invitation.id for invitation in pending_invitations if invitation.created_at <= cutoff]
 
-    # Lock organizations in a stable order so concurrent sign-ins cannot exceed Free seat limits.
-    for pending in sorted(active_invitations, key=lambda invitation: str(invitation.organization_id)):
-        organization = await organizations.lock(session, pending.organization_id)
-        if organization.deleted_at is not None:
-            continue
-        invitation = await session.get(OrganizationInvitation, pending.id, populate_existing=True, with_for_update=True)
-        if invitation is None or invitation.email != user.email:
-            continue
-        membership = await session.get(UserOrganization, (user.id, organization.id))
-        if membership is None:
-            if organization.stripe_payment_method_id is None and await organizations.member_count(session, organization.id) >= FREE_USERS:
-                # Retain blocked invitations until an owner registers a card or removes a member.
-                continue
-            membership = UserOrganization(user_id=user.id, organization_id=organization.id, role=invitation.role)
-            session.add(membership)
-        consumed_ids.append(invitation.id)
+async def accept(session: AsyncSession, user: User, invitation_id: UUID) -> None:
+    """Admit the user to an Organization through one unexpired invitation."""
 
-    # Delete only consumed and expired grants, never grants blocked by the current plan.
-    await session.execute(delete(OrganizationInvitation).where(col(OrganizationInvitation.id).in_(consumed_ids)))
+    # Resolve the recipient's grant without taking its lock before the Organization admission lock.
+    pending_invitation = await session.get(OrganizationInvitation, invitation_id)
+    if pending_invitation is None or pending_invitation.email != user.email:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    # Lock the Organization, then refresh the grant so concurrent revocations cannot be accepted.
+    organization = await organizations.lock(session, pending_invitation.organization_id)
+    invitation = await session.get(OrganizationInvitation, invitation_id, populate_existing=True, with_for_update=True)
+    if invitation is None or organization.deleted_at is not None or invitation.created_at <= datetime.now(UTC) - timedelta(days=7):
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    # Keep an existing role, and admit new members only within the Free member allowance.
+    membership = await session.get(UserOrganization, (user.id, organization.id))
+    if membership is None:
+        if organization.stripe_payment_method_id is None and await organizations.member_count(session, organization.id) >= FREE_USERS:
+            raise HTTPException(status_code=409, detail="This organization has reached its member limit. Ask an owner to register a card.")
+        membership = UserOrganization(user_id=user.id, organization_id=organization.id, role=invitation.role)
+        session.add(membership)
+
+    # Consume the grant together with the admission.
+    await session.delete(invitation)
+
+
+async def decline(session: AsyncSession, user: User, invitation_id: UUID) -> None:
+    """Delete one invitation addressed to the user's email."""
+
+    # Hide grants addressed to other accounts behind the same response as missing grants.
+    invitation = await session.get(OrganizationInvitation, invitation_id, with_for_update=True)
+    if invitation is None or invitation.email != user.email:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    await session.delete(invitation)

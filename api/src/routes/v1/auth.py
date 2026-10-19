@@ -13,7 +13,7 @@ from src.environments import env
 from src.models.users import UserSummary
 from fastapi.responses import RedirectResponse
 from longlink.database import audit
-from src.database.services import users, invitations
+from src.database.services import users
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.models.users import User
 
@@ -24,11 +24,10 @@ INVALID_PASSWORD_RESET_LINK = "This password reset link is invalid or has expire
 
 
 async def set_auth_session(session: AsyncSession, response: Response, user: User) -> None:
-    """Commit accepted access before publishing one authenticated browser session."""
+    """Commit pending account changes before publishing one authenticated browser session."""
 
-    # Attribute accepted invitations and pending account changes to the authenticated user.
+    # Attribute pending account changes to the authenticated user.
     with audit.actor(user.id):
-        await invitations.accept(session, user)
         await session.commit()
 
     # Publish authentication as a private, browser-only session only after persistence succeeds.
@@ -161,7 +160,7 @@ async def password_login(ctx: Context, payload: PasswordLogin):
     if not password_matches or user.deleted_at is not None:
         raise HTTPException(status_code=400, detail="Invalid email or password.")
 
-    # Accept email-bound Organization access before issuing its signed browser session.
+    # Issue the signed browser session for the verified account.
     await set_auth_session(ctx.database, ctx.response, user)
 
 
@@ -280,7 +279,7 @@ async def complete_registration(
     # Bind account creation to the signed email rather than any client-supplied identity.
     email = registration_email(registration_token or "")
 
-    # Commit account creation and accepted access before publishing browser authentication.
+    # Commit account creation before publishing browser authentication.
     try:
         user = await users.register(ctx.database, payload.name, email, payload.password)
         await set_auth_session(ctx.database, ctx.response, user)

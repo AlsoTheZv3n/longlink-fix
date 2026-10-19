@@ -63,9 +63,9 @@ async def send_password_reset_email(recipient: str, credential: str) -> None:
 async def send_organization_invitation_email(recipient: str, organization_name: str, role: OrganizationRoles) -> None:
     """Deliver one organization invitation email."""
 
-    # Prefill the shared registration flow while retaining the sign-in option for existing accounts.
+    # Prefill sign-in, which offers registration and continues to the pending invitation in the organization list.
     subject = f"Invitation to join {organization_name} on LongLink"
-    invitation_url = f"{env.PUBLIC_URL}/auth/register?{urlencode({'email': recipient})}"
+    invitation_url = f"{env.PUBLIC_URL}/login?{urlencode({'email': recipient})}"
     role_label = role.value
 
     # Keep a plain-text fallback for clients that do not render HTML.

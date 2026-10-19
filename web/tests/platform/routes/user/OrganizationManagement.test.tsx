@@ -7,6 +7,7 @@ it('uses settings presentation instead of onboarding for an empty membership lis
     // Act
     const output = renderPlatform(<Management presentation="settings" />, '/user/settings', [
         ['/api/v1/me/organizations', []],
+        ['/api/v1/me/invitations', []],
     ]);
 
     // Assert

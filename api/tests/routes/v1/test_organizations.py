@@ -627,7 +627,7 @@ async def test_organization_member_creates_organization_invitation(
         invitations_list = await organizations.invitations(session, organization.id)
     assert [(item.email, item.role) for item in invitations_list] == [(invitee.email, OrganizationRoles.write)]
     assert captured_mail[0][0] == invitee.email
-    assert f"http://localhost:5173/auth/register?{urlencode({'email': invitee.email})}" in captured_mail[0][2]
+    assert f"http://localhost:5173/login?{urlencode({'email': invitee.email})}" in captured_mail[0][2]
     assert captured_mail[0][3] is not None
 
 

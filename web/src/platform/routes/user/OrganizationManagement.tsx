@@ -1,4 +1,6 @@
+import { api } from '@/lib/api';
 import { useState } from 'react';
+import { useApiError } from '@/lib/errors';
 import { useApi } from '@/lib/hooks/use-api';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
@@ -13,12 +15,25 @@ import CreateOrganization from './CreateOrganization';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
-/** Owns membership loading and organization creation for the overview and account settings. */
+/** Owns membership loading, pending invitations, and organization creation for the overview and account settings. */
 export default function OrganizationManagement({ presentation }: { presentation: 'overview' | 'settings' }) {
     const [selected, setSelected] = useState<{ type: 'create' } | null>(null);
+    const reportError = useApiError();
 
     const [memberships, invalidate] = useApi('/api/v1/me/organizations', schemas.zUserOrganizationMembership.array());
-    const onboarding = presentation === 'overview' && memberships.length === 0;
+
+    const [invitations, invalidateInvitations] = useApi(
+        '/api/v1/me/invitations',
+        schemas.zUserOrganizationInvitation.array()
+    );
+
+    const onboarding = presentation === 'overview' && memberships.length === 0 && invitations.length === 0;
+
+    // List pending invitations above memberships in the same organization table.
+    const rows = [
+        ...invitations.map((invitation) => ({ ...invitation, kind: 'invitation' as const })),
+        ...memberships.map((membership) => ({ ...membership, kind: 'membership' as const })),
+    ];
 
     /** Closes only this attempt, leaving any replacement dialog open. */
     function closeSelected() {
@@ -54,7 +69,7 @@ export default function OrganizationManagement({ presentation }: { presentation:
                         </Stack>
                         <Divider />
                     </>
-                ) : memberships.length > 0 ? (
+                ) : !onboarding ? (
                     <Stack direction="horizontal" justify="between" align="center" wrap="wrap" className="min-h-12">
                         <Heading level={1}>Organizations</Heading>
                         <Button label="Create Organization" onClick={() => setSelected({ type: 'create' })} />
@@ -97,8 +112,8 @@ export default function OrganizationManagement({ presentation }: { presentation:
                     </Stack>
                 ) : (
                     <Table
-                        data={memberships}
-                        idKey={(row) => row.organization.id}
+                        data={rows}
+                        idKey={(row) => (row.kind === 'invitation' ? row.id : row.organization.id)}
                         hasHover
                         density="compact"
                         columns={[
@@ -110,7 +125,9 @@ export default function OrganizationManagement({ presentation }: { presentation:
                                     <Stack direction="horizontal" gap={3} align="center">
                                         <Avatar kind="organization" name={row.organization.name} />
                                         <Stack align="start" gap={presentation === 'overview' ? 0 : undefined}>
-                                            {presentation === 'settings' ? (
+                                            {row.kind === 'invitation' ? (
+                                                <Text>{row.organization.name}</Text>
+                                            ) : presentation === 'settings' ? (
                                                 <Stack direction="horizontal" gap={1} align="center">
                                                     <Link href={`/orgs/${row.organization.slug}`}>
                                                         {row.organization.name}
@@ -122,11 +139,57 @@ export default function OrganizationManagement({ presentation }: { presentation:
                                                     {row.organization.name}
                                                 </Link>
                                             )}
-                                            <Text type="supporting">Organization</Text>
+                                            <Text type="supporting">
+                                                {row.kind === 'invitation'
+                                                    ? `Invitation · ${row.role}`
+                                                    : 'Organization'}
+                                            </Text>
                                         </Stack>
                                     </Stack>
                                 ),
                             },
+                            ...(invitations.length > 0
+                                ? [
+                                      {
+                                          key: 'actions',
+                                          header: '',
+                                          align: 'end' as const,
+                                          renderCell: (row: (typeof rows)[number]) =>
+                                              row.kind === 'invitation' ? (
+                                                  <Stack direction="horizontal" gap={2} justify="end">
+                                                      <Button
+                                                          label="Decline"
+                                                          variant="secondary"
+                                                          clickAction={async () => {
+                                                              // Refresh invitations only after the decline succeeds.
+                                                              await api.delete(`/api/v1/me/invitations/${row.id}`);
+                                                              await invalidateInvitations();
+                                                          }}
+                                                      />
+                                                      <Button
+                                                          label="Accept"
+                                                          variant="primary"
+                                                          clickAction={async () => {
+                                                              // Keep the page on failure, such as a full Free plan, and refresh either way.
+                                                              try {
+                                                                  await api.post(
+                                                                      `/api/v1/me/invitations/${row.id}/accept`
+                                                                  );
+                                                              } catch (failure) {
+                                                                  reportError(failure);
+                                                              } finally {
+                                                                  await Promise.all([
+                                                                      invalidate(),
+                                                                      invalidateInvitations(),
+                                                                  ]);
+                                                              }
+                                                          }}
+                                                      />
+                                                  </Stack>
+                                              ) : null,
+                                      },
+                                  ]
+                                : []),
                         ]}
                     />
                 )}

@@ -1,4 +1,5 @@
 import pytest
+from fastapi import HTTPException
 from datetime import UTC, datetime, timedelta
 from sqlmodel import col, select
 from factories import create_organization
@@ -102,34 +103,31 @@ async def test_create_uses_concurrently_created_invitation(users: tuple[User, Us
     assert replacement.created_at > original_created_at
 
 
-async def test_accept_removes_expired_invitation_without_creating_membership(users: tuple[User, User, User]) -> None:
-    """Reject and consume an invitation at the seven-day expiration boundary."""
+async def test_accept_rejects_expired_invitation(users: tuple[User, User, User]) -> None:
+    """Reject an invitation at the seven-day expiration boundary without creating membership."""
 
     # Arrange
     owner, invitee = users[0], users[1]
     organization = await create_organization(owner)
+    expired_invitation = OrganizationInvitation(
+        organization_id=organization.id,
+        email=invitee.email,
+        role=OrganizationRoles.write,
+        created_at=datetime.now(UTC) - timedelta(days=7, seconds=1),
+    )
+    invitation_id = expired_invitation.id
     async with session_scope() as session:
-        session.add(
-            OrganizationInvitation(
-                organization_id=organization.id,
-                email=invitee.email,
-                role=OrganizationRoles.write,
-                created_at=datetime.now(UTC) - timedelta(days=7, seconds=1),
-            )
-        )
+        session.add(expired_invitation)
         await session.commit()
 
     # Act
     async with session_scope() as session:
-        await invitations.accept(session, invitee)
-        await session.commit()
-        invitation = await session.scalar(
-            select(OrganizationInvitation).where(col(OrganizationInvitation.organization_id) == organization.id)
-        )
+        with pytest.raises(HTTPException) as error:
+            await invitations.accept(session, invitee, invitation_id)
         membership = await session.get(UserOrganization, (invitee.id, organization.id))
 
     # Assert
-    assert invitation is None
+    assert error.value.status_code == 404
     assert membership is None
 
 
@@ -139,14 +137,16 @@ async def test_accept_preserves_active_membership_role(users: tuple[User, User, 
     # Arrange
     owner, invitee = users[0], users[1]
     organization = await create_organization(owner)
+    pending_invitation = OrganizationInvitation(organization_id=organization.id, email=invitee.email, role=OrganizationRoles.admin)
+    invitation_id = pending_invitation.id
     async with session_scope() as session:
         session.add(UserOrganization(user_id=invitee.id, organization_id=organization.id, role=OrganizationRoles.read))
-        session.add(OrganizationInvitation(organization_id=organization.id, email=invitee.email, role=OrganizationRoles.admin))
+        session.add(pending_invitation)
         await session.commit()
 
     # Act
     async with session_scope() as session:
-        await invitations.accept(session, invitee)
+        await invitations.accept(session, invitee, invitation_id)
         await session.commit()
         membership = await session.get(UserOrganization, (invitee.id, organization.id))
         invitation = await session.scalar(
@@ -159,7 +159,7 @@ async def test_accept_preserves_active_membership_role(users: tuple[User, User, 
     assert invitation is None
 
 
-async def test_accept_ignores_invitations_for_deleted_organizations(users: tuple[User, User, User]) -> None:
+async def test_accept_rejects_invitations_for_deleted_organizations(users: tuple[User, User, User]) -> None:
     """Keep invitations untouched when their organization has been deleted."""
 
     # Arrange
@@ -176,13 +176,15 @@ async def test_accept_ignores_invitations_for_deleted_organizations(users: tuple
 
     # Act
     async with session_scope() as session:
-        await invitations.accept(session, invitee)
+        with pytest.raises(HTTPException) as error:
+            await invitations.accept(session, invitee, invitation_id)
         membership = await session.get(UserOrganization, (invitee.id, organization.id))
         invitation = await session.scalar(
             select(OrganizationInvitation).where(col(OrganizationInvitation.organization_id) == organization.id)
         )
 
     # Assert
+    assert error.value.status_code == 404
     assert membership is None
     assert invitation is not None
     assert invitation.id == invitation_id

@@ -146,7 +146,7 @@ async def test_organization_invitation_email_prefills_the_recipient(
     assert html_body is not None
     text = plain_body.get_content()
     html = html_body.get_content()
-    assert 'href="https://longlink.dev/auth/register?email=user%2Bteam%40example.com"' in html
+    assert 'href="https://longlink.dev/login?email=user%2Bteam%40example.com"' in html
     assert "Join Engineering with maintain access." in html
-    assert "https://longlink.dev/auth/register?email=user%2Bteam%40example.com" in text
+    assert "https://longlink.dev/login?email=user%2Bteam%40example.com" in text
     assert "Role: maintain\n" in text

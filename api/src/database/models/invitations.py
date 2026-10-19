@@ -1,8 +1,13 @@
 from uuid import UUID, uuid4
-from typing import ClassVar
-from sqlmodel import Field
+from typing import TYPE_CHECKING, ClassVar
+from sqlmodel import Field, Relationship
 from sqlalchemy import Enum, Column, UniqueConstraint
 from src.models.roles import OrganizationRoles
+
+# Import relationship targets only during type checking.
+if TYPE_CHECKING:
+    from src.database.models.organizations import Organization
+
 from src.database.models.base import AuditTable
 
 
@@ -20,6 +25,7 @@ class OrganizationInvitation(AuditTable, table=True):
 
     # Relationships
     organization_id: UUID = Field(foreign_key="organizations.id", ondelete="CASCADE")
+    organization: "Organization" = Relationship(sa_relationship_kwargs={"foreign_keys": "OrganizationInvitation.organization_id"})
 
     # State
     role: OrganizationRoles = Field(

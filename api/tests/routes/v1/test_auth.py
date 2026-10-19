@@ -674,10 +674,10 @@ async def test_password_login_rejects_deleted_account_with_correct_password_with
 
 
 @pytest.mark.usefixtures("database_runtime")
-async def test_registration_completion_accepts_pending_organization_invitation(
+async def test_registration_completion_keeps_pending_organization_invitation(
     client: AsyncClient, captured_mail: list[tuple[str, str, str, str | None]], users: tuple[User, User, User]
 ) -> None:
-    """Accept an email-bound Organization role while creating a verified account."""
+    """Leave an email-bound Organization invitation pending until the new account accepts it."""
 
     # Arrange
     email = "invited@example.com"
@@ -695,38 +695,28 @@ async def test_registration_completion_accepts_pending_organization_invitation(
         "/api/v1/auth/register/complete", json={"name": "Invited User", "password": TEST_PASSWORD}, headers={"Origin": env.PUBLIC_URL}
     )
     organizations_response = await client.get("/api/v1/me/organizations")
-    async with session_scope() as session:
-        invitation = await session.scalar(
-            select(OrganizationInvitation).where(col(OrganizationInvitation.organization_id) == organization.id)
-        )
+    invitations_response = await client.get("/api/v1/me/invitations")
 
     # Assert
     assert response.status_code == 201
     assert organizations_response.status_code == 200
-    assert organizations_response.json() == [
-        {"organization": {"id": str(organization.id), "name": "acme", "slug": "acme", "status": "creating"}, "role": "write"}
-    ]
-    assert invitation is None
+    assert organizations_response.json() == []
+    assert invitations_response.status_code == 200
+    assert [invitation["organization"]["id"] for invitation in invitations_response.json()] == [str(organization.id)]
     assert client.cookies.get("longlink_auth") is not None
 
 
 @pytest.mark.usefixtures("database_runtime")
-async def test_password_login_accepts_pending_organization_invitation(
+async def test_password_login_keeps_pending_organization_invitation(
     clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
-    """Accept pending Organization access when an existing user signs in."""
+    """Leave Organization access pending when an existing user signs in."""
 
     # Arrange
-    owner, invited_user, other_user = users
+    owner, invited_user = users[0], users[1]
     organization = await create_organization(owner)
-    other_organization = await create_organization(owner, name="other organization")
-    pending_invitation = OrganizationInvitation(organization_id=organization.id, email=invited_user.email, role=OrganizationRoles.write)
-    other_pending_invitation = OrganizationInvitation(
-        organization_id=other_organization.id, email=other_user.email, role=OrganizationRoles.write
-    )
     async with session_scope() as session:
-        session.add(pending_invitation)
-        session.add(other_pending_invitation)
+        session.add(OrganizationInvitation(organization_id=organization.id, email=invited_user.email, role=OrganizationRoles.write))
         await session.commit()
 
     # Act
@@ -738,24 +728,10 @@ async def test_password_login_accepts_pending_organization_invitation(
         invitation = await session.scalar(
             select(OrganizationInvitation).where(col(OrganizationInvitation.organization_id) == organization.id)
         )
-        membership = await session.scalar(
-            select(UserOrganization).where(
-                col(UserOrganization.organization_id) == organization.id, col(UserOrganization.user_id) == invited_user.id
-            )
-        )
-        other_invitation = await session.get(OrganizationInvitation, other_pending_invitation.id)
-        other_membership = await session.scalar(
-            select(UserOrganization).where(
-                col(UserOrganization.organization_id) == other_organization.id, col(UserOrganization.user_id) == invited_user.id
-            )
-        )
+        membership = await session.get(UserOrganization, (invited_user.id, organization.id))
 
-    assert invitation is None
-    assert membership is not None
-    assert membership.role == OrganizationRoles.write
-    assert other_invitation is not None
-    assert other_invitation.email == other_user.email
-    assert other_membership is None
+    assert invitation is not None
+    assert membership is None
 
 
 async def test_registration_completion_rejects_duplicate_account(

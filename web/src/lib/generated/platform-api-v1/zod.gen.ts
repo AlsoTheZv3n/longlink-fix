@@ -656,6 +656,17 @@ export const zOrganizationDetails = z.object({
 });
 
 /**
+ * UserOrganizationInvitation
+ *
+ * Represent one pending Organization invitation for the current user.
+ */
+export const zUserOrganizationInvitation = z.object({
+    id: z.uuid(),
+    organization: zOrganizationIdentity,
+    role: zOrganizationRoles
+});
+
+/**
  * UserOrganizationMembership
  *
  * Represent one current-user Organization membership.

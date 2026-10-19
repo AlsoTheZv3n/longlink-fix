@@ -1,8 +1,9 @@
 from src import auth
+from uuid import UUID
 from fastapi import Depends, APIRouter
 from src.context import Context
-from src.models.users import UserUpdate, UserSummary, UserOrganizationMembership
-from src.database.services import organizations
+from src.models.users import UserUpdate, UserSummary, UserOrganizationInvitation, UserOrganizationMembership
+from src.database.services import invitations, organizations
 
 router = APIRouter(dependencies=[Depends(auth.authuser)])
 
@@ -20,6 +21,32 @@ async def get_my_organizations(ctx: Context, user: auth.CurrentUser):
 
     # Return active membership response data through the Organization persistence service.
     return await organizations.memberships(ctx.database, user.id)
+
+
+@router.get("/me/invitations", response_model=list[UserOrganizationInvitation])
+async def get_my_invitations(ctx: Context, user: auth.CurrentUser):
+    """Return the authenticated user's pending Organization invitations."""
+
+    # Match unexpired invitations to the account's email address.
+    return await invitations.pending(ctx.database, user)
+
+
+@router.post("/me/invitations/{invitation_id}/accept", status_code=204)
+async def accept_my_invitation(ctx: Context, invitation_id: UUID, user: auth.CurrentUser):
+    """Join an Organization by accepting one pending invitation."""
+
+    # Commit the new membership together with the consumed invitation.
+    await invitations.accept(ctx.database, user, invitation_id)
+    await ctx.database.commit()
+
+
+@router.delete("/me/invitations/{invitation_id}", status_code=204)
+async def decline_my_invitation(ctx: Context, invitation_id: UUID, user: auth.CurrentUser):
+    """Decline one pending Organization invitation."""
+
+    # Delete the invitation so it also disappears from the Organization's invitation list.
+    await invitations.decline(ctx.database, user, invitation_id)
+    await ctx.database.commit()
 
 
 @router.patch("/me", response_model=UserSummary)
