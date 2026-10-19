@@ -627,7 +627,7 @@
         {
             "name": "Dialog",
             "category": "Layouts",
-            "introduction": "Displays an accessible modal with an explicit purpose and controlled visibility.",
+            "introduction": "Displays an accessible modal that closes with Escape or its close button, not backdrop clicks.",
             "keywords": [
                 "modal",
                 "confirmation",
@@ -645,14 +645,9 @@
                     "description": "Dialog content."
                 },
                 {
-                    "name": "aria-label",
+                    "name": "title",
                     "type": "string",
-                    "description": "The aria-label prop."
-                },
-                {
-                    "name": "showTitle",
-                    "type": "boolean",
-                    "description": "Shows the accessible dialog name as a visible header title; defaults to true."
+                    "description": "Shows a dialog header when a title is provided."
                 },
                 {
                     "name": "isOpen",
@@ -665,39 +660,10 @@
                     "description": "Callback when dialog visibility changes."
                 },
                 {
-                    "name": "purpose",
-                    "type": "\"info\" | \"form\" | \"required\"",
-                    "description": "Controls dismissal behavior: required disables Escape and backdrop click; form disables backdrop click after interaction; info allows both.",
-                    "default": "info"
-                },
-                {
-                    "name": "width",
-                    "type": "string | number",
-                    "description": "Preferred dialog width, clamped to the viewport, matching Platform dialogs.",
-                    "default": 960
-                },
-                {
-                    "name": "height",
-                    "type": "string | number",
-                    "description": "Frame height, limited by the viewport. Short content is vertically centered while longer content scrolls.",
-                    "default": "min(560px, calc(100dvh - var(--spacing-10) * 4))"
-                },
-                {
-                    "name": "maxHeight",
-                    "type": "string | number",
-                    "description": "Maximum dialog height within the View viewport.",
-                    "default": "calc(100dvh - var(--spacing-10) * 4)"
-                },
-                {
-                    "name": "padding",
+                    "name": "gap",
                     "type": "0 | 0.5 | 1 | 1.5 | 2 | 3 | 4 | 5 | 6 | 8 | 10",
-                    "description": "Content inset using the shared spacing scale.",
-                    "default": 4
-                },
-                {
-                    "name": "contentWidth",
-                    "type": "string | number",
-                    "description": "Maximum width of the centered content column."
+                    "description": "Spacing between the title and content; defaults to 3.",
+                    "default": 3
                 }
             ]
         },
@@ -952,7 +918,7 @@
                 {
                     "name": "height",
                     "type": "string | number",
-                    "description": "Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields. Use \"100%\" inside a fixed-height Dialog with padding={0} and contentWidth=\"100%\"."
+                    "description": "Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields, including inside a Dialog."
                 },
                 {
                     "name": "submitLabel",

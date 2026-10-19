@@ -4,6 +4,7 @@ import { useApi } from '@/lib/hooks/use-api';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
 import { Avatar } from '@/components/ui/Avatar';
+import { Dialog } from '@/components/ui/Dialog';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { useDeferredValue, useState } from 'react';
@@ -12,7 +13,6 @@ import { TextInput } from '@/components/ui/TextInput';
 import { DeletionDialog } from '@/components/Deletion';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import { zPageSolutionResponse } from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Lists Solutions and manages administrator metadata and deletion dialogs. */
@@ -138,13 +138,18 @@ export default function Solutions() {
             </Stack>
             {metadata && (
                 <Dialog
+                    title="Solution metadata"
                     isOpen
                     onOpenChange={(open) => {
                         if (!open) setDialog(null);
                     }}
                 >
-                    <DialogHeader title="Solution metadata" onOpenChange={() => setDialog(null)} />
-                    <Stack gap={2}>
+                    <Stack
+                        gap={2}
+                        height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
+                        padding={8}
+                        className="overflow-auto"
+                    >
                         <Text>
                             <b>Status</b> {metadata.status}
                         </Text>

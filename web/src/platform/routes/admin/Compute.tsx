@@ -4,6 +4,7 @@ import { useApiError } from '@/lib/errors';
 import { Info, Search } from 'lucide-react';
 import { useApi } from '@/lib/hooks/use-api';
 import { Text } from '@astryxdesign/core/Text';
+import { Dialog } from '@/components/ui/Dialog';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Form, FormStep } from '@/components/Form';
 import { Button } from '@astryxdesign/core/Button';
@@ -12,11 +13,9 @@ import { TextInput } from '@/components/ui/TextInput';
 import { DeletionDialog } from '@/components/Deletion';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { FileInput } from '@astryxdesign/core/FileInput';
-import { DialogClose } from '@/components/ui/DialogClose';
 import { Pagination } from '@astryxdesign/core/Pagination';
 import { useDeferredValue, useEffect, useState } from 'react';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
 // The API also accepts raw YAML and validates its structure on the server.
@@ -117,13 +116,18 @@ export default function Compute() {
             )}
             {metadata && (
                 <Dialog
+                    title="Compute metadata"
                     isOpen
                     onOpenChange={(open) => {
                         if (!open) setDialog(null);
                     }}
                 >
-                    <DialogHeader title="Compute metadata" onOpenChange={() => setDialog(null)} />
-                    <Stack gap={2}>
+                    <Stack
+                        gap={2}
+                        height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
+                        padding={8}
+                        className="overflow-auto"
+                    >
                         <Text>
                             <b>Gateway</b> {metadata.gateway_url}
                         </Text>
@@ -246,17 +250,11 @@ function ComputeRegistration({ invalidate, onClose }: { invalidate: () => Promis
     // Let the shared wizard own navigation, validation, and persistent fields within the creation dialog shell.
     return (
         <Dialog
-            aria-label="Register Compute"
             isOpen
-            purpose="form"
-            width={960}
-            maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-            padding={0}
             onOpenChange={(open) => {
                 if (!open) onClose();
             }}
         >
-            <DialogClose onClose={onClose} />
             <Form
                 height="min(560px, calc(100dvh - var(--spacing-10) * 4))"
                 action={registerCompute}

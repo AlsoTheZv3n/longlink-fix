@@ -1,12 +1,11 @@
 import { api } from '@/lib/api';
 import { useState } from 'react';
 import { Text } from '@astryxdesign/core/Text';
+import { Dialog } from '@/components/ui/Dialog';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
-import { Dialog } from '@astryxdesign/core/Dialog';
 import { Heading } from '@astryxdesign/core/Heading';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { DialogClose } from '@/components/ui/DialogClose';
 import { zOrganizationCreate } from '@/lib/generated/platform-api-v1/zod.gen';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
 
@@ -33,17 +32,11 @@ export default function CreateOrganization({
     // Keep the split dialog compact and within the dynamic viewport.
     return (
         <Dialog
-            aria-label="Create organization"
             isOpen
-            purpose="info"
             onOpenChange={(open) => {
                 if (!open) onClose();
             }}
-            width={960}
-            maxHeight="calc(100dvh - var(--spacing-10) * 4)"
-            padding={0}
         >
-            <DialogClose onClose={onClose} />
             <Stack height="min(560px, calc(100dvh - var(--spacing-10) * 4))">
                 <Layout
                     padding={0}

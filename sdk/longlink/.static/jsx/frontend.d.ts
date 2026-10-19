@@ -4878,22 +4878,12 @@ declare function Dialog(props: {
     /** Hides the modal without unmounting its fields or changing the caller's open state. */
     hidden?: boolean;
     children?: ViewNode;
-    'aria-label': string;
-    /** Shows the accessible dialog name as a visible header title; defaults to true. */
-    showTitle?: boolean;
+    /** Shows a dialog header when a title is provided. */
+    title?: string;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    purpose?: 'form' | 'info' | 'required';
-    /** Preferred dialog width, clamped to the viewport, matching Platform dialogs. */
-    width?: number | string;
-    /** Frame height, limited by the viewport. Short content is vertically centered while longer content scrolls. */
-    height?: number | string;
-    /** Maximum dialog height within the View viewport. */
-    maxHeight?: number | string;
-    /** Content inset using the shared spacing scale. */
-    padding?: Spacing;
-    /** Maximum width of the centered content column. */
-    contentWidth?: number | string;
+    /** Spacing between the title and content; defaults to 3. */
+    gap?: Spacing;
 }): React.JSX.Element;
 
 /** Submits named themed fields and ordinary HTML inputs to a Solution API endpoint. @category Form */
@@ -4908,7 +4898,7 @@ declare function Form(props: {
     method?: 'post' | 'put' | 'patch' | 'delete';
     /** Native form ID for associating external submit or reset buttons. */
     id?: string;
-    /** Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields. Use "100%" inside a fixed-height Dialog with padding={0} and contentWidth="100%". */
+    /** Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields, including inside a Dialog. */
     height?: number | string;
     /** Label for the automatic final submit button when using FormStep children; defaults to Save. */
     submitLabel?: string;

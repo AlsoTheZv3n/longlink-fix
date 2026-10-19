@@ -17,7 +17,7 @@ it('hides an open dialog without changing caller-owned state', async () => {
                 <button type="button" onClick={() => setHidden(true)}>
                     Hide
                 </button>
-                <Dialog aria-label="Edit order" isOpen hidden={hidden} onOpenChange={change}>
+                <Dialog title="Edit order" isOpen hidden={hidden} onOpenChange={change}>
                     Draft
                 </Dialog>
             </>
