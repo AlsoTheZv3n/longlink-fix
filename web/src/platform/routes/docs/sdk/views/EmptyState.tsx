@@ -7,6 +7,19 @@ export default function EmptyStatePage() {
     return (
         <ViewLayout
             name="EmptyState"
+            introduction={'Describes an empty View region without custom decorative slots.'}
+            properties={[
+                {
+                    name: 'title',
+                    type: 'string',
+                    description: 'Primary message rendered as an <h3> heading inside the empty state.',
+                },
+                {
+                    name: 'isCompact',
+                    type: 'boolean',
+                    description: 'Enables the compact variant with reduced spacing for constrained content areas.',
+                },
+            ]}
             examples={[
                 {
                     title: 'EmptyState',

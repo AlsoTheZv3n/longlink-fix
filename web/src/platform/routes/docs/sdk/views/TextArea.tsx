@@ -8,6 +8,84 @@ export default function TextAreaPage() {
     return (
         <ViewLayout
             name="TextArea"
+            introduction={
+                'Edits themed multi-line text with native form serialization. Required fields cannot be blank.'
+            }
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Label text for the textarea. Always rendered for accessibility.',
+                },
+                {
+                    name: 'description',
+                    type: 'string',
+                    description: 'Helper text displayed between the label and textarea.',
+                },
+                {
+                    name: 'name',
+                    type: 'string',
+                    description: "Includes the themed control's value under this form submission name.",
+                },
+                {
+                    name: 'required',
+                    type: 'boolean',
+                    description: 'Requires a value before native form submission.',
+                },
+                {
+                    name: 'disabled',
+                    type: 'boolean',
+                    description: 'Prevents interaction and excludes the field from submission.',
+                },
+                {
+                    name: 'width',
+                    type: 'string | number',
+                    description:
+                        'Width of the field (number = pixels, string used as-is, e.g. "100%"). Sizes the whole field (label, control, and status) so they stay aligned.',
+                },
+                {
+                    name: 'value',
+                    type: 'string',
+                    description: 'Current value of the textarea.',
+                },
+                {
+                    name: 'defaultValue',
+                    type: 'string',
+                    description: 'The defaultValue prop.',
+                },
+                {
+                    name: 'onChange',
+                    type: '(value: string) => void',
+                    description: 'Callback fired when the textarea value changes.',
+                },
+                {
+                    name: 'placeholder',
+                    type: 'string',
+                    description: 'Placeholder text shown when the textarea is empty.',
+                },
+                {
+                    name: 'rows',
+                    type: 'number',
+                    description: 'Number of visible text rows.',
+                },
+                {
+                    name: 'maxLength',
+                    type: 'number',
+                    description:
+                        'Maximum Unicode code points, matching Python string length. Validates without truncating input.',
+                },
+                {
+                    name: 'hasAutoFocus',
+                    type: 'boolean',
+                    description: 'Automatically focuses the textarea on mount.',
+                },
+                {
+                    name: 'autoComplete',
+                    type: 'string',
+                    description:
+                        'The native autocomplete attribute, forwarded to the textarea unchanged. Does not affect the controlled value.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Notes form',

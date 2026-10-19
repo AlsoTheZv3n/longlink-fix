@@ -2,7 +2,7 @@ import { Icon } from './ui/Icon';
 import { Button } from './ui/Button';
 import { FormStep } from './ui/FormStep';
 import { Step, Stepper } from './ui/Stepper';
-import { ReportedError } from '@/lib/errors';
+import { ReportedError } from '@/lib/reported';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Banner } from '@astryxdesign/core/Banner';
 import type { FormValidation } from './ui/FormField';

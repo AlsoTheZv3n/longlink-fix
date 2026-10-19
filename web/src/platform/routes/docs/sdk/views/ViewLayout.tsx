@@ -5,62 +5,58 @@ import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
 import { CodeBlock } from '@astryxdesign/core/CodeBlock';
+import { componentDocumentation } from '@/platform/routes';
 import { Blockquote } from '@astryxdesign/core/Blockquote';
 import { DocumentationArticle } from '@/components/Article';
 import { documentationLastUpdated } from '@/lib/documentation';
 import { Table, proportional } from '@astryxdesign/core/Table';
-import { componentCatalog, componentDocumentation } from '@/platform/routes';
 
-type ViewProperty = NonNullable<(typeof componentCatalog)[number]['properties']>[number];
+type ViewProperty = { name: string; type: string; description?: string };
 
 type ViewExample = { title: string; code: string; preview: ReactNode };
 
 /** Provides examples and property references for an independently authored View page. */
 export default function ViewLayout({
     name,
-    introduction: authoredIntroduction,
+    introduction,
+    properties = [],
+    isLongLinkSpecific = false,
     examples = [],
     children,
     toc,
 }: {
     name: string;
-    introduction?: string;
+    introduction: string;
+    properties?: ViewProperty[];
+    isLongLinkSpecific?: boolean;
     examples?: ViewExample[];
     children?: ReactNode;
     toc?: { id: string; label: string; level: number }[];
 }) {
-    // Resolve the declaration catalog and optional authored introduction for this explicit page.
+    // Resolve navigation metadata for this explicit page.
     const component = componentDocumentation.find((entry) => entry.name === name);
 
     if (!component) throw new Error(`Missing View documentation: ${name}`);
-    const introduction = authoredIntroduction ?? component.introduction;
     const runtime = component.category === 'Runtime';
 
     // Prepare property tables below the examples.
     const groups = new Map<string, ViewProperty[]>();
 
     if (!runtime) {
-        // Include grouped JSX children and the Buttons companion in the generated tables.
-        const entries =
-            name === 'Button'
-                ? [component, ...componentCatalog.filter((entry) => entry.name === 'ButtonGroup')]
-                : [component];
+        // Group the page's authored properties by component.
+        for (const property of properties) {
+            const separator = property.name.indexOf('.');
+            const group = separator < 0 ? name : property.name.slice(0, separator);
 
-        for (const entry of entries) {
-            for (const property of entry.properties ?? []) {
-                const separator = property.name.indexOf('.');
-                const group = separator < 0 ? entry.name : property.name.slice(0, separator);
+            const row = {
+                ...property,
+                name: separator < 0 ? property.name : property.name.slice(separator + 1),
+            };
 
-                const row = {
-                    ...property,
-                    name: separator < 0 ? property.name : property.name.slice(separator + 1),
-                };
+            const properties = groups.get(group);
 
-                const properties = groups.get(group);
-
-                if (properties) properties.push(row);
-                else groups.set(group, [row]);
-            }
+            if (properties) properties.push(row);
+            else groups.set(group, [row]);
         }
     }
 
@@ -98,9 +94,7 @@ export default function ViewLayout({
                     </Stack>
                 </Blockquote>
                 <Text as="p">{introduction}</Text>
-                {authoredIntroduction !== undefined && !runtime && (
-                    <Text as="p">This is a LongLink-specific component.</Text>
-                )}
+                {isLongLinkSpecific && !runtime && <Text as="p">This is a LongLink-specific component.</Text>}
                 <CodeBlock
                     code={`longlink docs component "${name}"`}
                     language="bash"

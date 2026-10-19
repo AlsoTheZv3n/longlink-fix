@@ -8,6 +8,36 @@ export default function PaginationPage() {
     return (
         <ViewLayout
             name="Pagination"
+            isLongLinkSpecific
+            properties={[
+                {
+                    name: 'page',
+                    type: 'number',
+                    description: 'Current page number, starting at 1.',
+                },
+                {
+                    name: 'onPageChange',
+                    type: '(page: number) => void',
+                    description: 'Receives the selected page number.',
+                },
+                {
+                    name: 'totalItems',
+                    type: 'number',
+                    description:
+                        'Total number of items. Used to calculate page count. Takes precedence over totalPages if both provided.',
+                },
+                {
+                    name: 'pageSize',
+                    type: 'number',
+                    description:
+                        'Number of items per page. Coerced to a positive integer; non-finite values fall back to the default.',
+                },
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: "Accessible navigation label; defaults to Astryx's localized Pagination label.",
+                },
+            ]}
             introduction="Pagination supplies page controls, bounds, and accessible navigation for tables or galleries. Pages start at 1. The Solution owns page state and data fetching; pass the total item count and page size returned or used by your API."
             examples={[
                 {

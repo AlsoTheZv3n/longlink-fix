@@ -8,6 +8,43 @@ export default function CollapsiblePage() {
     return (
         <ViewLayout
             name="Collapsible"
+            introduction={'Shows or hides content using controlled or initially open state.'}
+            properties={[
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description: 'Content that collapses and expands.',
+                },
+                {
+                    name: 'trigger',
+                    type: 'ReactNode',
+                    description: 'Content shown in the trigger area (always visible).',
+                },
+                {
+                    name: 'defaultIsOpen',
+                    type: 'boolean',
+                    description:
+                        'Default open state for standalone uncontrolled usage. Ignored when value binds the item to a surrounding CollapsibleGroup.',
+                },
+                {
+                    name: 'isOpen',
+                    type: 'boolean',
+                    description:
+                        'Controlled open state for standalone usage. Ignored when value binds the item to a surrounding CollapsibleGroup.',
+                },
+                {
+                    name: 'isDisabled',
+                    type: 'boolean',
+                    description:
+                        "Disable the item so its trigger can't be toggled (dimmed, aria-disabled, and out of the tab order). Doesn't collapse an already-open item.",
+                },
+                {
+                    name: 'onOpenChange',
+                    type: '(isOpen: boolean) => void',
+                    description:
+                        'Callback invoked when standalone open state changes. A surrounding CollapsibleGroup owns grouped state and calls its onChange instead.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Collapsible',

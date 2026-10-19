@@ -8,6 +8,24 @@ export default function CurrencyPage() {
     return (
         <ViewLayout
             name="Currency"
+            isLongLinkSpecific
+            properties={[
+                {
+                    name: 'value',
+                    type: 'number',
+                    description: 'Amount to format in currency units.',
+                },
+                {
+                    name: 'currency',
+                    type: 'string',
+                    description: 'ISO 4217 currency code, such as USD or CHF.',
+                },
+                {
+                    name: 'locale',
+                    type: 'string',
+                    description: "Locale for formatting; omitted values use the viewer's locale.",
+                },
+            ]}
             introduction="Currency formats a numeric value with the browser’s locale-aware currency formatter."
             examples={[
                 {

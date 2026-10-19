@@ -8,6 +8,86 @@ export default function DateInputPage() {
     return (
         <ViewLayout
             name="DateInput"
+            introduction={'Selects a constrained date with standard month and week presentation.'}
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Label text.',
+                },
+                {
+                    name: 'description',
+                    type: 'string',
+                    description: 'Helper text displayed below the label.',
+                },
+                {
+                    name: 'name',
+                    type: 'string',
+                    description: "Includes the themed control's value under this form submission name.",
+                },
+                {
+                    name: 'required',
+                    type: 'boolean',
+                    description: 'Requires a value before native form submission.',
+                },
+                {
+                    name: 'disabled',
+                    type: 'boolean',
+                    description: 'Prevents interaction and excludes the field from submission.',
+                },
+                {
+                    name: 'width',
+                    type: 'string | number',
+                    description:
+                        'Width of the field (number = pixels, string used as-is, e.g. "100%"). Sizes the whole field (label, control, and status) so they stay aligned.',
+                },
+                {
+                    name: 'value',
+                    type: '`${number}${number}${number}${number}-${number}${number}-${number}${number}`',
+                    description: 'Selected date in YYYY-MM-DD format.',
+                },
+                {
+                    name: 'defaultValue',
+                    type: '`${number}${number}${number}${number}-${number}${number}-${number}${number}`',
+                    description: 'The defaultValue prop.',
+                },
+                {
+                    name: 'onChange',
+                    type: '(value: `${number}${number}${number}${number}-${number}${number}-${number}${number}` | undefined) => void',
+                    description: 'Callback invoked when the selected date changes.',
+                },
+                {
+                    name: 'min',
+                    type: '`${number}${number}${number}${number}-${number}${number}-${number}${number}`',
+                    description: 'Minimum selectable date (YYYY-MM-DD).',
+                },
+                {
+                    name: 'max',
+                    type: '`${number}${number}${number}${number}-${number}${number}-${number}${number}`',
+                    description: 'Maximum selectable date (YYYY-MM-DD).',
+                },
+                {
+                    name: 'dateConstraints',
+                    type: 'readonly ((date: Date) => boolean)[]',
+                    description: 'Additional constraints applied to the themed calendar picker.',
+                },
+                {
+                    name: 'placeholder',
+                    type: 'string',
+                    description: 'Placeholder text shown in the text input.',
+                },
+                {
+                    name: 'hasClear',
+                    type: 'boolean',
+                    description:
+                        'Shows a clear (×) button when a date value is set. Clicking it clears the value and returns focus to the input.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "lg" | "md"',
+                    description: 'Size of the input control.',
+                },
+            ]}
             examples={[
                 {
                     title: 'Due date form',

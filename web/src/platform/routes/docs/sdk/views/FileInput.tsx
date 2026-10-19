@@ -8,6 +8,82 @@ export default function FileInputPage() {
     return (
         <ViewLayout
             name="FileInput"
+            introduction={'Selects files with explicit upload constraints; uploading remains a Solution operation.'}
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Accessible label for the file input.',
+                },
+                {
+                    name: 'description',
+                    type: 'string',
+                    description: 'Description text displayed between the label and input.',
+                },
+                {
+                    name: 'name',
+                    type: 'string',
+                    description: "Includes the themed control's value under this form submission name.",
+                },
+                {
+                    name: 'required',
+                    type: 'boolean',
+                    description: 'Requires a value before native form submission.',
+                },
+                {
+                    name: 'disabled',
+                    type: 'boolean',
+                    description: 'Prevents interaction and excludes the field from submission.',
+                },
+                {
+                    name: 'width',
+                    type: 'string | number',
+                    description:
+                        'Width of the field (number = pixels, string used as-is, e.g. "100%"). Sizes the whole field (label, control, and status) so they stay aligned.',
+                },
+                {
+                    name: 'value',
+                    type: 'File | File[] | null',
+                    description: 'Currently selected file(s). Controlled component.',
+                },
+                {
+                    name: 'onChange',
+                    type: '(value: File | File[] | null) => void',
+                    description: 'Callback fired when files are selected or removed.',
+                },
+                {
+                    name: 'accept',
+                    type: 'string',
+                    description:
+                        'Accepted file types. Uses the HTML accept attribute format (e.g. "image/*", ".pdf,.doc").',
+                },
+                {
+                    name: 'multiple',
+                    type: 'boolean',
+                    description: 'The multiple prop.',
+                },
+                {
+                    name: 'maxSize',
+                    type: 'number',
+                    description: 'Maximum file size in bytes. Files exceeding this are rejected with an error status.',
+                },
+                {
+                    name: 'maxFiles',
+                    type: 'number',
+                    description: 'Maximum number of files (only applies when isMultiple is true).',
+                },
+                {
+                    name: 'placeholder',
+                    type: 'string',
+                    description: 'Placeholder text shown when no file is selected.',
+                },
+                {
+                    name: 'mode',
+                    type: '"input" | "dropzone"',
+                    description:
+                        "Visual mode. 'input' is a compact inline style; 'dropzone' is a larger area with drag-and-drop support.",
+                },
+            ]}
             examples={[
                 {
                     title: 'Attachments form',

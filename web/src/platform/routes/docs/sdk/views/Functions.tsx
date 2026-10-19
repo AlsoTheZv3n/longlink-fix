@@ -2,11 +2,21 @@ import ViewLayout from './ViewLayout';
 import { Text } from '@astryxdesign/core/Text';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Heading } from '@astryxdesign/core/Heading';
-import { componentDocumentation } from '@/platform/routes';
 import { Table, proportional } from '@astryxdesign/core/Table';
 
-// Use the same function descriptions as the SDK command output.
-const functions = componentDocumentation.find((component) => component.name === 'Functions')?.members ?? [];
+// Describe the runtime bindings exposed to Views.
+const functions = [
+    {
+        name: 'navigate(path)',
+        description:
+            'Navigates within the current Solution using a scoped path, or opens an HTTP(S) URL in a new tab. External URLs require user activation and open without an opener or referrer.',
+    },
+    {
+        name: 'request(path, options)',
+        description:
+            'Requests a Solution operation and returns its data. Options support the HTTP method, JSON, form data, and binary responses. Requests and responses are limited to 2,000,000 bytes, with at most 32 form entries and 8 pending operations. Successful writes automatically refresh cached View data. Failed HTTP requests reject with an Error containing an optional numeric status and a bounded client-facing message.',
+    },
+];
 
 /** Documents the non-hook bindings exposed by the View runtime. */
 export default function FunctionsPage() {

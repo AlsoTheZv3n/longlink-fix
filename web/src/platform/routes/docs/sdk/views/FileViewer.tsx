@@ -9,6 +9,25 @@ export default function FileViewerPage() {
     return (
         <ViewLayout
             name="FileViewer"
+            isLongLinkSpecific
+            properties={[
+                {
+                    name: 'src',
+                    type: 'string',
+                    description: 'Scoped Solution operation path returning the file to preview.',
+                },
+                {
+                    name: 'title',
+                    type: 'string',
+                    description: 'Attachment name used for accessible action labels and the downloaded filename.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "lg" | "md"',
+                    description:
+                        'Size of preview and download actions; use sm in compact tables. Omitted values retain inherited sizing.',
+                },
+            ]}
             introduction={
                 'FileViewer previews images and downloads attachments through the scoped Solution API. Other documents, including PDFs, are downloaded rather than executed inside the View. Set size="sm" for compact table actions; omit size to retain inherited sizing.'
             }

@@ -3,6 +3,8 @@ import { ApiError } from '@/lib/api';
 import { QueryCache, QueryClient } from '@tanstack/react-query';
 import { createErrorReporter, isCanceledRequest } from '@/lib/errors';
 
+const identitySchema = z.object({ id: z.string() });
+
 /** Creates an isolated query cache for one browser or prerendered document. */
 export function createQueryRuntime(notify: (message: string) => void, platformSession: boolean) {
     let client: QueryClient;
@@ -93,7 +95,7 @@ export function createQueryRuntime(notify: (message: string) => void, platformSe
             )
                 return;
             // Only a validated identity can trigger an account switch.
-            const user = z.object({ id: z.string() }).safeParse(event.query.state.data);
+            const user = identitySchema.safeParse(event.query.state.data);
             const nextUserId = user.success ? user.data.id : null;
 
             const changedAccount = userId !== null && nextUserId !== null && userId !== nextUserId;

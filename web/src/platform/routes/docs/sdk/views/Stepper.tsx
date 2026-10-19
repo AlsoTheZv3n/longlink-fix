@@ -10,6 +10,51 @@ export default function StepperPage() {
     return (
         <ViewLayout
             name="Stepper"
+            introduction={'Displays the current step using standard progress indicators.'}
+            properties={[
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description: 'Step elements to render in the stepper.',
+                },
+                {
+                    name: 'activeStep',
+                    type: 'number',
+                    description:
+                        'Zero-based index of the currently active step. Steps before this index are marked as completed.',
+                },
+                {
+                    name: 'orientation',
+                    type: '"horizontal" | "vertical"',
+                    description: 'Layout direction of the stepper.',
+                },
+                {
+                    name: 'onStepClick',
+                    type: '(index: number) => void',
+                    description: "Enables step activation and receives the clicked step's zero-based index.",
+                },
+                {
+                    name: 'Step.step',
+                    type: 'number',
+                    description: 'Zero-based index of this step in the process.',
+                },
+                {
+                    name: 'Step.label',
+                    type: 'string',
+                    description: 'Visible label identifying the step.',
+                },
+                {
+                    name: 'Step.description',
+                    type: 'string',
+                    description: 'Supporting text displayed below the step label.',
+                },
+                {
+                    name: 'Step.children',
+                    type: 'ReactNode',
+                    description:
+                        "Content below the label and description, outside the step's activation button. Compact horizontal steppers hide it without unmounting.",
+                },
+            ]}
             examples={[
                 {
                     title: 'Stepper',

@@ -6,10 +6,51 @@ import { NumberInput } from '@/components/ui/NumberInput';
 
 /** Documents browser-native form authoring using a local, non-networked submission preview. */
 export default function FormPage() {
-    // Keep LongLink-specific examples and guidance beside the generated field contract.
+    // Keep LongLink-specific examples and guidance beside the field contract.
     return (
         <ViewLayout
             name="Form"
+            isLongLinkSpecific
+            properties={[
+                {
+                    name: 'children',
+                    type: 'ReactNode',
+                    description:
+                        'Named controls and layout, or direct FormStep children for automatic navigation. Next validates the current step and shared fields; final submission validates all steps and reveals the first invalid field. Inactive fields remain mounted and enabled.',
+                },
+                {
+                    name: 'action',
+                    type: 'string',
+                    description: 'Solution-relative API path; external URLs are not supported.',
+                },
+                {
+                    name: 'method',
+                    type: '"delete" | "post" | "put" | "patch"',
+                    description: 'Write method used to submit the form; defaults to post.',
+                },
+                {
+                    name: 'id',
+                    type: 'string',
+                    description: 'Native form ID for associating external submit or reset buttons.',
+                },
+                {
+                    name: 'height',
+                    type: 'string | number',
+                    description:
+                        'Bounds the form height. With FormStep children, pins progress above centered, independently scrollable fields, including inside a Dialog.',
+                },
+                {
+                    name: 'submitLabel',
+                    type: 'string',
+                    description:
+                        'Label for the automatic final submit button when using FormStep children; defaults to Save.',
+                },
+                {
+                    name: 'onSuccess',
+                    type: '(data: ViewData) => void | Promise<void>',
+                    description: 'Runs after a successful write and automatic cached-data refresh.',
+                },
+            ]}
             introduction={
                 'Form submits named fields to a Solution API without draft state, imports, or page navigation. Form validation runs before the request; Python schemas remain authoritative. Set height on a multi-step Form to pin progress above centered, independently scrollable fields. Inside a Dialog, the Form owns its height and layout without additional dialog configuration.'
             }

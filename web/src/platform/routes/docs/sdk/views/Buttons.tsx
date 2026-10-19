@@ -11,6 +11,108 @@ export default function ButtonsPage() {
     return (
         <ViewLayout
             name="Button"
+            isLongLinkSpecific
+            properties={[
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Visible button text and accessible label.',
+                },
+                {
+                    name: 'variant',
+                    type: '"ghost" | "primary" | "secondary" | "destructive"',
+                    description: 'Visual style variant.',
+                },
+                {
+                    name: 'size',
+                    type: '"sm" | "lg" | "md"',
+                    description: 'Size variant.',
+                },
+                {
+                    name: 'type',
+                    type: '"button" | "submit" | "reset"',
+                    description: 'HTML button type attribute.',
+                },
+                {
+                    name: 'name',
+                    type: 'string',
+                    description: 'HTML name attribute for form submission.',
+                },
+                {
+                    name: 'value',
+                    type: 'string | number | readonly string[]',
+                    description: 'HTML value attribute for form submission.',
+                },
+                {
+                    name: 'form',
+                    type: 'string',
+                    description: 'Associates the button with a form element by ID.',
+                },
+                {
+                    name: 'icon',
+                    type: 'StoneIconName',
+                    description:
+                        'Icon element rendered before the label text. An Astryx Icon with no explicit size defaults to sm for sm/md buttons and md for lg buttons.',
+                },
+                {
+                    name: 'endContent',
+                    type: 'ReactNode',
+                    description:
+                        'Trailing icon or badge rendered after the label. Ignored when isIconOnly is true. Color is inherited from the button variant.',
+                },
+                {
+                    name: 'tooltip',
+                    type: 'string',
+                    description: 'Tooltip text shown on hover.',
+                },
+                {
+                    name: 'width',
+                    type: 'string | number',
+                    description:
+                        "Width of the button. Numbers are treated as pixels, strings are used as-is (e.g., '100%' for a full-width button). By default the button sizes to its content, never grows past its container, and truncates its label with an ellipsis when a row is too narrow; icon-only buttons stay square.",
+                },
+                {
+                    name: 'disabled',
+                    type: 'boolean',
+                    description: 'The disabled prop.',
+                },
+                {
+                    name: 'href',
+                    type: 'string',
+                    description: 'Solution-relative destination or HTTP(S) URL to open in a new tab.',
+                },
+                {
+                    name: 'onClick',
+                    type: '(event: ViewMouseEvent) => void | Promise<void>',
+                    description:
+                        'Runs an action with automatic async loading and duplicate-click prevention until its promise settles.',
+                },
+                {
+                    type: 'ReactNode',
+                    description: 'Button or IconButton children.',
+                    name: 'ButtonGroup.children',
+                },
+                {
+                    type: 'string',
+                    description: 'Accessible label for the group (aria-label).',
+                    name: 'ButtonGroup.label',
+                },
+                {
+                    type: '"horizontal" | "vertical"',
+                    description: 'Layout direction of the button group.',
+                    name: 'ButtonGroup.orientation',
+                },
+                {
+                    type: '"sm" | "lg" | "md"',
+                    description: 'Default size for buttons in the group. Individual buttons can override.',
+                    name: 'ButtonGroup.size',
+                },
+                {
+                    type: 'boolean',
+                    description: 'Whether all buttons in the group are disabled.',
+                    name: 'ButtonGroup.isDisabled',
+                },
+            ]}
             introduction="Button triggers an action, submits a form, or opens a link. Buttons are flat. Use onClick for actions: loading feedback and duplicate-click prevention are automatic while an asynchronous handler is pending."
             examples={[
                 {

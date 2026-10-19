@@ -10,6 +10,35 @@ export default function MoreMenuPage() {
     return (
         <ViewLayout
             name="MoreMenu"
+            introduction={'Opens additional actions without exposing popup geometry or presentation modes.'}
+            properties={[
+                {
+                    name: 'items',
+                    type: 'DropdownMenuOption[]',
+                    description:
+                        'Menu items: data array of actions, dividers, and sections. Same type as DropdownMenu items prop.',
+                },
+                {
+                    name: 'label',
+                    type: 'string',
+                    description: 'Accessible label for the trigger button (aria-label) and tooltip text.',
+                },
+                {
+                    name: 'icon',
+                    type: 'StoneIconName',
+                    description: 'Override the default three-dot icon. Accepts any ReactNode.',
+                },
+                {
+                    name: 'isDisabled',
+                    type: 'boolean',
+                    description: 'Whether the menu trigger is disabled.',
+                },
+                {
+                    name: 'onOpenChange',
+                    type: '(isOpen: boolean) => void',
+                    description: 'Callback fired when the menu opens or closes.',
+                },
+            ]}
             examples={[
                 {
                     title: 'MoreMenu',

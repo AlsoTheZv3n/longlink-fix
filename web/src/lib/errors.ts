@@ -5,9 +5,6 @@ import { isCancelledError } from '@tanstack/react-query';
 
 type ErrorReporter = (cause: unknown) => void;
 
-/** A failure already presented by the shared notification layer. */
-export class ReportedError extends Error {}
-
 export const ApiErrorContext = createContext<ErrorReporter | null>(null);
 
 /** Returns the root-owned reporter for requests outside TanStack Query. */

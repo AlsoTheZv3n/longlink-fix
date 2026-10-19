@@ -1,6 +1,6 @@
 import { useContext } from 'react';
-import { ReportedError } from '@/lib/errors';
 import { LinkNavigationContext } from './Link';
+import { ReportedError } from '@/lib/reported';
 import { Icon, type StoneIconName } from './Icon';
 import type { MouseEvent, ReactNode } from 'react';
 import { useSize } from '@astryxdesign/core/SizeContext';
