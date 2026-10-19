@@ -49,7 +49,7 @@ export default function PaginationPage() {
 
   return (
     <Stack gap={4}>
-      <Table data={items.items} idKey="id" />
+      <Table data={items.items} />
       <Pagination page={page} onPageChange={setPage} totalItems={items.total} pageSize={8} />
     </Stack>
   );

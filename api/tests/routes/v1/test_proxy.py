@@ -751,7 +751,7 @@ async def test_solution_proxy_rejects_membership_revoked_before_access_lookup(
     # Revoke the grant immediately before the real access lookup reads it.
     real_access = proxy_routes.organizations.solution_runtime_access
 
-    async def access(session: AsyncSession, user_id: UUID, solution_id: UUID) -> tuple[Solution, OrganizationRoles, ComputeRegistry] | None:
+    async def access(session: AsyncSession, user_id: UUID, solution_id: UUID) -> tuple[Solution, OrganizationRoles, ComputeRegistry]:
         """Delete the member grant before resolving current access."""
 
         async with session_scope() as revocation_session:

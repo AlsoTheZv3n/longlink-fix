@@ -82,7 +82,7 @@ async def test_ready_interrupts_provisioning_without_releasing_replacement_lease
     async def renewal_tick(delay: float) -> None:
         """Permit renewal only after the replacement lease has committed."""
 
-        assert delay == databases.RENEW_SECONDS
+        assert delay == 30
         await renew.wait()
 
     # Replace only external SQL and this module's timer; keep lease persistence real.

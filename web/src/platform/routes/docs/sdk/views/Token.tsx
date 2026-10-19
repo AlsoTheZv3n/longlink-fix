@@ -22,11 +22,6 @@ export default function TokenPage() {
                     description: 'The size of the token.',
                 },
                 {
-                    name: 'color',
-                    type: '"blue" | "cyan" | "green" | "orange" | "pink" | "purple" | "red" | "teal" | "yellow" | "default" | "gray"',
-                    description: 'Color variant of the token.',
-                },
-                {
                     name: 'icon',
                     type: 'StoneIconName',
                     description: 'Optional icon rendered before the label.',
@@ -61,7 +56,7 @@ export default function TokenPage() {
   return (
     <Stack direction="horizontal" wrap="wrap" gap={2}>
       <Token label="Research" />
-      <Token label="Open source" color="blue" />
+      <Token label="Open source" />
     </Stack>
   );
 }`,
@@ -85,7 +80,7 @@ export function TokenExample() {
     return (
         <Stack direction="horizontal" wrap="wrap" gap={2}>
             <Token label="Research" />
-            <Token label="Open source" color="blue" />
+            <Token label="Open source" />
         </Stack>
     );
 }

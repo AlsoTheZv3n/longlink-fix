@@ -5,7 +5,6 @@ from sqlmodel import Field, Relationship
 from sqlalchemy import Enum, Text, Column, Integer, CheckConstraint, UniqueConstraint, ForeignKeyConstraint, event, inspect
 from sqlalchemy.orm import Mapper
 from src.environments import env
-from src.models.types import MinScale
 from sqlalchemy.engine import Connection
 from src.database.types import EncryptedType
 from src.models.statuses import Status
@@ -115,7 +114,7 @@ class Revision(AuditTable, table=True):
     image: str = Field(max_length=512)
     version: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     registry_connection_id: UUID | None = Field(default=None, foreign_key="registry_connections.id")
-    min_scale: MinScale = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    min_scale: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
     idle_seconds: int = Field(default=60, ge=0, le=3600, sa_column=Column(Integer, nullable=False, server_default="60"))
     envs: dict[str, str] = Field(sa_column=Column(EncryptedType(env.ENCRYPTION_KEY), nullable=False))
     # Observed state does not modify the snapshot.

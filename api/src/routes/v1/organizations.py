@@ -1,6 +1,6 @@
 from src import auth
 from uuid import UUID
-from fastapi import Depends, APIRouter, HTTPException
+from fastapi import Depends, APIRouter
 from src.context import Context
 from src.models.users import UserOrganizationMembership
 from src.models.resources import OrganizationIdentity
@@ -15,10 +15,7 @@ async def get_organization_by_slug(ctx: Context, user: auth.CurrentUser, organiz
     """Return the current user's membership for one Organization slug."""
 
     # Resolve the route slug within the authenticated user's active memberships.
-    membership = await organizations.membership_by_slug(ctx.database, user.id, organization_slug)
-    if membership is None:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    return membership
+    return await organizations.membership_by_slug(ctx.database, user.id, organization_slug)
 
 
 @router.post("/organizations", response_model=OrganizationIdentity, status_code=202)
@@ -37,8 +34,5 @@ async def delete_organization(ctx: Context, user: auth.CurrentUser, organization
 
     # Tombstone the Organization only after the service revalidates current ownership under its resource lock.
     result = await organizations.soft_delete(ctx.database, organization_id, user)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Organization not found")
-
     await ctx.database.commit()
     return result

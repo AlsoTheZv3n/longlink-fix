@@ -29,7 +29,7 @@ export default function CardPage() {
                 },
                 {
                     name: 'variant',
-                    type: '"muted" | "blue" | "cyan" | "green" | "orange" | "pink" | "purple" | "red" | "teal" | "yellow" | "default" | "gray" | "transparent"',
+                    type: '"default" | "transparent" | "muted"',
                     description: 'Background color variant, independent of the interaction mode.',
                 },
                 {

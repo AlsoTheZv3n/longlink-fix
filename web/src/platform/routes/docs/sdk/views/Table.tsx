@@ -16,17 +16,6 @@ export default function TablePage() {
                         'Array of data items to render as rows. T must extend Record<string, unknown> (use `interface MyRow extends Record<string, unknown>` for custom types).',
                 },
                 {
-                    name: 'idKey',
-                    type: '(keyof T & string) | ((row: T) => string | number)',
-                    description:
-                        'Row key for React reconciliation. Pass a property name string or a function. Falls back to row index if omitted.',
-                },
-                {
-                    name: 'density',
-                    type: '"compact" | "balanced" | "spacious"',
-                    description: 'Row density controlling cell padding and font size.',
-                },
-                {
                     name: 'hasHover',
                     type: 'boolean',
                     description: 'Applies a hover highlight background to rows on pointer devices.',
@@ -51,7 +40,6 @@ export default function TablePage() {
   return (
     <Table
       data={[{ id: '1', name: 'Order', status: 'Open' }]}
-      idKey="id"
       columns={[
         { key: 'name', header: 'Name', width: proportional(2) },
         { key: 'status', header: 'Status', width: proportional(1) },
@@ -71,7 +59,6 @@ export function TableExample() {
     return (
         <Table
             data={[{ item: 'Order', status: 'Open' }]}
-            density="compact"
             columns={[
                 { key: 'item', header: 'Item' },
                 { key: 'status', header: 'Status' },

@@ -1,6 +1,7 @@
 import json
 import base64
 from uuid import UUID
+from typing import cast
 from sqlmodel import col
 from sqlalchemy import select
 from src.kubernetes import namespace
@@ -42,7 +43,8 @@ async def synchronize(cluster: Kubernetes, organization_id: UUID) -> None:
             await apply(secret)
 
         # Delete only secrets for explicitly removed, unused connections.
-        async for secret in Secret.list(api=api, namespace=compute_namespace, label_selector=REGISTRY_LABEL):
+        async for candidate in Secret.list(api=api, namespace=compute_namespace, label_selector=REGISTRY_LABEL):
+            secret = cast(Secret, candidate)
             if secret.name not in active:
                 await secret.delete()
         await session.commit()

@@ -4893,22 +4893,6 @@
             "minLength": 1,
             "title": "Name"
           },
-          "min_scale": {
-            "type": "integer",
-            "enum": [
-              0,
-              1
-            ],
-            "title": "Min Scale",
-            "default": 0
-          },
-          "idle_seconds": {
-            "type": "integer",
-            "maximum": 3600.0,
-            "minimum": 0.0,
-            "title": "Idle Seconds",
-            "default": 60
-          },
           "description": {
             "anyOf": [
               {
@@ -4945,34 +4929,6 @@
             },
             "type": "object",
             "title": "Envs"
-          },
-          "min_scale": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "enum": [
-                  0,
-                  1
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Min Scale"
-          },
-          "idle_seconds": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 3600.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Idle Seconds"
           },
           "expected_revision_id": {
             "anyOf": [
@@ -5092,18 +5048,6 @@
       },
       "SolutionUpdateCheck": {
         "properties": {
-          "min_scale": {
-            "type": "integer",
-            "enum": [
-              0,
-              1
-            ],
-            "title": "Min Scale"
-          },
-          "idle_seconds": {
-            "type": "integer",
-            "title": "Idle Seconds"
-          },
           "revision_id": {
             "type": "string",
             "format": "uuid",
@@ -5139,8 +5083,6 @@
         },
         "type": "object",
         "required": [
-          "min_scale",
-          "idle_seconds",
           "revision_id",
           "current_image",
           "configured_envs",

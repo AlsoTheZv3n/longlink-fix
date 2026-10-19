@@ -2247,17 +2247,6 @@
                     "description": "Array of data items to render as rows. T must extend Record<string, unknown> (use `interface MyRow extends Record<string, unknown>` for custom types)."
                 },
                 {
-                    "name": "idKey",
-                    "type": "(keyof T & string) | ((row: T) => string | number)",
-                    "description": "Row key for React reconciliation. Pass a property name string or a function. Falls back to row index if omitted."
-                },
-                {
-                    "name": "density",
-                    "type": "\"compact\" | \"balanced\" | \"spacious\"",
-                    "description": "Row density controlling cell padding and font size.",
-                    "default": "balanced"
-                },
-                {
                     "name": "hasHover",
                     "type": "boolean",
                     "description": "Applies a hover highlight background to rows on pointer devices.",

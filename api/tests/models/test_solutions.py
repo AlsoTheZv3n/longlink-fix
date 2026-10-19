@@ -4,9 +4,6 @@ from src.models.solutions import SolutionPatch, SolutionCreate
 
 pytestmark = pytest.mark.no_db
 
-INVALID_IDLE_SECONDS = [pytest.param(29, id="below-minimum"), pytest.param(3601, id="above-maximum"), pytest.param(-1, id="negative")]
-VALID_IDLE_SECONDS = [pytest.param(0, id="never-sleep"), pytest.param(30, id="minimum"), pytest.param(3600, id="maximum")]
-
 
 @pytest.mark.parametrize("model", [SolutionCreate, SolutionPatch])
 @pytest.mark.parametrize(
@@ -41,28 +38,3 @@ def test_solution_patch_rejects_invalid_environment_removal_names(name: str) -> 
     # Assert
     assert error.value.errors()[0]["loc"] == ("envs",)
     assert error.value.errors()[0]["type"] == "value_error"
-
-
-@pytest.mark.parametrize("model", [SolutionCreate, SolutionPatch])
-@pytest.mark.parametrize("idle_seconds", INVALID_IDLE_SECONDS)
-def test_solution_models_reject_invalid_idle_seconds(model: type[SolutionCreate] | type[SolutionPatch], idle_seconds: int) -> None:
-    """Reject scale-to-zero timeouts outside the never-sleep zero or 30-3600 contract."""
-
-    # Both models share the idle-seconds validator at the API model boundary.
-    payload = {"name": "Dashboard", "image": "ghcr.io/longlink/dashboard:latest", "idle_seconds": idle_seconds}
-
-    # Act and assert
-    with pytest.raises(ValidationError):
-        model.model_validate(payload)
-
-
-@pytest.mark.parametrize("model", [SolutionCreate, SolutionPatch])
-@pytest.mark.parametrize("idle_seconds", VALID_IDLE_SECONDS)
-def test_solution_models_accept_idle_seconds_boundaries(model: type[SolutionCreate] | type[SolutionPatch], idle_seconds: int) -> None:
-    """Accept never-sleep zero and the bounded scale-to-zero timeout edges."""
-
-    # Act
-    solution = model.model_validate({"name": "Dashboard", "image": "ghcr.io/longlink/dashboard:latest", "idle_seconds": idle_seconds})
-
-    # Assert
-    assert solution.idle_seconds == idle_seconds

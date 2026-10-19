@@ -47,6 +47,7 @@ async def snapshot(session: AsyncSession, organization_id: UUID, period_end: dat
         organization.invoice_due_at = dates.next_month(period_end)
         await session.commit()
         return
+    customer_id = organization.stripe_customer_id
     target = await organizations.infrastructure(session, organization_id)
     if target is None or organization.database_state != DatabaseState.available:
         raise HTTPException(status_code=503, detail="Organization usage is unavailable for invoicing")
@@ -65,7 +66,7 @@ async def snapshot(session: AsyncSession, organization_id: UUID, period_end: dat
     # Freeze monetary amounts as well as measurements so later price changes cannot alter retries.
     invoice = Invoice(
         organization_id=organization_id,
-        customer_id=organization.stripe_customer_id,
+        customer_id=customer_id,
         period_end=period_end,
         users=users,
         database_bytes=database_bytes,

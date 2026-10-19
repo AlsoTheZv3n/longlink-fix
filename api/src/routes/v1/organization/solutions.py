@@ -21,8 +21,6 @@ async def create_solution(ctx: Context, payload: SolutionCreate, membership: aut
         name=payload.name,
         envs=payload.envs,
         user_id=membership.user_id,
-        min_scale=payload.min_scale,
-        idle_seconds=payload.idle_seconds,
         description=payload.description,
         registry_connection_id=connection_id,
     )

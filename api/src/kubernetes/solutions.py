@@ -8,7 +8,6 @@ from src.utils import templates
 from kr8s.asyncio import Api
 from src.kubernetes import utils, namespace
 from collections.abc import AsyncIterator
-from src.models.types import MinScale
 from importlib.resources import files
 from kr8s.asyncio.objects import Job, Pod, Secret, APIObject, Namespace, new_class
 
@@ -23,7 +22,8 @@ async def _has_active_pods(api: Api, namespace: str, selector: dict[str, str]) -
     """Return whether matching Pods still need to terminate before cleanup proceeds."""
 
     # Missing or non-terminal phases still block schema and credential cleanup.
-    async for pod in Pod.list(api=api, namespace=namespace, label_selector=selector):
+    async for candidate in Pod.list(api=api, namespace=namespace, label_selector=selector):
+        pod = cast(Pod, candidate)
         if pod.raw.get("status", {}).get("phase") not in {"Succeeded", "Failed"}:
             return True
     return False
@@ -149,17 +149,10 @@ async def apply(
     secrets: dict[str, str],
     *,
     revision_id: UUID,
-    min_scale: MinScale = 0,
-    idle_seconds: int = 60,
     migrate: bool = True,
     registry_connection_id: UUID | None = None,
 ) -> None:
     """Deploy one Solution and wait for its rollout."""
-
-    # min_scale and idle_seconds are independent: min_scale decides whether
-    # scale-to-zero is allowed; idle_seconds only tunes the stable window.
-    # Zero idle falls back to the platform default window.
-    window = "60s" if idle_seconds == 0 else f"{idle_seconds}s"
 
     # Render workload resources before the first cluster mutation.
     compute_namespace = namespace.compute(organization_id)
@@ -173,8 +166,6 @@ async def apply(
         runtime_revision=revision_id.hex,
         migration_id=migration_id,
         secret_id=secret_id,
-        min_scale=min_scale,
-        window=window,
         pull_secrets=json.dumps([{"name": f"registry-{registry_connection_id}"}] if registry_connection_id is not None else []),
     )
 
@@ -220,7 +211,7 @@ async def delete(client: "Kubernetes", organization_id: UUID, solution_id: UUID)
             Job.list(api=api, namespace=compute_namespace, label_selector={SOLUTION_ID_LABEL: str(solution_id)}),
             Secret.list(api=api, namespace=compute_namespace, label_selector={SOLUTION_ID_LABEL: str(solution_id)}),
         ):
-            if await _delete_resources(resources):
+            if await _delete_resources(cast(AsyncIterator[APIObject], resources)):
                 remaining = True
 
         # Provider cleanup must not race a remaining Pod that can still use runtime credentials.

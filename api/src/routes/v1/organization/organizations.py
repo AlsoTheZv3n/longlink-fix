@@ -68,8 +68,6 @@ async def get_organization_storage_usage(ctx: Context, membership: auth.Organiza
 
     # Load the Organization's immutable storage assignment.
     compute = await organizations.storage_infrastructure(ctx.database, membership.organization_id)
-    if compute is None:
-        raise HTTPException(status_code=404, detail="Organization not found")
     await ctx.database.commit()
 
     # Inspect the complete Organization bucket and report storage failures as unavailable.
@@ -89,10 +87,7 @@ async def get_organization_database_usage(ctx: Context, membership: auth.Organiz
     """Return live PostgreSQL usage against provisioned capacity for an authorized Organization."""
 
     # Read only the authorized Organization's database assignment before external I/O.
-    target = await organizations.database_infrastructure(ctx.database, membership.organization_id)
-    if target is None:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    organization, compute = target
+    organization, compute = await organizations.database_infrastructure(ctx.database, membership.organization_id)
     await ctx.database.commit()
 
     # Usage reads never provision or repair an unavailable database.

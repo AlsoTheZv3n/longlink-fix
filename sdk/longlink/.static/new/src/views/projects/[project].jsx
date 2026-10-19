@@ -45,8 +45,6 @@ export default function Project({ params }) {
                     {phase ? (
                         <Table
                             data={phase.documents}
-                            idKey="name"
-                            density="compact"
                             columns={[
                                 {
                                     key: 'name',

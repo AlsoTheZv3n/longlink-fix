@@ -129,8 +129,6 @@ async def deploy(revision_id: UUID) -> None:
             revision.image,
             runtime_environment,
             revision_id=revision.id,
-            min_scale=revision.min_scale,
-            idle_seconds=revision.idle_seconds,
             migrate=revision.deployed_at is None,
             registry_connection_id=revision.registry_connection_id,
         )

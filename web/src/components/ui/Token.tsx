@@ -6,7 +6,6 @@ export function Token(props: {
     /** Visible text and accessible name for the token. Long labels truncate to fit. */
     label: string;
     size?: 'sm' | 'md' | 'lg';
-    color?: 'default' | 'gray' | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'cyan' | 'blue' | 'purple' | 'pink';
     icon?: StoneIconName;
     disabled?: boolean;
     /** Accessible description of the tag or selection. */
@@ -21,7 +20,6 @@ export function Token(props: {
         <AstryxToken
             label={props.label}
             size={props.size ?? 'md'}
-            color={props.color ?? 'default'}
             icon={props.icon ? <Icon icon={props.icon} size="sm" /> : undefined}
             isDisabled={props.disabled ?? false}
             description={props.description}

@@ -334,7 +334,6 @@ async def test_solution_responses_do_not_expose_environment_secrets(
     assert check_payload["current_image"] == check_payload["metadata"]["image"] == image
     assert {"source", "image", "available"}.isdisjoint(check_payload)
     assert check_payload["configured_envs"] == ["API_KEY", "TOKEN"]
-    assert check_payload["min_scale"] == 0
     assert "secrets" not in check_payload
     assert "envs" not in check_payload
     assert "runtime-secret" not in check_response.text
@@ -619,12 +618,8 @@ async def test_list_solutions_rejects_anonymous_without_admin_lookup(client: Asy
     assert response.json() == {"detail": "Not authenticated"}
 
 
-@pytest.mark.parametrize(
-    "invalid_values",
-    [pytest.param({"description": "x" * 256}, id="overlong-description"), pytest.param({"min_scale": 2}, id="invalid-min-scale")],
-)
 async def test_create_solution_rejects_invalid_payload_without_mutating_state(
-    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], invalid_values: dict[str, str | int]
+    clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User]
 ) -> None:
     """Reject malformed creation payloads before persisting Solution state or work."""
 
@@ -635,7 +630,7 @@ async def test_create_solution_rejects_invalid_payload_without_mutating_state(
     # Act
     response = await clients[0].post(
         f"/api/v1/organizations/{organization.id}/solutions",
-        json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest", **invalid_values},
+        json={"name": "dashboard", "image": "ghcr.io/longlink/dashboard:latest", "description": "x" * 256},
     )
 
     # Assert
@@ -829,10 +824,10 @@ async def test_update_rejects_solution_without_desired_revision(
     assert post_response.json() == {"detail": "Solution has no desired revision"}
 
 
-async def test_update_allows_unchanged_deployments_and_enforces_min_scale_bounds(
+async def test_update_allows_unchanged_deployments(
     clients: tuple[AsyncClient, AsyncClient, AsyncClient], users: tuple[User, User, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Follow latest and preserve release defaults while allowing unchanged deployments and rejecting invalid scaling."""
+    """Follow latest and preserve environment values while allowing unchanged deployments."""
 
     # Arrange
     organization = await create_organization(users[0])
@@ -849,7 +844,7 @@ async def test_update_allows_unchanged_deployments_and_enforces_min_scale_bounds
 
     monkeypatch.setattr(images, "required_metadata", metadata)
 
-    # Verify the first update saves the resolved digest while preserving environment names and scale defaults.
+    # Verify the first update saves the resolved digest while preserving environment values.
     initial_response = await clients[0].post(url, json={})
     assert initial_response.status_code == 204
     async with session_scope() as session:
@@ -859,21 +854,16 @@ async def test_update_allows_unchanged_deployments_and_enforces_min_scale_bounds
         assert revision is not None
         assert revision.image == resolved.image
         assert revision.envs == {"KEEP": "private-value", "DROP": "old-value"}
-        assert revision.min_scale == 0
 
     # Act
     unchanged_response = await clients[0].post(url, json={"envs": {"KEEP": "private-value"}})
-    grow_response = await clients[0].post(url, json={"min_scale": 1})
-    repeat_response = await clients[0].post(url, json={"min_scale": 1})
-    invalid_response = await clients[0].post(url, json={"min_scale": 2})
+    repeat_response = await clients[0].post(url, json={})
 
     # Assert
     assert unchanged_response.status_code == 204
-    assert grow_response.status_code == 204
     assert repeat_response.status_code == 204
-    assert invalid_response.status_code == 422
     async with session_scope() as session:
-        assert await session.scalar(select(func.count()).select_from(Revision).where(col(Revision.solution_id) == solution.id)) == 5
+        assert await session.scalar(select(func.count()).select_from(Revision).where(col(Revision.solution_id) == solution.id)) == 4
 
 
 async def test_update_reresolves_moved_tag_and_enforces_required_envs(
@@ -896,7 +886,7 @@ async def test_update_reresolves_moved_tag_and_enforces_required_envs(
         return resolved
 
     monkeypatch.setattr(images, "required_metadata", metadata)
-    assert (await clients[0].post(url, json={"min_scale": 1})).status_code == 204
+    assert (await clients[0].post(url, json={})).status_code == 204
 
     # Act: the advisory check observes the moved tag without persisting it.
     resolved = LongLinkMetadata(image=Image("ghcr.io/longlink/dashboard@sha256:candidate"))
@@ -929,7 +919,6 @@ async def test_update_reresolves_moved_tag_and_enforces_required_envs(
         current = await session.get(Solution, solution.id, options=(selectinload(Solution.desired_revision),))
         assert current is not None
         assert current.desired_revision.image == resolved.image
-        assert current.desired_revision.min_scale == 1
         assert current.desired_revision.envs == {"KEEP": "private-value", "NEW": "new-value"}
         assert current.deployment_pending
         prior = await session.get(Revision, solution.desired_revision_id)

@@ -6,7 +6,7 @@ import { Table } from '@/components/ui/Table';
 it('renders domain rows without inventing table actions', () => {
     // Act
     const output = renderStatic(
-        <Table data={[{ id: '1', name: 'Acme' }]} idKey="id" columns={[{ key: 'name', header: 'Customer' }]} />
+        <Table data={[{ id: '1', name: 'Acme' }]} columns={[{ key: 'name', header: 'Customer' }]} />
     );
 
     // Assert

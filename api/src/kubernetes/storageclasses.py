@@ -1,5 +1,5 @@
-from typing import TYPE_CHECKING
-from kr8s.asyncio.objects import new_class
+from typing import TYPE_CHECKING, cast
+from kr8s.asyncio.objects import APIObject, new_class
 
 if TYPE_CHECKING:
     from src.kubernetes.client import Kubernetes
@@ -14,7 +14,8 @@ async def resolve(cluster: "Kubernetes") -> str:
 
     # A single class needs no administrator choice; multiple classes require the Kubernetes default marker.
     classes: list[tuple[str, bool]] = []
-    async for storage_class in StorageClassResource.list(api=await cluster.api()):
+    async for candidate in StorageClassResource.list(api=await cluster.api()):
+        storage_class = cast(APIObject, candidate)
         name = storage_class.metadata.get("name")
         annotations = storage_class.metadata.get("annotations", {})
         if not isinstance(name, str) or not name:

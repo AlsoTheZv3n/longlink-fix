@@ -61,12 +61,15 @@ async def require_membership(
     return access
 
 
-async def membership_by_slug(session: AsyncSession, user_id: UUID, organization_slug: str) -> UserOrganization | None:
+async def membership_by_slug(session: AsyncSession, user_id: UUID, organization_slug: str) -> UserOrganization:
     """Return one user's active membership for an active Organization slug."""
 
     # Load only the requested Organization membership and its response-ready Organization.
     statement = _membership_query(user_id).where(col(Organization.slug) == organization_slug)
-    return await session.scalar(statement)
+    membership = await session.scalar(statement)
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return membership
 
 
 async def memberships(session: AsyncSession, user_id: UUID) -> Sequence[UserOrganization]:
@@ -79,7 +82,7 @@ async def memberships(session: AsyncSession, user_id: UUID) -> Sequence[UserOrga
 
 async def solution_runtime_access(
     session: AsyncSession, user_id: UUID, solution_id: UUID
-) -> tuple[Solution, OrganizationRoles, ComputeRegistry] | None:
+) -> tuple[Solution, OrganizationRoles, ComputeRegistry]:
     """Return one user's active Solution access with its gateway connection."""
 
     # Load Solution access and its gateway secret in one query.
@@ -100,12 +103,15 @@ async def solution_runtime_access(
             col(UserOrganization.user_id) == user_id,
         )
     )
-    return result.one_or_none()
+    access = result.one_or_none()
+    if access is None:
+        raise HTTPException(status_code=403, detail="Access required")
+    return access
 
 
 async def solution_logs_access(
     session: AsyncSession, user_id: UUID, solution_id: UUID
-) -> tuple[UUID, OrganizationRoles, dict[str, object]] | None:
+) -> tuple[UUID, OrganizationRoles, dict[str, object]]:
     """Return active Solution log access without loading runtime or gateway credentials."""
 
     # Resolve the Organization, current membership role, and cluster connection in one query.
@@ -122,14 +128,17 @@ async def solution_logs_access(
             col(UserOrganization.user_id) == user_id,
         )
     )
-    return result.one_or_none()
+    access = result.one_or_none()
+    if access is None:
+        raise HTTPException(status_code=403, detail="Access required")
+    return access
 
 
-async def storage_infrastructure(session: AsyncSession, organization_id: UUID) -> ComputeRegistry | None:
+async def storage_infrastructure(session: AsyncSession, organization_id: UUID) -> ComputeRegistry:
     """Return one Organization's assigned storage connection without lifecycle credentials."""
 
     # Load only the Compute fields needed to inspect the Organization bucket.
-    return await session.scalar(
+    compute = await session.scalar(
         select(ComputeRegistry)
         .options(
             load_only(
@@ -143,9 +152,12 @@ async def storage_infrastructure(session: AsyncSession, organization_id: UUID) -
         .join(Organization, col(Organization.compute_id) == col(ComputeRegistry.id))
         .where(col(Organization.id) == organization_id)
     )
+    if compute is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return compute
 
 
-async def database_infrastructure(session: AsyncSession, organization_id: UUID) -> tuple[Organization, ComputeRegistry] | None:
+async def database_infrastructure(session: AsyncSession, organization_id: UUID) -> tuple[Organization, ComputeRegistry]:
     """Return only the credentials and capacity needed to inspect one Organization database."""
 
     # Keep storage and gateway secrets outside the database usage read.
@@ -163,7 +175,10 @@ async def database_infrastructure(session: AsyncSession, organization_id: UUID) 
         .join(ComputeRegistry, col(ComputeRegistry.id) == col(Organization.compute_id))
         .where(col(Organization.id) == organization_id, col(Organization.deleted_at).is_(None))
     )
-    return result.one_or_none()
+    target = result.one_or_none()
+    if target is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return target
 
 
 def _infrastructure_query() -> Select[Organization, ComputeRegistry]:
@@ -585,14 +600,14 @@ async def revoke_invitation(session: AsyncSession, organization_id: UUID, invita
     await session.delete(invitation)
 
 
-async def soft_delete(session: AsyncSession, organization_id: UUID, user: User) -> Organization | None:
+async def soft_delete(session: AsyncSession, organization_id: UUID, user: User) -> Organization:
     """Tombstone an Organization and nested state."""
 
     # Lock the Organization state before tombstoning its nested rows.
     organization = await session.get(Organization, organization_id, with_for_update=True)
     if organization is None:
         if user.administrator:
-            return None
+            raise HTTPException(status_code=404, detail="Organization not found")
         raise HTTPException(status_code=403, detail="Access required")
 
     # Revalidate active owners while the Organization is locked for deletion and retries.

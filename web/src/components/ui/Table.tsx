@@ -5,8 +5,6 @@ export { proportional, pixel } from '@astryxdesign/core/Table';
 
 type TableProps<T extends Record<string, unknown>> = {
     data: T[];
-    idKey?: (keyof T & string) | ((row: T) => string | number);
-    density?: 'compact' | 'balanced' | 'spacious';
     hasHover?: boolean;
     isStriped?: boolean;
     columns?: {
@@ -20,11 +18,11 @@ type TableProps<T extends Record<string, unknown>> = {
 
 /** Displays data-driven rows without plugins or a second children-based table contract. */
 export function Table<T extends Record<string, unknown>>(props: TableProps<T>) {
-    // Use balanced rows without decorative striping or hover highlighting.
+    // Use compact rows without decorative striping or hover highlighting.
     return (
         <AstryxTable
             {...props}
-            density={props.density ?? 'balanced'}
+            density="compact"
             hasHover={props.hasHover ?? false}
             isStriped={props.isStriped ?? false}
         />

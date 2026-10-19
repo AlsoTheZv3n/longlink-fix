@@ -486,8 +486,6 @@ export const zSolutionCreate = z.object({
     envs: z.record(z.string(), z.string()).optional(),
     image: z.string(),
     name: z.string().min(1).max(100),
-    min_scale: z.union([z.literal(0), z.literal(1)]).optional().default(0),
-    idle_seconds: z.int().gte(0).lte(3600).optional().default(60),
     description: z.string().max(255).nullish()
 });
 
@@ -498,8 +496,6 @@ export const zSolutionCreate = z.object({
  */
 export const zSolutionPatch = z.object({
     envs: z.record(z.string(), z.string().nullable()).optional(),
-    min_scale: z.union([z.literal(0), z.literal(1)]).nullish(),
-    idle_seconds: z.int().gte(0).lte(3600).nullish(),
     expected_revision_id: z.uuid().nullish()
 });
 
@@ -509,8 +505,6 @@ export const zSolutionPatch = z.object({
  * Expose a candidate and configured names, never environment values.
  */
 export const zSolutionUpdateCheck = z.object({
-    min_scale: z.union([z.literal(0), z.literal(1)]),
-    idle_seconds: z.int(),
     revision_id: z.uuid(),
     current_image: z.string(),
     current_version: z.string().nullish(),

@@ -200,7 +200,8 @@ async def test_soft_delete_tombstones_solutions_and_retains_memberships(users: t
         deleted_organization = await session.get(Organization, organization.id)
         deleted_solution = await session.get(Solution, solution.id)
         second_delete = await organizations.soft_delete(session, organization.id, owner)
-        missing_delete = await organizations.soft_delete(session, uuid4(), owner)
+        with pytest.raises(HTTPException) as missing_delete:
+            await organizations.soft_delete(session, uuid4(), owner)
         await session.commit()
 
     # Assert
@@ -216,4 +217,5 @@ async def test_soft_delete_tombstones_solutions_and_retains_memberships(users: t
     assert deleted_solution.deleted_at is not None
     assert second_delete is not None
     assert second_delete.id == result.id
-    assert missing_delete is None
+    assert missing_delete.value.status_code == 404
+    assert missing_delete.value.detail == "Organization not found"

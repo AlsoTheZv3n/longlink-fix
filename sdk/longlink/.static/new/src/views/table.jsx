@@ -12,8 +12,6 @@ export default function ProjectTable() {
             </Stack>
             <Table
                 data={projects}
-                idKey="id"
-                density="compact"
                 hasHover
                 columns={[
                     {

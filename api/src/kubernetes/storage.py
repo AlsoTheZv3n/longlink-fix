@@ -12,10 +12,6 @@ if TYPE_CHECKING:
     from src.database.models.computes import ComputeRegistry
 
 
-RUSTFS_SECRET_NAMESPACE = "rustfs"  # noqa: S105
-RUSTFS_SECRET_NAME = "longlink-rustfs"  # noqa: S105
-
-
 class Storage:
     """Verify RustFS and reconcile Organization buckets with Solution service accounts."""
 
@@ -45,20 +41,20 @@ class Storage:
         """Read the chart-managed RustFS administrator credentials without operator input."""
 
         # The chart creates and owns this Secret; the administrator only supplies cluster access.
-        secret = Secret(RUSTFS_SECRET_NAME, namespace=RUSTFS_SECRET_NAMESPACE, api=await cluster.api())
+        secret = Secret("longlink-rustfs", namespace="rustfs", api=await cluster.api())
         await secret.refresh()
         data = secret.raw.get("data", {})
         if not isinstance(data, dict):
-            raise ValueError(f"{RUSTFS_SECRET_NAMESPACE}/{RUSTFS_SECRET_NAME} must contain RUSTFS credentials")
+            raise ValueError("rustfs/longlink-rustfs must contain RUSTFS credentials")
 
         # Decode the opaque Secret entries validated at the cluster boundary.
         try:
             access_key = base64.b64decode(data["RUSTFS_ACCESS_KEY"], validate=True).decode("utf-8")
             secret_key = base64.b64decode(data["RUSTFS_SECRET_KEY"], validate=True).decode("utf-8")
         except (KeyError, ValueError, UnicodeDecodeError) as exc:
-            raise ValueError(f"{RUSTFS_SECRET_NAMESPACE}/{RUSTFS_SECRET_NAME} must contain RUSTFS credentials") from exc
+            raise ValueError("rustfs/longlink-rustfs must contain RUSTFS credentials") from exc
         if not access_key or not secret_key:
-            raise ValueError(f"{RUSTFS_SECRET_NAMESPACE}/{RUSTFS_SECRET_NAME} must contain RUSTFS credentials")
+            raise ValueError("rustfs/longlink-rustfs must contain RUSTFS credentials")
         return s3.Credentials(access_key, secret_key)
 
     async def verify(self) -> None:

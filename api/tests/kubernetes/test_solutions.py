@@ -43,8 +43,6 @@ def test_solution_template_constrains_workloads() -> None:
         runtime_revision="revision",
         migration_id="solution-migration",
         secret_id="solution-revision",
-        min_scale=1,
-        window="60s",
         pull_secrets="[]",
     )
 
@@ -79,7 +77,7 @@ def test_solution_template_constrains_workloads() -> None:
 
         # Only the runtime is probed; database outages must not trigger liveness restarts.
         if workload is deployment:
-            assert pod_template["metadata"]["annotations"]["autoscaling.knative.dev/min-scale"] == "1"
+            assert pod_template["metadata"]["annotations"]["autoscaling.knative.dev/min-scale"] == "0"
             assert container["startupProbe"] == {"httpGet": {"path": "/health", "port": 8000}, "periodSeconds": 5, "failureThreshold": 60}
             assert container["livenessProbe"] == {"httpGet": {"path": "/health", "port": 8000}, "periodSeconds": 10, "failureThreshold": 3}
             assert container["readinessProbe"] == {
