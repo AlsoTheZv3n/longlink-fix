@@ -166,7 +166,7 @@ async def password_login(ctx: Context, payload: PasswordLogin):
 
 
 @router.post("/auth/logout", status_code=204, include_in_schema=False)
-async def logout(ctx: Context, origin: str | None = Header(default=None)):
+async def logout(response: Response, origin: str | None = Header(default=None)):
     """Remove the active browser credential."""
 
     # Block cross-origin requests from clearing an authenticated browser session.
@@ -174,7 +174,7 @@ async def logout(ctx: Context, origin: str | None = Header(default=None)):
         raise HTTPException(status_code=403, detail="Origin required")
 
     # Match the authentication-cookie scope so browsers reliably remove the credential.
-    cookies.delete_browser_cookie(ctx.response, cookies.AUTH_COOKIE, "/")
+    cookies.delete_browser_cookie(response, cookies.AUTH_COOKIE, "/")
 
 
 # Deployment rate limiting bounds unauthenticated email delivery requests before they reach the API.
@@ -248,24 +248,26 @@ async def request_registration(ctx: Context, email: Annotated[Email, Body(embed=
 
 
 @router.post("/auth/verify", response_model=EmailPayload)
-async def verify_registration_token(ctx: Context, payload: TokenPayload):
+async def verify_registration_token(response: Response, payload: TokenPayload):
     """Validate an emailed registration token without creating an account."""
 
     # Convert invalid and expired tokens into one stable authentication error.
     email = registration_email(payload.token)
     cookies.set_browser_cookie(
-        ctx.response, cookies.REGISTRATION_COOKIE, payload.token, "/api/v1/auth/register", token.EMAIL_TOKEN_LIFETIME_SECONDS
+        response, cookies.REGISTRATION_COOKIE, payload.token, "/api/v1/auth/register", token.EMAIL_TOKEN_LIFETIME_SECONDS
     )
     return {"email": email}
 
 
 @router.get("/auth/register/setup", response_model=EmailPayload)
-async def get_registration_setup(ctx: Context, registration_token: str | None = Cookie(default=None, alias=cookies.REGISTRATION_COOKIE)):
+async def get_registration_setup(
+    response: Response, registration_token: str | None = Cookie(default=None, alias=cookies.REGISTRATION_COOKIE)
+):
     """Restore verified registration state from its browser-only cookie."""
 
     # Refreshes never need the emailed credential after its initial exchange.
     email = registration_email(registration_token or "")
-    ctx.response.headers["Cache-Control"] = "no-store"
+    response.headers["Cache-Control"] = "no-store"
     return {"email": email}
 
 
