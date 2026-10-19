@@ -161,9 +161,14 @@ export default function OrganizationManagement({ presentation }: { presentation:
                                                           label="Decline"
                                                           variant="secondary"
                                                           clickAction={async () => {
-                                                              // Refresh invitations only after the decline succeeds.
-                                                              await api.delete(`/api/v1/me/invitations/${row.id}`);
-                                                              await invalidateInvitations();
+                                                              // Keep the page on failure, such as a revoked invitation, and refresh either way.
+                                                              try {
+                                                                  await api.delete(`/api/v1/me/invitations/${row.id}`);
+                                                              } catch (failure) {
+                                                                  reportError(failure);
+                                                              } finally {
+                                                                  await invalidateInvitations();
+                                                              }
                                                           }}
                                                       />
                                                       <Button
