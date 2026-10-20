@@ -37,20 +37,19 @@ LongLink is an open-source platform for building and running custom business too
 
 <br />
 
-## Create a Solution
+## Getting started
 
-
-Requirements: Python 3.12 or later and [`uv`](https://docs.astral.sh/uv/). See the [sample Solution](https://github.com/xLongLink/sample) for a complete example.
+Requirements: Python 3.12 or later and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 uvx --from longlink longlink init --folder . --ci github
 ```
 
-Open `http://127.0.0.1:1707` to preview your Solution.
+Open `http://127.0.0.1:1707` to preview your Solution. Changes to your application are automatically reloaded during development.
 
 > [!WARNING]
 > LongLink is under active development. APIs may change before version 1.0.
-> 
+
 
 
 <br />
@@ -102,7 +101,7 @@ Specific workflows can be customized through code, built quickly with modern AI-
 
 <br />
 
-## Develop LongLink
+## Contribute to LongLink
 
 Run these commands from the repository root:
 
