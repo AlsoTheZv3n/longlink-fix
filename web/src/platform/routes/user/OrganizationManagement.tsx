@@ -13,11 +13,15 @@ import { Divider } from '@astryxdesign/core/Divider';
 import { Heading } from '@astryxdesign/core/Heading';
 import CreateOrganization from './CreateOrganization';
 import { Table, proportional } from '@astryxdesign/core/Table';
+import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 
 /** Owns membership loading, pending invitations, and organization creation for the overview and account settings. */
 export default function OrganizationManagement({ presentation }: { presentation: 'overview' | 'settings' }) {
-    const [selected, setSelected] = useState<{ type: 'create' } | null>(null);
+    const [selected, setSelected] = useState<
+        { type: 'create' } | { type: 'accept' | 'decline'; id: string; name: string } | null
+    >(null);
+
     const reportError = useApiError();
 
     const [memberships, invalidate] = useApi('/api/v1/me/organizations', schemas.zUserOrganizationMembership.array());
@@ -163,36 +167,27 @@ export default function OrganizationManagement({ presentation }: { presentation:
                                                   <Stack direction="horizontal" gap={2} justify="end">
                                                       <Button
                                                           label="Decline"
+                                                          size="sm"
                                                           variant="secondary"
-                                                          clickAction={async () => {
-                                                              // Keep the page on failure, such as a revoked invitation, and refresh either way.
-                                                              try {
-                                                                  await api.delete(`/api/v1/me/invitations/${row.id}`);
-                                                              } catch (failure) {
-                                                                  reportError(failure);
-                                                              } finally {
-                                                                  await invalidateInvitations();
-                                                              }
-                                                          }}
+                                                          onClick={() =>
+                                                              setSelected({
+                                                                  type: 'decline',
+                                                                  id: row.id,
+                                                                  name: row.organization.name,
+                                                              })
+                                                          }
                                                       />
                                                       <Button
                                                           label="Accept"
+                                                          size="sm"
                                                           variant="primary"
-                                                          clickAction={async () => {
-                                                              // Keep the page on failure, such as a full Free plan, and refresh either way.
-                                                              try {
-                                                                  await api.post(
-                                                                      `/api/v1/me/invitations/${row.id}/accept`
-                                                                  );
-                                                              } catch (failure) {
-                                                                  reportError(failure);
-                                                              } finally {
-                                                                  await Promise.all([
-                                                                      invalidate(),
-                                                                      invalidateInvitations(),
-                                                                  ]);
-                                                              }
-                                                          }}
+                                                          onClick={() =>
+                                                              setSelected({
+                                                                  type: 'accept',
+                                                                  id: row.id,
+                                                                  name: row.organization.name,
+                                                              })
+                                                          }
                                                       />
                                                   </Stack>
                                               ) : null,
@@ -203,7 +198,54 @@ export default function OrganizationManagement({ presentation }: { presentation:
                     />
                 )}
             </Stack>
-            {selected && <CreateOrganization onClose={closeSelected} invalidate={invalidate} />}
+            {selected?.type === 'create' && <CreateOrganization onClose={closeSelected} invalidate={invalidate} />}
+            {selected && selected.type !== 'create' && (
+                <Dialog
+                    isOpen
+                    purpose="form"
+                    onOpenChange={(open) => {
+                        if (!open) closeSelected();
+                    }}
+                >
+                    <DialogHeader
+                        title={selected.type === 'accept' ? 'Accept invitation' : 'Decline invitation'}
+                        onOpenChange={closeSelected}
+                    />
+                    <Stack gap={3}>
+                        <Text color="secondary">
+                            {selected.type === 'accept'
+                                ? `Accept the invitation to join ${selected.name}?`
+                                : `Decline the invitation to ${selected.name}? You will need a new invitation to join.`}
+                        </Text>
+                        <Stack direction="horizontal" gap={2} justify="end">
+                            <Button label="Cancel" variant="ghost" onClick={closeSelected} />
+                            <Button
+                                label={selected.type === 'accept' ? 'Accept' : 'Decline'}
+                                variant={selected.type === 'accept' ? 'primary' : 'destructive'}
+                                clickAction={async () => {
+                                    // Apply only the confirmed invitation action and report server failures.
+                                    try {
+                                        if (selected.type === 'accept') {
+                                            await api.post(`/api/v1/me/invitations/${selected.id}/accept`);
+                                        } else {
+                                            await api.delete(`/api/v1/me/invitations/${selected.id}`);
+                                        }
+                                    } catch (failure) {
+                                        reportError(failure);
+                                    } finally {
+                                        // Refresh even when the invitation expired or was revoked before confirmation.
+                                        await Promise.all([
+                                            invalidateInvitations(),
+                                            ...(selected.type === 'accept' ? [invalidate()] : []),
+                                        ]);
+                                        closeSelected();
+                                    }
+                                }}
+                            />
+                        </Stack>
+                    </Stack>
+                </Dialog>
+            )}
         </>
     );
 }

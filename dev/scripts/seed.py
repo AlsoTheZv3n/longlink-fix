@@ -1,14 +1,23 @@
 import httpx2
 import asyncio
+import secrets
 from uuid import UUID
 from typing import Literal
 from pathlib import Path
 from pydantic import Field, BaseModel
+from sqlalchemy import select
+from src.database import session
+from src.models.roles import OrganizationRoles
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from src.database.services import users, organizations
+from src.models.organizations import OrganizationInvitationCreate
+from src.database.models.association import UserOrganization
+from src.database.models.organizations import Organization
 
 API_ENVIRONMENT = Path(__file__).resolve().parents[2] / "api" / ".env"
 DEVELOPMENT_COMPUTE = "development compute"
 DEVELOPMENT_ORGANIZATION = "acme-ink"
+INVITED_ORGANIZATION = "acme-studio"
 SAMPLE_SOLUTION = "invoices"
 
 
@@ -68,11 +77,7 @@ class SeedSettings(BaseSettings):
     # Sample release configuration
     SAMPLE_ENVS: dict[str, str] = Field(default_factory=lambda: {"REQUIRED": "development"})
 
-    model_config = SettingsConfigDict(
-        env_file=API_ENVIRONMENT,
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=API_ENVIRONMENT, env_file_encoding="utf-8", extra="ignore")
 
 
 async def development_compute(client: httpx2.AsyncClient) -> Resource | None:
@@ -208,17 +213,45 @@ async def create_sample(client: httpx2.AsyncClient, settings: SeedSettings, orga
     print(f"Sample ready: {settings.PUBLIC_URL}/orgs/{DEVELOPMENT_ORGANIZATION}/solutions/{SAMPLE_SOLUTION}/projects")
 
 
+async def create_invited_organization(settings: SeedSettings) -> None:
+    """Restore a pending invitation for the administrator in a separately owned Organization."""
+
+    # Bootstrap a separate owner without requiring email verification or known login credentials.
+    async with session.session_scope() as database:
+        owner = await users.by_email(database, "seed-owner@example.com")
+        if owner is None:
+            owner = await users.register(database, "Development Owner", "seed-owner@example.com", secrets.token_urlsafe(48))
+
+        # Reuse only the dedicated invitation fixture Organization.
+        organization = await database.scalar(select(Organization).where(Organization.slug == INVITED_ORGANIZATION))
+        if organization is None:
+            organization = await organizations.create(database, "ACME Studio", owner)
+
+        # Reset accepted invitations so every seed run demonstrates the pending state again.
+        administrator = await users.by_email(database, settings.ADMIN_EMAIL)
+        if administrator is None:
+            raise RuntimeError("Development administrator was not found")
+        membership = await database.get(UserOrganization, (administrator.id, organization.id))
+        if membership is not None:
+            await organizations.remove_member(database, organization.id, administrator.id, owner.id)
+
+        # Use the invitation service without delivering development-only email.
+        invitation = OrganizationInvitationCreate(email=administrator.email, role=OrganizationRoles.maintain)
+        await organizations.create_invitation(database, organization.id, invitation, owner.id)
+        await database.commit()
+
+    print(f"Pending invitation to ACME Studio ready: {settings.PUBLIC_URL}/orgs")
+
+
 async def seed(settings: SeedSettings, client: httpx2.AsyncClient) -> None:
     """Reuse local infrastructure and recreate the seeded sample Solution."""
 
     # Authenticate with the administrator that the API initializes during startup.
-    response = await client.post(
-        "/api/v1/auth/password/login",
-        json={"email": settings.ADMIN_EMAIL, "password": settings.ADMIN_PASSWORD},
-    )
+    response = await client.post("/api/v1/auth/password/login", json={"email": settings.ADMIN_EMAIL, "password": settings.ADMIN_PASSWORD})
     response.raise_for_status()
 
     await register_compute(client, settings)
+    await create_invited_organization(settings)
 
     organization = await create_organization(client)
     await create_sample(client, settings, organization)
@@ -228,12 +261,13 @@ async def run(settings: SeedSettings) -> None:
     """Run local seeding through the configured Platform API."""
 
     async with httpx2.AsyncClient(
-        base_url=settings.API_URL,
-        headers={"Origin": settings.PUBLIC_URL},
-        timeout=10,
-        trust_env=False,
+        base_url=settings.API_URL, headers={"Origin": settings.PUBLIC_URL}, timeout=10, trust_env=False
     ) as client:
-        await seed(settings, client)
+        # Release the fixture database connection even when API provisioning fails.
+        try:
+            await seed(settings, client)
+        finally:
+            await session.dispose_engine()
 
 
 def main() -> None:
