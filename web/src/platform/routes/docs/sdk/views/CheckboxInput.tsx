@@ -56,11 +56,6 @@ export default function CheckboxInputPage() {
                     type: '(value: boolean) => void',
                     description: 'Callback fired when the checkbox state changes.',
                 },
-                {
-                    name: 'size',
-                    type: '"sm" | "md"',
-                    description: 'The size of the checkbox. sm for compact layouts, md for default.',
-                },
             ]}
             examples={[
                 {
