@@ -1,4 +1,5 @@
 from src.database.models import mcp as mcp
+from src.database.models import tags as tags
 from src.database.models import users as users
 from src.database.models import computes as computes
 from src.database.models import invoices as invoices

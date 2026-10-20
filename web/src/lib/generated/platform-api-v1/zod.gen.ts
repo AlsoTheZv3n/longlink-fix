@@ -305,6 +305,15 @@ export const zOrganizationStorageUsageResponse = z.object({
 });
 
 /**
+ * OrganizationTagMove
+ *
+ * Move a tab one place within its Organization's saved order.
+ */
+export const zOrganizationTagMove = z.object({
+    direction: z.enum(['up', 'down'])
+});
+
+/**
  * OrganizationUsage
  *
  * Describe current membership usage and its month-end pricing.
@@ -500,6 +509,15 @@ export const zSolutionPatch = z.object({
 });
 
 /**
+ * SolutionTagsWrite
+ *
+ * Replace one Solution's category assignments.
+ */
+export const zSolutionTagsWrite = z.object({
+    tag_ids: z.array(z.uuid()).max(100)
+});
+
+/**
  * SolutionUpdateCheck
  *
  * Expose a candidate and configured names, never environment values.
@@ -545,6 +563,7 @@ export const zOrganizationSolutionSummary = z.object({
     name: z.string(),
     slug: z.string(),
     description: z.string().nullish(),
+    tag_ids: z.array(z.uuid()).optional(),
     status: zStatus,
     deployment_pending: z.boolean(),
     desired_revision_id: z.uuid().nullable(),
@@ -569,6 +588,7 @@ export const zSolutionResponse = z.object({
     name: z.string(),
     slug: z.string(),
     description: z.string().nullable(),
+    tag_ids: z.array(z.uuid()).optional(),
     status: zStatus,
     deployment_pending: z.boolean(),
     desired_revision_id: z.uuid().nullable(),
@@ -585,6 +605,55 @@ export const zSolutionResponse = z.object({
 export const zPageSolutionResponse = z.object({
     items: z.array(zSolutionResponse),
     total: z.int().gte(0)
+});
+
+/**
+ * TagIcon
+ *
+ * Limit tab icons to the supported Lucide choices.
+ */
+export const zTagIcon = z.enum([
+    'tag',
+    'book-open',
+    'users',
+    'folder',
+    'layers',
+    'wrench',
+    'calendar',
+    'building-2',
+    'chart-no-axes-combined',
+    'app-window',
+    'briefcase-business',
+    'clipboard-list'
+]);
+
+/**
+ * OrganizationTagWrite
+ *
+ * Validate an editable shared tab name.
+ */
+export const zOrganizationTagWrite = z.object({
+    icon: zTagIcon,
+    name: z.string().min(1).max(64)
+});
+
+/**
+ * TagKind
+ *
+ * Keep tab filtering independent of its editable name.
+ */
+export const zTagKind = z.enum(['all', 'tag']);
+
+/**
+ * OrganizationTagResponse
+ *
+ * Expose category identity and its display name.
+ */
+export const zOrganizationTagResponse = z.object({
+    id: z.uuid(),
+    icon: zTagIcon,
+    kind: zTagKind,
+    name: z.string()
 });
 
 /**

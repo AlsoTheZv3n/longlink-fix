@@ -39,7 +39,9 @@ export default function Registries({ base, canMaintain }: { base: string; canMai
                     <Heading level={2} hasCapsize>
                         Private registries
                     </Heading>
-                    {canMaintain && <Button label="Add registry" onClick={() => setAction({ kind: 'create' })} />}
+                    {canMaintain && (
+                        <Button label="Add registry" size="sm" onClick={() => setAction({ kind: 'create' })} />
+                    )}
                 </Stack>
                 <Divider />
                 <Table

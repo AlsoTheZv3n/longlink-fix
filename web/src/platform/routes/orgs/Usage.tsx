@@ -17,7 +17,11 @@ export default function Usage({ base }: { base: string }) {
     // Retain the existing settings shell and its spacing.
     return (
         <Stack gap={4}>
-            <Heading level={2}>Usage</Heading>
+            <Stack justify="end" minHeight="var(--size-element-md)">
+                <Heading level={2} hasCapsize>
+                    Usage
+                </Heading>
+            </Stack>
             <Divider />
             <Card padding={0} className="overflow-hidden">
                 <Stack gap={0}>

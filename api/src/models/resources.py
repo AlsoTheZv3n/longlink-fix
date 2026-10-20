@@ -32,6 +32,9 @@ class OrganizationSolutionSummary(BaseModel):
     slug: str
     description: str | None = None
 
+    # Categories
+    tag_ids: list[UUID] = Field(default_factory=list)
+
     # State
     status: Status
     deployment_pending: bool
