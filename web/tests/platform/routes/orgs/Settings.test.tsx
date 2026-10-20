@@ -1,14 +1,20 @@
 // @vitest-environment happy-dom
 import { it, expect } from 'vitest';
-import { renderPlatform } from '../../render';
 import Settings from '@/platform/routes/orgs/Settings';
+import { renderPlatform, membership } from '../../render';
 
 it('renders General without loading inactive billing or registry resources', () => {
     // Act
-    const output = renderPlatform(<Settings />, '/orgs/acme/settings', [], '/orgs/:organization/settings');
+    const output = renderPlatform(
+        <Settings />,
+        '/orgs/acme/settings',
+        [[`/api/v1/organizations/${membership.organization.id}/tags`, []]],
+        '/orgs/:organization/settings'
+    );
 
     // Assert
     expect(output.textContent).toContain('Acme');
     expect(output.textContent).toContain('General');
-    expect(output.querySelector('table')).toBeNull();
+    expect(output.textContent).toContain('Tabs');
+    expect(output.querySelector('table')).not.toBeNull();
 });

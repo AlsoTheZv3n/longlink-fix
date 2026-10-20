@@ -17,6 +17,7 @@ export type NavigationTab = {
 
 type PlatformProps = {
     action: ReactNode;
+    activeTab?: string;
     breadcrumb?: ReactNode;
     children: ReactNode;
     /** Lets compact application views use AppShell's header-aware scroll region. */
@@ -40,7 +41,7 @@ function findActiveTab(tabs: readonly NavigationTab[], pathname: string): string
 }
 
 /** Renders the shared Platform frame with contextual navigation and actions. */
-export default function Platform({ action, breadcrumb, children, height = 'auto', tabs }: PlatformProps) {
+export default function Platform({ action, activeTab, breadcrumb, children, height = 'auto', tabs }: PlatformProps) {
     const { pathname } = useLocation();
 
     // Keep route selection outside the presentation frame so previews need no account or router state.
@@ -55,7 +56,7 @@ export default function Platform({ action, breadcrumb, children, height = 'auto'
                         aria-label="Section navigation"
                         onChange={() => undefined}
                         size="sm"
-                        value={findActiveTab(tabs, pathname) ?? ''}
+                        value={activeTab ?? findActiveTab(tabs, pathname) ?? ''}
                     >
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
@@ -87,7 +88,7 @@ export function PlatformFrame({
     className,
     height = 'auto',
     navigation,
-}: Omit<PlatformProps, 'tabs'> & { className?: string; navigation?: ReactNode }) {
+}: Omit<PlatformProps, 'tabs' | 'activeTab'> & { className?: string; navigation?: ReactNode }) {
     return (
         <AppShell
             className={className}

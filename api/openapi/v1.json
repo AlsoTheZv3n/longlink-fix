@@ -2379,6 +2379,407 @@
         }
       }
     },
+    "/api/v1/organizations/{organization_id}/tags": {
+      "get": {
+        "summary": "Get Tags",
+        "description": "List categories visible to every Organization member.",
+        "operationId": "get_tags_api_v1_organizations__organization_id__tags_get",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationTagResponse"
+                  },
+                  "title": "Response Get Tags Api V1 Organizations  Organization Id  Tags Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Tag",
+        "description": "Create a shared category without deploying any Solutions.",
+        "operationId": "create_tag_api_v1_organizations__organization_id__tags_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationTagWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationTagResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/tags/{tag_id}": {
+      "patch": {
+        "summary": "Update Tag",
+        "description": "Update a category's name and icon while preserving its assignments.",
+        "operationId": "update_tag_api_v1_organizations__organization_id__tags__tag_id__patch",
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tag Id"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationTagWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationTagResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Tag",
+        "description": "Remove only the category and its assignments.",
+        "operationId": "delete_tag_api_v1_organizations__organization_id__tags__tag_id__delete",
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tag Id"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/tags/{tag_id}/move": {
+      "post": {
+        "summary": "Move Tag",
+        "description": "Persist a one-place tab move without changing its contents.",
+        "operationId": "move_tag_api_v1_organizations__organization_id__tags__tag_id__move_post",
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tag Id"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationTagMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/solutions/{solution_id}/tags": {
+      "patch": {
+        "summary": "Assign Tags",
+        "description": "Replace a Solution's shared categories atomically.",
+        "operationId": "assign_tags_api_v1_organizations__organization_id__solutions__solution_id__tags_patch",
+        "parameters": [
+          {
+            "name": "solution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Solution Id"
+            }
+          },
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "longlink_auth",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Longlink Auth"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolutionTagsWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations/{organization_id}/cards": {
       "get": {
         "summary": "Get Cards",
@@ -4210,6 +4611,14 @@
             ],
             "title": "Description"
           },
+          "tag_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Tag Ids"
+          },
           "status": {
             "$ref": "#/components/schemas/Status"
           },
@@ -4274,6 +4683,72 @@
         ],
         "title": "OrganizationStorageUsageResponse",
         "description": "Report current logical object usage and quota for one Organization bucket."
+      },
+      "OrganizationTagMove": {
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Direction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "direction"
+        ],
+        "title": "OrganizationTagMove",
+        "description": "Move a tab one place within its Organization's saved order."
+      },
+      "OrganizationTagResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/TagIcon"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TagKind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "icon",
+          "kind",
+          "name"
+        ],
+        "title": "OrganizationTagResponse",
+        "description": "Expose category identity and its display name."
+      },
+      "OrganizationTagWrite": {
+        "properties": {
+          "icon": {
+            "$ref": "#/components/schemas/TagIcon"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "icon",
+          "name"
+        ],
+        "title": "OrganizationTagWrite",
+        "description": "Validate an editable shared tab name."
       },
       "OrganizationUsage": {
         "properties": {
@@ -4973,6 +5448,14 @@
             ],
             "title": "Description"
           },
+          "tag_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Tag Ids"
+          },
           "status": {
             "$ref": "#/components/schemas/Status"
           },
@@ -5046,6 +5529,25 @@
         "title": "SolutionResponse",
         "description": "Represent one solution in API responses."
       },
+      "SolutionTagsWrite": {
+        "properties": {
+          "tag_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Tag Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag_ids"
+        ],
+        "title": "SolutionTagsWrite",
+        "description": "Replace one Solution's category assignments."
+      },
       "SolutionUpdateCheck": {
         "properties": {
           "revision_id": {
@@ -5100,6 +5602,34 @@
         ],
         "title": "Status",
         "description": "Lifecycle states shared by Platform-managed resources."
+      },
+      "TagIcon": {
+        "type": "string",
+        "enum": [
+          "tag",
+          "book-open",
+          "users",
+          "folder",
+          "layers",
+          "wrench",
+          "calendar",
+          "building-2",
+          "chart-no-axes-combined",
+          "app-window",
+          "briefcase-business",
+          "clipboard-list"
+        ],
+        "title": "TagIcon",
+        "description": "Limit tab icons to the supported Lucide choices."
+      },
+      "TagKind": {
+        "type": "string",
+        "enum": [
+          "all",
+          "tag"
+        ],
+        "title": "TagKind",
+        "description": "Keep tab filtering independent of its editable name."
       },
       "TokenExchange": {
         "properties": {

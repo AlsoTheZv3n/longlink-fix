@@ -12,6 +12,7 @@ from src.database.models.base import AuditTable
 
 # Import relationship targets only during type checking.
 if TYPE_CHECKING:
+    from src.database.models.tags import SolutionTag
     from src.database.models.organizations import Organization
 
 
@@ -24,6 +25,7 @@ class Solution(AuditTable, table=True):
     __tablename__: ClassVar[str] = "solutions"
     __table_args__ = (
         UniqueConstraint("organization_id", "slug"),
+        UniqueConstraint("organization_id", "id", name="uq_solutions_organization_id"),
         ForeignKeyConstraint(
             ["id", "desired_revision_id"], ["revisions.solution_id", "revisions.id"], name="solution_desired_revision", use_alter=True
         ),
@@ -60,6 +62,7 @@ class Solution(AuditTable, table=True):
 
     # Relationships
     organization: "Organization" = Relationship()
+    tag_assignments: list["SolutionTag"] = Relationship(sa_relationship_kwargs={"lazy": "raise", "passive_deletes": "all"})
     desired_revision: "Revision" = Relationship(
         sa_relationship_kwargs={
             "primaryjoin": "Solution.desired_revision_id == Revision.id",
@@ -74,6 +77,12 @@ class Solution(AuditTable, table=True):
             "lazy": "raise",
         }
     )
+
+    @property
+    def tag_ids(self) -> list[UUID]:
+        """Expose category identities from the loaded assignments."""
+
+        return [assignment.tag_id for assignment in self.tag_assignments]
 
     @property
     def deployed_version(self) -> str | None:

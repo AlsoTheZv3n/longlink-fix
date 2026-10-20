@@ -24,10 +24,12 @@ export default function PaymentMethods({ base, canManage }: { base: string; canM
 
     return (
         <Stack gap={4}>
-            <Stack direction="horizontal" align="center" justify="between" gap={3}>
-                <Heading level={2}>Payment Methods</Heading>
+            <Stack direction="horizontal" justify="between" align="end" wrap="wrap" minHeight="var(--size-element-md)">
+                <Heading level={2} hasCapsize>
+                    Payment Methods
+                </Heading>
                 {usage.stripe_enabled && canManage && (
-                    <Button label="Add card" variant="primary" clickAction={registerCard} />
+                    <Button label="Add card" size="sm" variant="primary" clickAction={registerCard} />
                 )}
             </Stack>
             <Divider />

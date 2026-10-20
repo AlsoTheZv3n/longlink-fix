@@ -8,7 +8,10 @@ it('does not offer creation to readers of Organization settings', () => {
     const output = renderPlatform(
         <Management organization={membership.organization} canMaintain={false} presentation="settings" />,
         '/',
-        [[`/api/v1/organizations/${membership.organization.id}/solutions`, []]]
+        [
+            [`/api/v1/organizations/${membership.organization.id}/solutions`, []],
+            [`/api/v1/organizations/${membership.organization.id}/tags`, []],
+        ]
     );
 
     // Assert
