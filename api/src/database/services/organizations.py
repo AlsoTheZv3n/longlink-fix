@@ -9,6 +9,7 @@ from sqlalchemy import update as sql_update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only, joinedload, selectinload, contains_eager
 from collections.abc import Sequence
+from src.models.tags import TagIcon, TagKind
 from src.models.roles import OrganizationRoles
 from sqlalchemy.engine import CursorResult
 from src.database.types import attr
@@ -17,6 +18,7 @@ from src.database.services import operations
 from src.models.operations import OperationKind
 from src.models.pagination import Pagination
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.database.models.tags import OrganizationTag
 from src.models.organizations import OrganizationInvitationCreate
 from src.database.models.users import User
 from src.database.models.computes import ComputeRegistry
@@ -291,6 +293,7 @@ async def solutions(session: AsyncSession, organization_id: UUID) -> Sequence[So
             ),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.failed), raiseload=True),
             selectinload(attr(Solution.deployed_revision)).load_only(attr(Revision.version), raiseload=True),
+            selectinload(attr(Solution.tag_assignments)),
         )
         .where(col(Solution.organization_id) == organization_id, col(Solution.deleted_at).is_(None))
         .order_by(col(Solution.created_at))
@@ -523,6 +526,10 @@ async def create(session: AsyncSession, name: str, user: User) -> Organization:
         async with session.begin_nested():
             session.add(UserOrganization(user_id=user.id, organization_id=organization.id, role=OrganizationRoles.owner))
             session.add(organization)
+            await session.flush()
+
+            # Store the All filter once so later renames and deletions remain permanent.
+            session.add(OrganizationTag(organization_id=organization.id, name="All", kind=TagKind.all, icon=TagIcon.app_window))
             await session.flush()
     # Keep Organization uniqueness collisions at the service boundary as an API conflict.
     except IntegrityError:

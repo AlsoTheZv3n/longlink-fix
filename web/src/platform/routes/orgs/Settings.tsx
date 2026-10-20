@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import Usage from './Usage';
 import { api } from '@/lib/api';
+import TabsSection from './Tags';
 import { useState } from 'react';
 import Invoices from './Invoices';
 import Registries from './Registries';
@@ -163,6 +164,7 @@ export default function OrganizationSettings() {
                             <GeneralSection
                                 base={base}
                                 name={membership.organization.name}
+                                canMaintain={canMaintain}
                                 canDelete={membership.role === 'owner'}
                             />
                         )}
@@ -173,8 +175,18 @@ export default function OrganizationSettings() {
     );
 }
 
-/** Shows owner-only organization deletion with explicit confirmation. */
-function GeneralSection({ base, name, canDelete }: { base: string; name: string; canDelete: boolean }) {
+/** Shows shared navigation categories and owner-only organization deletion. */
+function GeneralSection({
+    base,
+    name,
+    canMaintain,
+    canDelete,
+}: {
+    base: string;
+    name: string;
+    canMaintain: boolean;
+    canDelete: boolean;
+}) {
     const [isConfirming, setIsConfirming] = useState(false);
 
     return (
@@ -185,6 +197,7 @@ function GeneralSection({ base, name, canDelete }: { base: string; name: string;
                 </Heading>
             </Stack>
             <Divider />
+            <TabsSection base={base} canMaintain={canMaintain} />
             {canDelete && (
                 <Stack gap={3}>
                     <Stack className="text-red-600 dark:text-red-400">
@@ -406,7 +419,7 @@ function InvitationsSection({ base, canMaintain }: { base: string; canMaintain: 
                     <Heading level={2} hasCapsize>
                         Invitations
                     </Heading>
-                    {canMaintain && <Button label="Invite" onClick={() => setInviting(true)} />}
+                    {canMaintain && <Button label="Invite" size="sm" onClick={() => setInviting(true)} />}
                 </Stack>
                 <Divider />
                 <Table

@@ -1,11 +1,21 @@
 // @vitest-environment happy-dom
 import { it, expect } from 'vitest';
-import { renderPlatform } from '../render';
 import Layout from '@/platform/layouts/Organization';
+import { renderPlatform, membership } from '../render';
 
 it('scopes organization navigation to the selected slug', () => {
     // Act
-    const output = renderPlatform(<Layout />, '/orgs/acme', [], '/orgs/:organization');
+    const output = renderPlatform(
+        <Layout />,
+        '/orgs/acme',
+        [
+            [
+                `/api/v1/organizations/${membership.organization.id}/tags`,
+                [{ id: '00000000-0000-4000-8000-000000000003', name: 'All', kind: 'all', icon: 'app-window' }],
+            ],
+        ],
+        '/orgs/:organization'
+    );
 
     // Assert
     expect(output.querySelector('a[href="/orgs/acme"]')).not.toBeNull();

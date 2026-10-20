@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { api } from '@/lib/api';
 import { useState } from 'react';
+import { SolutionTags } from './Tags';
 import { useApi } from '@/lib/hooks/use-api';
 import CreateSolution from './CreateSolution';
 import { Link } from '@astryxdesign/core/Link';
 import { Text } from '@astryxdesign/core/Text';
+import { useSearchParams } from 'react-router';
 import { Dialog } from '@/components/ui/Dialog';
 import { OpenAI } from '@/components/svg/OpenAI';
 import { Button } from '@astryxdesign/core/Button';
@@ -20,12 +22,13 @@ import { Table, proportional } from '@astryxdesign/core/Table';
 import DeploymentReview, { type Update } from './DeploymentReview';
 import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 import { Layout, LayoutPanel, LayoutContent } from '@astryxdesign/core/Layout';
-import { ExternalLink, Logs, Plug, Plus, RefreshCw, Trash } from 'lucide-react';
+import { ExternalLink, Logs, Plug, Plus, RefreshCw, Tags, Trash } from 'lucide-react';
 
 type Solution = z.output<typeof schemas.zOrganizationSolutionSummary>;
 
 type SolutionAction =
     | { kind: 'create' }
+    | { kind: 'tags'; solution: Solution }
     | ({ kind: 'update' } & Update)
     | { kind: 'logs'; id: string }
     | { kind: 'mcp' | 'delete'; item: { id: string; name: string } };
@@ -46,7 +49,21 @@ export default function SolutionManagement({
 
     // Keep solution refreshes scoped to the section's resource.
     const [solutions, invalidateSolutions] = useApi(`${base}/solutions`, schemas.zOrganizationSolutionSummary.array());
+    const [tags] = useApi(`${base}/tags`, schemas.zOrganizationTagResponse.array());
+    const [searchParams] = useSearchParams();
     const onboarding = presentation === 'overview' && solutions.length === 0;
+
+    // Deleted or unknown tab links select the first remaining saved filter.
+    const requestedTag = searchParams.get('tag');
+
+    const activeTag = tags.find((tag) => tag.id === requestedTag) ?? tags[0];
+
+    const categoryName = activeTag?.name ?? 'Solutions';
+
+    const visibleSolutions =
+        presentation === 'settings' || activeTag?.kind === 'all'
+            ? solutions
+            : solutions.filter((solution) => activeTag && solution.tag_ids?.includes(activeTag.id));
 
     /** Closes only this selection, leaving a replacement dialog open after an older operation finishes. */
     function closeSelected() {
@@ -87,6 +104,7 @@ export default function SolutionManagement({
                             {canMaintain && (
                                 <Button
                                     label="New Solution"
+                                    size="sm"
                                     onClick={() =>
                                         setSelected((current) =>
                                             current?.kind === 'create' ? current : { kind: 'create' }
@@ -99,7 +117,7 @@ export default function SolutionManagement({
                     </>
                 ) : solutions.length > 0 ? (
                     <Stack direction="horizontal" justify="between" align="center" wrap="wrap" className="min-h-12">
-                        <Heading level={1}>Solutions</Heading>
+                        <Heading level={1}>{categoryName}</Heading>
                         {canMaintain && (
                             <Button
                                 label="New Solution"
@@ -112,7 +130,11 @@ export default function SolutionManagement({
                         )}
                     </Stack>
                 ) : null}
-                {onboarding ? (
+                {presentation === 'overview' && tags.length === 0 ? (
+                    <Text as="p" color="secondary">
+                        No tabs configured. Add tabs in organization settings under General.
+                    </Text>
+                ) : onboarding ? (
                     <Stack gap={6} align="center">
                         <img
                             src="/images/solution.png"
@@ -153,9 +175,13 @@ export default function SolutionManagement({
                             )}
                         </Stack>
                     </Stack>
+                ) : presentation === 'overview' && visibleSolutions.length === 0 ? (
+                    <Text as="p" color="secondary">
+                        No Solutions in this category.
+                    </Text>
                 ) : (
                     <Table
-                        data={solutions}
+                        data={visibleSolutions}
                         idKey="id"
                         hasHover
                         density="compact"
@@ -196,6 +222,16 @@ export default function SolutionManagement({
                             ...(presentation === 'settings'
                                 ? [
                                       {
+                                          key: 'tag_ids',
+                                          header: 'Tags',
+                                          width: proportional(0.5),
+                                          renderCell: (row: Solution) =>
+                                              tags
+                                                  .filter((tag) => row.tag_ids?.includes(tag.id))
+                                                  .map((tag) => tag.name)
+                                                  .join(', ') || '—',
+                                      },
+                                      {
                                           key: 'deployed_version',
                                           header: 'Version',
                                           align: 'end' as const,
@@ -216,6 +252,12 @@ export default function SolutionManagement({
                                                   alignment="end"
                                                   size="sm"
                                                   items={[
+                                                      {
+                                                          id: 'tags',
+                                                          label: 'Tags',
+                                                          icon: <Tags className="size-4" aria-hidden="true" />,
+                                                          onClick: () => setSelected({ kind: 'tags', solution: row }),
+                                                      },
                                                       ...(row.desired_revision_id &&
                                                       !row.deployment_pending &&
                                                       row.status !== 'creating'
@@ -285,6 +327,16 @@ export default function SolutionManagement({
             </Stack>
             {selected?.kind === 'create' && (
                 <CreateSolution organizationId={organization.id} onSuccess={onSuccess} onClose={closeSelected} />
+            )}
+            {selected?.kind === 'tags' && (
+                <SolutionTags
+                    key={selected.solution.id}
+                    base={base}
+                    tags={tags}
+                    solution={selected.solution}
+                    onSuccess={onSuccess}
+                    onClose={closeSelected}
+                />
             )}
             {selected?.kind === 'update' && (
                 <DeploymentReview key={selected.key} update={selected} onSuccess={onSuccess} onClose={closeSelected} />

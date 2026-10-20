@@ -46,6 +46,7 @@ async def fetch(session: AsyncSession, pagination: Pagination, search: str = "")
             defer(attr(Solution.secrets)),
             selectinload(attr(Solution.desired_revision)).load_only(attr(Revision.image), attr(Revision.failed), raiseload=True),
             selectinload(attr(Solution.deployed_revision)).load_only(attr(Revision.version), raiseload=True),
+            selectinload(attr(Solution.tag_assignments)),
         )
         .order_by(col(Solution.created_at).desc(), col(Solution.id).desc())
         .offset(pagination.offset)

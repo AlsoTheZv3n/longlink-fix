@@ -13,7 +13,11 @@ import * as schemas from '@/lib/generated/platform-api-v1/zod.gen';
 export default function Invoices({ base, canManage }: { base: string; canManage: boolean }) {
     return (
         <Stack gap={4}>
-            <Heading level={2}>Invoices</Heading>
+            <Stack justify="end" minHeight="var(--size-element-md)">
+                <Heading level={2} hasCapsize>
+                    Invoices
+                </Heading>
+            </Stack>
             <Divider />
             {canManage ? (
                 <ApiBoundary fallback={<Text color="secondary">Loading invoices…</Text>}>

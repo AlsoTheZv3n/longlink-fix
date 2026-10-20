@@ -65,7 +65,11 @@ export default function OrganizationManagement({ presentation }: { presentation:
                             <Heading level={2} hasCapsize>
                                 Organizations
                             </Heading>
-                            <Button label="Create Organization" onClick={() => setSelected({ type: 'create' })} />
+                            <Button
+                                label="Create Organization"
+                                size="sm"
+                                onClick={() => setSelected({ type: 'create' })}
+                            />
                         </Stack>
                         <Divider />
                     </>

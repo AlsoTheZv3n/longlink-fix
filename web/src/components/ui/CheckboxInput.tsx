@@ -8,7 +8,6 @@ export function CheckboxInput(
         value?: boolean | 'indeterminate';
         defaultChecked?: boolean;
         onChange?: (value: boolean) => void;
-        size?: 'sm' | 'md';
     }
 ) {
     // Astryx's underlying checkbox retains omission semantics and native validation.
@@ -24,7 +23,7 @@ export function CheckboxInput(
             {...control}
             {...field}
             htmlName={props.name}
-            size={props.size ?? 'md'}
+            size="sm"
             isReadOnly={false}
             isLabelHidden={false}
             isRequired={props.required ?? false}
